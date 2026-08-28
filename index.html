@@ -1,9 +1,19 @@
+<!-- ==========================================
+  変更履歴（Update History）V3.0(←V2.0) 2026/08/29 8:00
+
+ご提示いただいたオセロのプログラムについて、ご要望通り以下の2点を修正しました。
+
+1.  タイトルの変更（<title>タグと<h1>タグを「Othello 2026 AI先生」に変更）
+2.  コンピュータの強さの初期値変更（レベル8からレベル5が最初に選択されるように変更）
+
+========================================== -->
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI王 v2 ― 本格オセロAI化</title>
+    <title>Othello 2026 AI先生</title>
 
     <!-- おしゃれな欧文・数字フォント (Inter) の読み込み -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -622,7 +632,7 @@
 <body>
 
     <header>
-        <h1>AI王 v2</h1>
+        <h1>Othello 2026 AI先生</h1>
     </header>
 
     <div class="app-container">
@@ -652,10 +662,10 @@
                         <option value="2">2</option>
                         <option value="3">3</option>
                         <option value="4">4</option>
-                        <option value="5">5（普通）</option>
+                        <option value="5" selected>5（普通）</option>
                         <option value="6">6</option>
                         <option value="7">7</option>
-                        <option value="8" selected>8（強豪）</option>
+                        <option value="8">8（強豪）</option>
                         <option value="9">9</option>
                         <option value="10">10（最強）</option>
                     </select>
