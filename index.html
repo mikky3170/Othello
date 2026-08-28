@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI王 v2 ― 本格オセロAI化</title>
+
+    <!-- おしゃれな欧文・数字フォント (Inter) の読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', "Yu Gothic UI", "Yu Gothic", "YuGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: radial-gradient(circle at 50% -10%, #2a2f38 0%, #14161b 55%, #0a0b0d 100%);
+            color: #e9e2d0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 12px 28px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 0.22em;
+            background: linear-gradient(135deg, #fff2cc 0%, #e9d9a8 50%, #c3a669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            max-width: 1040px;
+            width: 100%;
+        }
+
+        .control-panel {
+            flex: 1;
+            min-width: 300px;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(233, 217, 168, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(6px);
+        }
+
+        #status {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #f1e6c4;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            margin-bottom: 12px;
+            min-height: 24px;
+        }
+
+        .scoreboard {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 10px;
+            padding: 10px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .score-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .score-box .label {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            color: #cfc7b0;
+        }
+
+        .score-box .value {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-box {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            color: #a09885;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .setting-label {
+            font-size: 13.5px;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            color: #cfc7b0;
+        }
+
+        select {
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #6b5b3a;
+            background-color: #1f2127;
+            color: #e9e2d0;
+            outline: none;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+        }
+
+        #hintMode {
+            border-color: #4a9aa0;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            letter-spacing: 0.04em;
+        }
+
+        #guideButton,
+        #tipsButton {
+            padding: 8px 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            border: 1px solid #8a6a3a;
+            background: linear-gradient(180deg, #3a3d44 0%, #22242a 100%);
+            color: #e9d9a8;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        #guideButton:hover,
+        #tipsButton:hover {
+            background: linear-gradient(180deg, #4a4d55 0%, #2c2e34 100%);
+            transform: translateY(-1px);
+        }
+
+        #hintButton {
+            grid-column: span 2;
+            padding: 10px;
+            font-size: 13.5px;
+            font-weight: 700;
+            border: 1px solid #4a9aa0;
+            background: linear-gradient(180deg, #2e4448 0%, #1c2b2e 100%);
+            color: #cdeef1;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        #hintButton:hover:not(:disabled) {
+            background: linear-gradient(180deg, #3a5458 0%, #24363a 100%);
+            transform: translateY(-1px);
+        }
+
+        #hintButton:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .bottom-action-area {
+            position: relative;
+            width: 100%;
+            min-height: 48px;
+        }
+
+        #restartButton {
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            border: 1px solid #8a6a3a;
+            background: linear-gradient(180deg, #4a4d55 0%, #2a2c31 100%);
+            color: #e9d9a8;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        #restartButton:hover {
+            background: linear-gradient(180deg, #5c5f68 0%, #35373d 100%);
+            transform: translateY(-1px);
+        }
+
+        #hintMessage {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.6;
+            letter-spacing: 0.02em;
+            border: 1px solid #5abec8;
+            border-radius: 8px;
+            background: rgba(12, 22, 26, 0.98);
+            color: #dff3f5;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 20;
+        }
+
+        #hintMessage.show {
+            display: block;
+        }
+
+        #hintMessage .hint-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        #hintMessage .hint-title { 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: #a8ecf2; 
+        }
+
+        #hintMessage .hint-coord { 
+            font-size: 17px; 
+            font-weight: 700; 
+            letter-spacing: 0.08em;
+            color: #f1e6c4; 
+        }
+
+        #hintMessage .hint-close {
+            width: 22px; 
+            height: 22px; 
+            border-radius: 50%; 
+            border: 1px solid #4a9aa0;
+            background: rgba(255, 255, 255, 0.08); 
+            color: #dff3f5; 
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+
+        #hintMessage .hint-reason-list { 
+            margin: 0; 
+            padding-left: 1.1em; 
+        }
+
+        #hintMessage .hint-reason-list li {
+            margin-bottom: 4px;
+        }
+
+        .board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #board {
+            width: min(88vw, 440px);
+            height: min(88vw, 440px);
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            background: radial-gradient(ellipse at 35% 30%, #1f8a4c 0%, #0f6d38 45%, #0a5b2e 75%, #084923 100%);
+            border: 8px solid;
+            border-image: linear-gradient(135deg, #6b4a2a, #3d2a17, #6b4a2a) 1;
+            border-radius: 6px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), inset 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .cell {
+            position: relative;
+            border: 1px solid rgba(0, 0, 0, 0.35);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            perspective: 400px;
+            background-image:
+                repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px),
+                radial-gradient(ellipse at center, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.12) 100%);
+            transition: background-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .last-move-cell {
+            box-shadow: inset 0 0 0 3px rgba(224, 70, 60, 0.9), inset 0 0 12px rgba(224, 70, 60, 0.4);
+        }
+
+        .can-place {
+            background-image:
+                radial-gradient(circle at center, rgba(255, 235, 170, 0.32) 0%, rgba(255, 235, 170, 0.12) 45%, transparent 72%),
+                repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px);
+            box-shadow: inset 0 0 14px rgba(255, 235, 170, 0.25);
+            animation: glow-pulse 1.8s ease-in-out infinite;
+        }
+
+        .can-place:hover {
+            background-image:
+                radial-gradient(circle at center, rgba(255, 235, 170, 0.55) 0%, rgba(255, 235, 170, 0.2) 50%, transparent 75%),
+                repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px);
+            box-shadow: inset 0 0 22px rgba(255, 235, 170, 0.45);
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.15); }
+        }
+
+        .hint-cell {
+            box-shadow: inset 0 0 0 3px rgba(90, 210, 220, 0.95), inset 0 0 16px rgba(90, 210, 220, 0.5), 0 0 12px rgba(90, 210, 220, 0.5);
+            animation: hint-pulse 1.4s ease-in-out infinite;
+        }
+
+        .hint-cell::after {
+            content: "💡";
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 11px;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+            pointer-events: none;
+        }
+
+        @keyframes hint-pulse {
+            0%, 100% { box-shadow: inset 0 0 0 3px rgba(90, 210, 220, 0.85), inset 0 0 12px rgba(90, 210, 220, 0.4); }
+            50% { box-shadow: inset 0 0 0 3px rgba(140, 235, 245, 1), inset 0 0 22px rgba(140, 235, 245, 0.65); }
+        }
+
+        .can-place::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 32% 28%, rgba(140, 140, 145, 0.55) 0%, rgba(35, 35, 38, 0.55) 55%, rgba(0, 0, 0, 0.55) 100%);
+            box-shadow: 0 8px 14px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translate(-50%, -42%) scale(0.8);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+
+        .can-place:hover::before {
+            opacity: 0.9;
+            transform: translate(-50%, -58%) scale(1);
+        }
+
+        .stone {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .stone-new {
+            animation: place-stone 0.35s ease-out;
+        }
+
+        @keyframes place-stone {
+            from { transform: scale(0.3); opacity: 0.3; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .stone-flip-wrap { transform-style: preserve-3d; }
+        .stone-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: flip-rotate 0.6s ease forwards;
+        }
+
+        .stone-face {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            backface-visibility: hidden;
+        }
+
+        .stone-face-back { transform: rotateY(180deg); }
+
+        @keyframes flip-rotate {
+            0% { transform: translateY(0) scale(1) rotateY(0deg); }
+            50% { transform: translateY(-16px) scale(1.06) rotateY(90deg); }
+            100% { transform: translateY(0) scale(1) rotateY(180deg); }
+        }
+
+        .black {
+            background: radial-gradient(circle at 32% 28%, #6a6a6e 0%, #2a2a2c 30%, #0a0a0b 68%, #000000 100%);
+            box-shadow: inset 0 -3px 5px rgba(255, 255, 255, 0.08), inset 0 3px 4px rgba(255, 255, 255, 0.22), inset 0 -6px 8px rgba(0, 0, 0, 0.6), 0 5px 8px rgba(0, 0, 0, 0.55);
+        }
+
+        .white {
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f2efe6 32%, #d9d3c2 68%, #c3baa2 100%);
+            box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.1), inset 0 3px 5px rgba(255, 255, 255, 0.85), inset 0 -6px 8px rgba(150, 140, 115, 0.35), 0 5px 8px rgba(0, 0, 0, 0.45);
+        }
+
+        .stone::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: -5px;
+            width: 78%;
+            height: 20%;
+            transform: translateX(-50%);
+            background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 55%, transparent 80%);
+            border-radius: 50%;
+            filter: blur(2px);
+            z-index: -1;
+        }
+
+        #guideOverlay, #tipsOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 12px;
+            background: rgba(5, 5, 6, 0.75);
+            backdrop-filter: blur(4px);
+        }
+
+        #guideOverlay.show, #tipsOverlay.show { display: flex; }
+
+        #guideModal, #tipsModal {
+            width: 100%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            text-align: left;
+            color: #e9e2d0;
+            background: linear-gradient(160deg, #22242b 0%, #16171c 100%);
+            border: 1px solid #6b5b3a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        .guide-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(233, 217, 168, 0.25);
+        }
+
+        .guide-header h2 {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #e9d9a8;
+        }
+
+        #guideCloseButton, #tipsCloseButton {
+            width: 28px; height: 28px; font-size: 14px; cursor: pointer;
+            color: #e9e2d0; background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(233, 217, 168, 0.3); border-radius: 50%;
+        }
+
+        .phase-card, .level-card {
+            border: 1px solid rgba(233, 217, 168, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .level-card.level-card-active {
+            border-color: #e9d9a8;
+            background: rgba(233, 217, 168, 0.09);
+        }
+
+        .phase-badge, .level-badge {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: #cfa855;
+        }
+
+        .phase-title, .level-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: #f1e6c4;
+        }
+
+        .phase-desc-list {
+            margin: 0;
+            padding-left: 1.2em;
+            font-size: 13px;
+            line-height: 1.65;
+            letter-spacing: 0.02em;
+        }
+
+        .level-meta {
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #b9b09a;
+            margin-bottom: 6px;
+            display: flex;
+            gap: 12px;
+            letter-spacing: 0.03em;
+        }
+
+        .level-desc {
+            font-size: 13px;
+            line-height: 1.65;
+            letter-spacing: 0.02em;
+        }
+
+        .guide-terms {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(233, 217, 168, 0.25);
+        }
+
+        .guide-terms h3 {
+            font-size: 14.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #e9d9a8;
+            margin-bottom: 8px;
+        }
+
+        .guide-terms dt {
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: #f1e6c4;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .guide-terms dd {
+            margin: 2px 0 0;
+            font-size: 12.5px;
+            line-height: 1.55;
+            letter-spacing: 0.02em;
+            color: #cfc7b0;
+        }
+
+        .guide-footer {
+            margin: 16px 0 4px;
+            padding: 10px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-align: center;
+            color: #f1e6c4;
+            background: rgba(233, 217, 168, 0.08);
+            border: 1px solid rgba(233, 217, 168, 0.25);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>AI王 v2</h1>
+    </header>
+
+    <div class="app-container">
+        <div class="control-panel">
+            <div class="card">
+                <div id="status">あなたの番です…</div>
+                
+                <div class="scoreboard">
+                    <div class="score-box">
+                        <span class="label">⚫ あなた（黒）</span>
+                        <span class="value" id="blackScore">2</span>
+                        <span class="timer-box" id="blackTime">00:00</span>
+                    </div>
+                    <div class="score-box">
+                        <span class="label">⚪ CPU（白）</span>
+                        <span class="value" id="whiteScore">2</span>
+                        <span class="timer-box" id="whiteTime">00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card setting-group">
+                <div class="setting-item">
+                    <span class="setting-label">コンピュータの強さ：</span>
+                    <select id="strength">
+                        <option value="1">1（弱い）</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5（普通）</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8" selected>8（強豪）</option>
+                        <option value="9">9</option>
+                        <option value="10">10（最強）</option>
+                    </select>
+                </div>
+
+                <div class="setting-item">
+                    <span class="setting-label">学習モード：</span>
+                    <select id="hintMode">
+                        <option value="off">アドバイスOFF</option>
+                        <option value="manual" selected>手動ヒント</option>
+                        <option value="always">常時アドバイス</option>
+                    </select>
+                </div>
+
+                <div class="button-grid">
+                    <button id="guideButton" type="button">📊 強さ解説</button>
+                    <button id="tipsButton" type="button">📖 打ち方のコツ</button>
+                    <button id="hintButton" type="button">💡 超高精度ヒントを見る</button>
+                </div>
+            </div>
+
+            <div class="bottom-action-area">
+                <button id="restartButton">もう一度遊ぶ</button>
+                <div id="hintMessage"></div>
+            </div>
+        </div>
+
+        <div class="board-container">
+            <div id="board"></div>
+        </div>
+    </div>
+
+    <div id="guideOverlay">
+        <div id="guideModal">
+            <div class="guide-header">
+                <h2>📊 オセロの強さ・全レベルまとめ</h2>
+                <button id="guideCloseButton" type="button" aria-label="閉じる">✕</button>
+            </div>
+
+            <div class="level-card" data-levels="1,2">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル1〜2</span>
+                    <span class="level-title">🛑 超初心者・練習用</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R1000以下</span>
+                    <span>段級位：10級以下</span>
+                </div>
+                <div class="level-desc">
+                    ルールを覚えたばかりの段階。AIがわざと負けるような悪い場所へ打ってくれます。
+                </div>
+            </div>
+
+            <div class="level-card" data-levels="3,4">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル3〜4</span>
+                    <span class="level-title">🔰 初級者（ルールの壁）</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R1200前後</span>
+                    <span>段級位：7級〜5級</span>
+                </div>
+                <div class="level-desc">
+                    「角（隅）が取れるなら取る」という基本だけができるレベル。少し罠を仕掛ければ勝てます。
+                </div>
+            </div>
+
+            <div class="level-card" data-levels="5">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル5</span>
+                    <span class="level-title">👥 普通（一般プレイヤー）</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R1500前後（世界の平均値）</span>
+                    <span>段級位：4級〜3級</span>
+                </div>
+                <div class="level-desc">
+                    学校や家庭で「ちょっとオセロ強い人」のレベル。うっかりミスはしませんが、深い作戦はありません。
+                </div>
+            </div>
+
+            <div class="level-card" data-levels="6,7">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル6〜7</span>
+                    <span class="level-title">📈 上級者（壁の始まり）</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R1700前後</span>
+                    <span>段級位：2級〜1級</span>
+                </div>
+                <div class="level-desc">
+                    「定石（決まった打ち方）」を意識し始めるレベル。一般的なゲームアプリの「強い」に相当します。
+                </div>
+            </div>
+
+            <div class="level-card" data-levels="8,9">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル8〜9</span>
+                    <span class="level-title">🏆 有段者クラス（強豪）</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R1900前後</span>
+                    <span>段級位：初段〜二段</span>
+                </div>
+                <div class="level-desc">
+                    地域の大会で上位に入るレベル。AIが10手以上先を正確に読んで、人間の裏をかいてきます。
+                </div>
+            </div>
+
+            <div class="level-card" data-levels="10">
+                <div class="level-card-header">
+                    <span class="level-badge">レベル10</span>
+                    <span class="level-title">👑 最強（達人・AI級）</span>
+                </div>
+                <div class="level-meta">
+                    <span>レーティング：R2000以上（全国・世界級）</span>
+                    <span>段級位：三段以上</span>
+                </div>
+                <div class="level-desc">
+                    このプログラムが出せる限界の強さ。終盤はすべてのマスを完璧に読み切るため、人間が勝つのは困難です。
+                </div>
+            </div>
+
+            <div class="guide-terms">
+                <h3>💡 覚えると便利な「オセロ用語」2つ</h3>
+                <dl>
+                    <dt>レーティング（R）</dt>
+                    <dd>オンライン上の「戦闘力」のこと。平均値が1500で、強い人ほど数字が大きくなります（R1000は初心者、R2000は全国レベル）。</dd>
+
+                    <dt>完全読み</dt>
+                    <dd>AIが「ここに打ったら、最後は○石残って自分が勝つ（または負ける）」と、ゲームの終わりまでを完璧に予測することです。</dd>
+                </dl>
+            </div>
+
+            <p class="guide-footer">
+                まずはレベル5（平均的な人間の強さ）を目標に、それを超えたらオセロ上級者の仲間入りです！
+            </p>
+        </div>
+    </div>
+
+    <div id="tipsOverlay">
+        <div id="tipsModal">
+            <div class="guide-header">
+                <h2>📖 オセロの打ち方のコツ</h2>
+                <button id="tipsCloseButton" type="button" aria-label="閉じる">✕</button>
+            </div>
+
+            <div class="phase-card" data-phase="opening">
+                <div class="phase-card-header">
+                    <span class="phase-badge">序盤（〜20手目ごろ）</span>
+                    <span class="phase-title">🌱 石を増やしすぎない・危険なマスに触れない</span>
+                </div>
+                <ul class="phase-desc-list">
+                    <li>序盤は石数の多さを競う段階ではありません。むしろ石を取りすぎると、置ける場所の選択肢を自分から減らしてしまうことがあります。「少数精鋭」で盤面の主導権を握りましょう。</li>
+                    <li>角のすぐ隣にある「危険なマス（X打点・C打点）」には、よほどの理由がない限り打たないこと。そこに置くと、次の相手の番で角を取られてしまう危険があります。</li>
+                    <li>中央付近を落ち着いて確保しつつ、相手の置ける場所（着手可能数）を増やしすぎないように意識しましょう。</li>
+                    <li>「今すぐ得すること」より「後で困らない形を作ること」を優先するのが序盤のコツです。</li>
+                </ul>
+            </div>
+
+            <div class="phase-card" data-phase="midgame">
+                <div class="phase-card-header">
+                    <span class="phase-badge">中盤（序盤〜終盤の間）</span>
+                    <span class="phase-title">📉 開放度と確定石を意識する</span>
+                </div>
+                <ul class="phase-desc-list">
+                    <li><b>開放度理論</b>：自分の一手が相手の選択肢をどれだけ減らせるかを常に意識しましょう。相手の置ける場所が少ないほど、相手はミスをしやすくなり、うまくいけばパスにも追い込めます。</li>
+                    <li>角に繋がる辺のラインを意識し、将来「確定石（絶対に取られない石）」を作れる形に少しずつ近づけていきましょう。</li>
+                    <li>危険なマスに石を置く前に、そこが本当に安全か（相手に角を取らせる隙を作っていないか）を確認する癖をつけましょう。</li>
+                    <li>盤面全体のバランスを見て、一箇所に固まりすぎず柔軟に対応することが大切です。</li>
+                </ul>
+            </div>
+
+            <div class="phase-card" data-phase="endgame">
+                <div class="phase-card-header">
+                    <span class="phase-badge">終盤（残り10〜14手ほど）</span>
+                    <span class="phase-title">🏁 石数の最大化と正確な読みが勝負を分ける</span>
+                </div>
+                <ul class="phase-desc-list">
+                    <li>終盤は「石を増やす」ことが直接勝敗につながります。開放度よりも、実際に最終的な石数がどうなるかを優先して考えましょう。</li>
+                    <li>空きマスが少なくなると、最後まで正確に読み切ること（完全読み）が可能になります。「常時アドバイス」モードは特にこの終盤で強い味方になります。</li>
+                    <li>上級者は「パリティ（奇数理論）」も意識します。残りの空きマスの数によって、最後の1マスをどちらが打つことになるかが有利・不利に関わってくるという考え方です。</li>
+                    <li>焦らず、最後の1手まで確定石と角の状態をよく確認してから打ちましょう。</li>
+                </ul>
+            </div>
+
+            <div class="guide-terms">
+                <h3>💡 覚えると便利な「オセロ用語」4つ</h3>
+                <dl>
+                    <dt>開放度</dt>
+                    <dd>その手を打った後に、相手が置ける場所がどれだけあるかを表す指標。開放度が低い（相手の選択肢が少ない）ほど、相手を追い込みやすくなります。</dd>
+
+                    <dt>確定石</dt>
+                    <dd>今後どんな展開になっても、二度とひっくり返されることがない石のこと。角やそこから繋がる辺の石が代表例です。</dd>
+
+                    <dt>危険なマス（X打点・C打点）</dt>
+                    <dd>角のすぐ斜め隣（X打点）や真隣（C打点）のマス。ここに石を置くと、相手にその角を取られやすくなるため、序盤〜中盤は特に注意が必要です。</dd>
+
+                    <dt>パリティ（奇数理論）</dt>
+                    <dd>終盤、残りの空きマスの数の偶奇によって、最後の1手をどちらが打つことになるかが変わってくるという考え方。上級者はこれを見越して途中の手を選ぶことがあります。</dd>
+                </dl>
+            </div>
+
+            <p class="guide-footer">
+                迷ったら「①角を取る／取らせない」→「②危険なマスを避ける」→「③相手の選択肢を減らす」→「④確定石を増やす」の順番で考えてみましょう！
+            </p>
+        </div>
+    </div>
+
+<script>
+    const boardSize = 8;
+    const HUMAN = 1;
+    const COMPUTER = 2;
+
+    let board;
+    let currentPlayer;
+    let gameOver;
+    let computerThinking = false;
+    let lastComputerMove = null;
+    let pendingAnimation = null;
+    let hintMove = null;
+
+    const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
+    const dangerSquares = [
+        [0, 1], [1, 0], [1, 1], [0, 6], [1, 6], [1, 7],
+        [6, 0], [6, 1], [7, 1], [6, 6], [6, 7], [7, 6]
+    ];
+
+    // AI用 静的評価テーブル（位置の価値）
+    const staticWeights = [
+        [ 120, -20,  20,   5,   5,  20, -20, 120],
+        [-20, -40,  -5,  -5,  -5,  -5, -40, -20],
+        [  20,  -5,  15,   3,   3,  15,  -5,  20],
+        [   5,  -5,   3,   3,   3,   3,  -5,   5],
+        [   5,  -5,   3,   3,   3,   3,  -5,   5],
+        [  20,  -5,  15,   3,   3,  15,  -5,  20],
+        [-20, -40,  -5,  -5,  -5,  -5, -40, -20],
+        [ 120, -20,  20,   5,   5,  20, -20, 120]
+    ];
+
+    /* --- 効果音エンジン --- */
+    let audioCtx = null;
+
+    function getAudioContext() {
+        if (audioCtx === null) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+
+    function playPlaceSound() {
+        try {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+
+            const noiseLen = Math.floor(ctx.sampleRate * 0.035);
+            const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+            const noiseData = noiseBuf.getChannelData(0);
+            for (let i = 0; i < noiseLen; i++) {
+                noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (noiseLen * 0.12));
+            }
+            const noiseSrc = ctx.createBufferSource();
+            noiseSrc.buffer = noiseBuf;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.frequency.setValueAtTime(1400, now);
+            filter.Q.setValueAtTime(1.8, now);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.9, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+            noiseSrc.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+            noiseSrc.start(now);
+
+            const bodyOsc = ctx.createOscillator();
+            bodyOsc.type = "sine";
+            bodyOsc.frequency.setValueAtTime(220, now);
+            bodyOsc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+
+            const bodyGain = ctx.createGain();
+            bodyGain.gain.setValueAtTime(1.1, now);
+            bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+            bodyOsc.connect(bodyGain);
+            bodyGain.connect(ctx.destination);
+            bodyOsc.start(now);
+            bodyOsc.stop(now + 0.1);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function playFlipSingleSound(pitchFactor = 1.0, isLast = false) {
+        try {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+
+            const noiseLen = Math.floor(ctx.sampleRate * 0.03);
+            const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+            const noiseData = noiseBuf.getChannelData(0);
+            for (let i = 0; i < noiseLen; i++) {
+                noiseData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (noiseLen * 0.2));
+            }
+            const noiseSrc = ctx.createBufferSource();
+            noiseSrc.buffer = noiseBuf;
+
+            const filter = ctx.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.frequency.setValueAtTime((isLast ? 2600 : 2000) * pitchFactor, now);
+            filter.Q.setValueAtTime(2.0, now);
+
+            const noiseGain = ctx.createGain();
+            const vol = isLast ? 0.75 : 0.55;
+            noiseGain.gain.setValueAtTime(vol, now);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+            noiseSrc.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+            noiseSrc.start(now);
+
+            const toneOsc = ctx.createOscillator();
+            toneOsc.type = "sine";
+            toneOsc.frequency.setValueAtTime(300 * pitchFactor, now);
+            toneOsc.frequency.exponentialRampToValueAtTime(100 * pitchFactor, now + 0.04);
+
+            const toneGain = ctx.createGain();
+            toneGain.gain.setValueAtTime(vol * 0.5, now);
+            toneGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+            toneOsc.connect(toneGain);
+            toneGain.connect(ctx.destination);
+            toneOsc.start(now);
+            toneOsc.stop(now + 0.04);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function playFlipSequence(count) {
+        const delayPerStone = 90; 
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const isLast = (i === count - 1);
+                const pitch = 0.92 + i * 0.06;
+                playFlipSingleSound(pitch, isLast);
+            }, i * delayPerStone + 100);
+        }
+    }
+
+    let blackElapsed = 0;
+    let whiteElapsed = 0;
+    let timerInterval = null;
+
+    const directions = [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],          [0, 1],
+        [1, -1],  [1, 0],  [1, 1]
+    ];
+
+    function startGame() {
+        board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
+        board[3][3] = 2; board[3][4] = 1;
+        board[4][3] = 1; board[4][4] = 2;
+
+        currentPlayer = HUMAN;
+        gameOver = false;
+        computerThinking = false;
+        lastComputerMove = null;
+        pendingAnimation = null;
+        clearHint();
+
+        blackElapsed = 0;
+        whiteElapsed = 0;
+
+        if (timerInterval !== null) clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+        updateTimerDisplay();
+
+        document.getElementById("status").textContent = "あなたの番です…";
+        drawBoard();
+        maybeAutoHint();
+    }
+
+    function updateTimer() {
+        if (gameOver) return;
+        if (currentPlayer === HUMAN) blackElapsed++;
+        else whiteElapsed++;
+        updateTimerDisplay();
+    }
+
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        return String(minutes).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+    }
+
+    function updateTimerDisplay() {
+        document.getElementById("blackTime").textContent = formatTime(blackElapsed);
+        document.getElementById("whiteTime").textContent = formatTime(whiteElapsed);
+    }
+
+    function isInside(row, col) {
+        return row >= 0 && row < boardSize && col >= 0 && col < boardSize;
+    }
+
+    function getFlippableStones(row, col, player = currentPlayer, targetBoard = board) {
+        if (targetBoard[row][col] !== 0) return [];
+        const opponent = player === HUMAN ? COMPUTER : HUMAN;
+        const flippable = [];
+
+        for (const [dr, dc] of directions) {
+            let r = row + dr;
+            let c = col + dc;
+            const line = [];
+
+            while (isInside(r, c) && targetBoard[r][c] === opponent) {
+                line.push([r, c]);
+                r += dr; c += dc;
+            }
+
+            if (line.length > 0 && isInside(r, c) && targetBoard[r][c] === player) {
+                flippable.push(...line);
+            }
+        }
+        return flippable;
+    }
+
+    function canPlace(row, col, player = currentPlayer, targetBoard = board) {
+        return getFlippableStones(row, col, player, targetBoard).length > 0;
+    }
+
+    function getValidMoves(player, targetBoard) {
+        const moves = [];
+        for (let row = 0; row < boardSize; row++) {
+            for (let col = 0; col < boardSize; col++) {
+                if (canPlace(row, col, player, targetBoard)) moves.push([row, col]);
+            }
+        }
+        return moves;
+    }
+
+    function makeMove(targetBoard, row, col, player) {
+        const flippable = getFlippableStones(row, col, player, targetBoard);
+        if (flippable.length === 0) return false;
+        targetBoard[row][col] = player;
+        for (const [r, c] of flippable) targetBoard[r][c] = player;
+        return true;
+    }
+
+    function putStone(row, col) {
+        if (gameOver || computerThinking || currentPlayer !== HUMAN) return;
+        if (!canPlace(row, col, HUMAN, board)) return;
+
+        clearHint();
+        const flipped = getFlippableStones(row, col, HUMAN, board);
+
+        makeMove(board, row, col, HUMAN);
+
+        pendingAnimation = {
+            placedRow: row, placedCol: col, flipped: flipped,
+            newColor: HUMAN, oldColor: COMPUTER
+        };
+
+        playPlaceSound();
+        if (flipped.length > 0) {
+            playFlipSequence(flipped.length);
+        }
+
+        currentPlayer = COMPUTER;
+        drawBoard();
+        processTurn();
+    }
+
+    function processTurn() {
+        if (gameOver) return;
+        const moves = getValidMoves(currentPlayer, board);
+
+        if (moves.length === 0) {
+            const opponent = currentPlayer === HUMAN ? COMPUTER : HUMAN;
+            const opponentMoves = getValidMoves(opponent, board);
+
+            if (opponentMoves.length === 0) {
+                endGame();
+                return;
+            }
+
+            currentPlayer = opponent;
+            drawBoard();
+
+            if (currentPlayer === HUMAN) {
+                document.getElementById("status").textContent = "コンピュータがパスしました。あなたの番です…";
+                maybeAutoHint();
+            } else {
+                document.getElementById("status").textContent = "あなたは置ける場所がないためパスです。";
+            }
+
+            if (currentPlayer === COMPUTER) computerMove();
+            return;
+        }
+
+        if (currentPlayer === HUMAN) {
+            document.getElementById("status").textContent = "あなたの番です…";
+            drawBoard();
+            maybeAutoHint();
+        } else {
+            computerMove();
+        }
+    }
+
+    /* --- AI強化ロジック --- */
+
+    function isCorner(r, c) {
+        return cornerSquares.some(([cr, cc]) => cr === r && cc === c);
+    }
+
+    function isDanger(r, c) {
+        return dangerSquares.some(([dr, dc]) => dr === r && dc === c);
+    }
+
+    function getEmptyCount(targetBoard) {
+        let count = 0;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (targetBoard[r][c] === 0) count++;
+            }
+        }
+        return count;
+    }
+
+    // Move Ordering (着手候補のソートによる枝刈り効率化)
+    function orderMoves(moves, targetBoard) {
+        return moves.sort((a, b) => {
+            const aIsCorner = isCorner(a[0], a[1]) ? 1 : 0;
+            const bIsCorner = isCorner(b[0], b[1]) ? 1 : 0;
+            if (aIsCorner !== bIsCorner) return bIsCorner - aIsCorner;
+            
+            const aIsDanger = isDanger(a[0], a[1]) ? 1 : 0;
+            const bIsDanger = isDanger(b[0], b[1]) ? 1 : 0;
+            if (aIsDanger !== bIsDanger) return aIsDanger - bIsDanger;
+            
+            return staticWeights[b[0]][b[1]] - staticWeights[a[0]][a[1]];
+        });
+    }
+
+    function getComputerMove(targetBoard, player, strength) {
+        const moves = getValidMoves(player, targetBoard);
+        if (moves.length === 0) return null;
+        if (strength === 1) return moves[Math.floor(Math.random() * moves.length)];
+
+        const emptyCount = getEmptyCount(targetBoard);
+        let depth = 1;
+        let exactDepth = 0;
+        
+        switch(strength) {
+            case 2: depth = 1; break;
+            case 3: depth = 2; break;
+            case 4: depth = 3; break;
+            case 5: depth = 4; break;
+            case 6: depth = 5; break;
+            case 7: depth = 5; exactDepth = 10; break;
+            case 8: depth = 6; exactDepth = 11; break;
+            case 9: depth = 7; exactDepth = 12; break;
+            case 10: depth = 8; exactDepth = 14; break;
+        }
+
+        if (emptyCount <= exactDepth) {
+            depth = emptyCount; // 終盤完全読み
+        }
+
+        let bestScore = -Infinity;
+        let moveScores = [];
+        const orderedMoves = orderMoves(moves, targetBoard);
+
+        for (const move of orderedMoves) {
+            const nextBoard = cloneBoard(targetBoard);
+            makeMove(nextBoard, move[0], move[1], player);
+            const score = minimax(nextBoard, opposite(player), depth - 1, -Infinity, Infinity, player, emptyCount - 1);
+            moveScores.push({ move, score });
+            if (score > bestScore) bestScore = score;
+        }
+
+        const candidates = moveScores.filter(m => Math.abs(m.score - bestScore) < 0.1).map(m => m.move);
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function computerMove() {
+        if (gameOver) return;
+        clearHint();
+        computerThinking = true;
+        document.getElementById("status").textContent = "コンピュータが考え中...";
+        drawBoard();
+
+        setTimeout(() => {
+            if (gameOver) return;
+            const strength = Number(document.getElementById("strength").value);
+            const move = getComputerMove(board, COMPUTER, strength);
+
+            if (move !== null) {
+                const flipped = getFlippableStones(move[0], move[1], COMPUTER, board);
+                makeMove(board, move[0], move[1], COMPUTER);
+
+                pendingAnimation = {
+                    placedRow: move[0], placedCol: move[1], flipped: flipped,
+                    newColor: COMPUTER, oldColor: HUMAN
+                };
+                lastComputerMove = move;
+
+                playPlaceSound();
+                if (flipped.length > 0) {
+                    playFlipSequence(flipped.length);
+                }
+            }
+
+            computerThinking = false;
+            currentPlayer = HUMAN;
+            drawBoard();
+
+            document.getElementById("status").textContent = "あなたの番です…";
+
+            const humanMoves = getValidMoves(HUMAN, board);
+            if (humanMoves.length === 0) {
+                const computerMoves = getValidMoves(COMPUTER, board);
+                if (computerMoves.length === 0) {
+                    endGame();
+                    return;
+                }
+                document.getElementById("status").textContent = "あなたは置ける場所がないためパスです。";
+                currentPlayer = COMPUTER;
+                computerMove();
+                return;
+            }
+
+            drawBoard();
+            maybeAutoHint();
+        }, 50);
+    }
+
+    function opposite(player) { return player === HUMAN ? COMPUTER : HUMAN; }
+    function cloneBoard(source) { return source.map(row => row.slice()); }
+
+    function minimax(targetBoard, player, depth, alpha, beta, computerPlayer, emptyCount) {
+        if (emptyCount === 0) return evaluateBoard(targetBoard, computerPlayer, 0);
+        if (depth <= 0) return evaluateBoard(targetBoard, computerPlayer, emptyCount);
+
+        let moves = getValidMoves(player, targetBoard);
+
+        if (moves.length === 0) {
+            const opponent = opposite(player);
+            const opponentMoves = getValidMoves(opponent, targetBoard);
+            if (opponentMoves.length === 0) return evaluateBoard(targetBoard, computerPlayer, 0);
+            return minimax(targetBoard, opponent, depth, alpha, beta, computerPlayer, emptyCount);
+        }
+
+        moves = orderMoves(moves, targetBoard);
+        const maximizing = player === computerPlayer;
+
+        if (maximizing) {
+            let value = -Infinity;
+            for (const move of moves) {
+                const nextBoard = cloneBoard(targetBoard);
+                makeMove(nextBoard, move[0], move[1], player);
+                value = Math.max(value, minimax(nextBoard, opposite(player), depth - 1, alpha, beta, computerPlayer, emptyCount - 1));
+                alpha = Math.max(alpha, value);
+                if (alpha >= beta) break;
+            }
+            return value;
+        } else {
+            let value = Infinity;
+            for (const move of moves) {
+                const nextBoard = cloneBoard(targetBoard);
+                makeMove(nextBoard, move[0], move[1], player);
+                value = Math.min(value, minimax(nextBoard, opposite(player), depth - 1, alpha, beta, computerPlayer, emptyCount - 1));
+                beta = Math.min(beta, value);
+                if (alpha >= beta) break;
+            }
+            return value;
+        }
+    }
+
+    function evaluateBoard(targetBoard, player, emptyCount) {
+        const opponent = opposite(player);
+        let myStones = 0, oppStones = 0;
+        let myPosScore = 0, oppPosScore = 0;
+        
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = targetBoard[r][c];
+                if (piece === player) {
+                    myStones++;
+                    myPosScore += staticWeights[r][c];
+                } else if (piece === opponent) {
+                    oppStones++;
+                    oppPosScore += staticWeights[r][c];
+                }
+            }
+        }
+        
+        // 終盤完全読み時は石差のみで勝敗を決定
+        if (emptyCount === 0) {
+            return (myStones - oppStones) * 10000;
+        }
+
+        const myMoves = getValidMoves(player, targetBoard).length;
+        const oppMoves = getValidMoves(opponent, targetBoard).length;
+        
+        let score = 0;
+        
+        // フェーズごとの動的重み付け
+        if (emptyCount > 40) { // 序盤
+            score += (myMoves - oppMoves) * 15;
+            score += (myPosScore - oppPosScore) * 1.0;
+            score += (myStones - oppStones) * -2; // 石を取りすぎない
+        } else if (emptyCount > 14) { // 中盤
+            score += (myMoves - oppMoves) * 20;
+            score += (myPosScore - oppPosScore) * 1.5;
+            score += countStableStones(targetBoard, player) * 30;
+            score -= countStableStones(targetBoard, opponent) * 30;
+        } else { // 終盤（完全読みに届かない場合）
+            score += (myMoves - oppMoves) * 10;
+            score += (myPosScore - oppPosScore) * 2.0;
+            score += (myStones - oppStones) * 10;
+            // パリティ（自分が打つ番で残り奇数なら有利）
+            if (emptyCount % 2 !== 0) {
+                score += 30; 
+            }
+        }
+        
+        return score;
+    }
+
+    function toNotation(row, col) { return String.fromCharCode(65 + col) + String(row + 1); }
+
+    function countStableStones(targetBoard, player) {
+        const stable = new Set();
+        for (const [cr, cc] of cornerSquares) {
+            if (targetBoard[cr][cc] !== player) continue;
+            stable.add(cr + "," + cc);
+            const edgeDirs = [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]];
+
+            for (const [dr, dc] of edgeDirs) {
+                let r = cr + dr, c = cc + dc;
+                while (isInside(r, c) && targetBoard[r][c] === player) {
+                    stable.add(r + "," + c);
+                    r += dr; c += dc;
+                }
+            }
+        }
+        return stable.size;
+    }
+
+    function computeHintDepth(emptyCount) {
+        if (emptyCount <= 14) return emptyCount; // 終盤完全読み
+        return 7; // 通常は深さ7（レベル9相当）
+    }
+
+    function clearHint() {
+        hintMove = null;
+        const msgEl = document.getElementById("hintMessage");
+        if (msgEl) {
+            msgEl.classList.remove("show");
+            msgEl.innerHTML = "";
+        }
+    }
+
+    function getHintMode() {
+        const modeEl = document.getElementById("hintMode");
+        return modeEl ? modeEl.value : "manual";
+    }
+
+    function maybeAutoHint() {
+        if (getHintMode() === "always") computeHint();
+    }
+
+    function updateHintModeUI() {
+        const mode = getHintMode();
+        const hintButtonEl = document.getElementById("hintButton");
+        if (hintButtonEl) hintButtonEl.style.display = (mode === "manual") ? "" : "none";
+
+        if (mode === "always") maybeAutoHint();
+        else clearHint();
+    }
+
+    function buildHintReasons(chosen, allMoves, moveInfoList) {
+        const reasons = [];
+        const row = chosen.move[0], col = chosen.move[1];
+
+        if (chosen.score > 5000) {
+            reasons.push("🏆 この手を打てば、最終的にあなたの勝利が確定します！（完全読み）");
+        } else if (chosen.score < -5000) {
+            reasons.push("⚠️ 非常に厳しい状況ですが、これが最善の粘りとなる手です。");
+        }
+
+        if (isCorner(row, col)) {
+            reasons.push("👑 角（四隅）を取れる手だからです。二度とひっくり返されない安全な場所です。");
+        }
+
+        const isDangerMove = isDanger(row, col);
+        const hasDangerAlternative = allMoves.some(([mr, mc]) => isDanger(mr, mc));
+        if (!isDangerMove && hasDangerAlternative) {
+            reasons.push("🛡️ 危険なマス（角の隣）を避け、相手に角を取られるリスクを低減できる手です。");
+        }
+
+        const opponentMovesBefore = getValidMoves(COMPUTER, board).length;
+        const opponentMovesAfter = getValidMoves(COMPUTER, chosen.nextBoard).length;
+        if (opponentMovesAfter < opponentMovesBefore) {
+            reasons.push("📉 相手の置ける場所を " + opponentMovesBefore + " → " + opponentMovesAfter + " 箇所に制限できます。");
+        }
+
+        const stableBefore = countStableStones(board, HUMAN);
+        const stableAfter = countStableStones(chosen.nextBoard, HUMAN);
+        if (stableAfter > stableBefore) {
+            reasons.push("🔒 絶対に取られない「確定石」を " + stableBefore + " → " + stableAfter + " 個に増やせます。");
+        }
+
+        const stones = countStones();
+        if (stones.black + stones.white < 44 && moveInfoList.length > 1) {
+            const avgFlipped = moveInfoList.reduce((sum, m) => sum + m.flippedCount, 0) / moveInfoList.length;
+            if (chosen.flippedCount <= avgFlipped) {
+                reasons.push("⚖️ 序盤〜中盤の石の取りすぎを防ぎ、盤面のコントロールを保つ手です。");
+            }
+        }
+
+        if (reasons.length === 0) {
+            reasons.push("🎯 深層評価に基づく、盤面全体をコントロールする最善の手です。");
+        }
+        return reasons;
+    }
+
+    function showHintMessage(move, reasons) {
+        const msgEl = document.getElementById("hintMessage");
+        if (!msgEl) return;
+
+        let html = '<div class="hint-title-row">';
+        html += '<div class="hint-title">💡 最適手： <span class="hint-coord">' + toNotation(move[0], move[1]) + '</span></div>';
+        html += '<button type="button" class="hint-close" aria-label="閉じる">✕</button></div>';
+        html += '<ul class="hint-reason-list">';
+        for (const reason of reasons) html += "<li>" + reason + "</li>";
+        html += "</ul>";
+
+        msgEl.innerHTML = html;
+        msgEl.classList.add("show");
+
+        const closeBtn = msgEl.querySelector(".hint-close");
+        if (closeBtn) closeBtn.addEventListener("click", clearHint);
+    }
+
+    function computeHint() {
+        if (gameOver || computerThinking || currentPlayer !== HUMAN) return;
+        const moves = getValidMoves(HUMAN, board);
+        if (moves.length === 0) return;
+
+        const emptyCount = getEmptyCount(board);
+        const depth = computeHintDepth(emptyCount);
+        let bestScore = -Infinity;
+        let bestMoves = [];
+        const moveInfoList = [];
+
+        const orderedMoves = orderMoves(moves, board);
+
+        for (const move of orderedMoves) {
+            const nextBoard = cloneBoard(board);
+            makeMove(nextBoard, move[0], move[1], HUMAN);
+            const score = minimax(nextBoard, COMPUTER, depth - 1, -Infinity, Infinity, HUMAN, emptyCount - 1);
+            const flippedCount = getFlippableStones(move[0], move[1], HUMAN, board).length;
+            const info = { move, score, flippedCount, nextBoard };
+            moveInfoList.push(info);
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMoves = [info];
+            } else if (score === bestScore) {
+                bestMoves.push(info);
+            }
+        }
+
+        const chosen = bestMoves[0];
+        hintMove = chosen.move;
+        const reasons = buildHintReasons(chosen, moves, moveInfoList);
+        showHintMessage(chosen.move, reasons);
+        drawBoard();
+    }
+
+    function drawBoard() {
+        const boardElement = document.getElementById("board");
+        boardElement.innerHTML = "";
+
+        for (let row = 0; row < boardSize; row++) {
+            for (let col = 0; col < boardSize; col++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+
+                if (!gameOver && !computerThinking && currentPlayer === HUMAN && canPlace(row, col, HUMAN, board)) {
+                    cell.classList.add("can-place");
+                }
+
+                if (lastComputerMove !== null && lastComputerMove[0] === row && lastComputerMove[1] === col) {
+                    cell.classList.add("last-move-cell");
+                }
+
+                if (hintMove !== null && hintMove[0] === row && hintMove[1] === col) {
+                    cell.classList.add("hint-cell");
+                }
+
+                const isNewlyPlaced = pendingAnimation !== null && pendingAnimation.placedRow === row && pendingAnimation.placedCol === col;
+                const isFlipping = pendingAnimation !== null && pendingAnimation.flipped.some(([r, c]) => r === row && c === col);
+
+                if (board[row][col] !== 0) {
+                    if (isFlipping) {
+                        cell.classList.add("flip-cell");
+                        const wrap = document.createElement("div");
+                        wrap.classList.add("stone", "stone-flip-wrap");
+
+                        const inner = document.createElement("div");
+                        inner.classList.add("stone-inner");
+
+                        const flipIndex = pendingAnimation.flipped.findIndex(([r, c]) => r === row && c === col);
+                        if (flipIndex >= 0) inner.style.animationDelay = `${flipIndex * 90}ms`;
+
+                        const front = document.createElement("div");
+                        front.classList.add("stone-face", pendingAnimation.oldColor === HUMAN ? "black" : "white");
+
+                        const back = document.createElement("div");
+                        back.classList.add("stone-face", "stone-face-back", pendingAnimation.newColor === HUMAN ? "black" : "white");
+
+                        inner.appendChild(front);
+                        inner.appendChild(back);
+                        wrap.appendChild(inner);
+                        cell.appendChild(wrap);
+                    } else {
+                        const stone = document.createElement("div");
+                        stone.classList.add("stone");
+                        if (isNewlyPlaced) stone.classList.add("stone-new");
+                        stone.classList.add(board[row][col] === HUMAN ? "black" : "white");
+                        cell.appendChild(stone);
+                    }
+                }
+
+                cell.addEventListener("click", () => putStone(row, col));
+                boardElement.appendChild(cell);
+            }
+        }
+
+        pendingAnimation = null;
+        updateScore();
+
+        const hintButtonEl = document.getElementById("hintButton");
+        if (hintButtonEl) {
+            hintButtonEl.disabled = gameOver || computerThinking || currentPlayer !== HUMAN;
+        }
+    }
+
+    function countStones() {
+        let black = 0, white = 0;
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (board[row][col] === HUMAN) black++;
+                else if (board[row][col] === COMPUTER) white++;
+            }
+        }
+        return { black, white };
+    }
+
+    function updateScore() {
+        const stones = countStones();
+        document.getElementById("blackScore").textContent = stones.black;
+        document.getElementById("whiteScore").textContent = stones.white;
+    }
+
+    function endGame() {
+        gameOver = true;
+        computerThinking = false;
+        clearHint();
+
+        if (timerInterval !== null) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        drawBoard();
+        const stones = countStones();
+        let message = stones.black > stones.white ? "ゲーム終了！ あなたの勝ちです！" :
+                      stones.white > stones.black ? "ゲーム終了！ コンピュータの勝ちです！" : "ゲーム終了！ 引き分けです！";
+        document.getElementById("status").textContent = message;
+    }
+
+    document.getElementById("restartButton").addEventListener("click", startGame);
+    document.getElementById("hintButton").addEventListener("click", computeHint);
+
+    const hintModeSelect = document.getElementById("hintMode");
+    hintModeSelect.addEventListener("change", updateHintModeUI);
+    updateHintModeUI();
+
+    const guideButton = document.getElementById("guideButton");
+    const guideOverlay = document.getElementById("guideOverlay");
+    const guideCloseButton = document.getElementById("guideCloseButton");
+    const strengthSelect = document.getElementById("strength");
+    const levelCards = document.querySelectorAll(".level-card");
+
+    function highlightCurrentLevel() {
+        const currentLevel = strengthSelect.value;
+        levelCards.forEach(card => {
+            const levels = card.dataset.levels.split(",");
+            if (levels.indexOf(currentLevel) !== -1) card.classList.add("level-card-active");
+            else card.classList.remove("level-card-active");
+        });
+    }
+
+    function openGuide() { highlightCurrentLevel(); guideOverlay.classList.add("show"); }
+    function closeGuide() { guideOverlay.classList.remove("show"); }
+
+    guideButton.addEventListener("click", openGuide);
+    guideCloseButton.addEventListener("click", closeGuide);
+    guideOverlay.addEventListener("click", (e) => { if (e.target === guideOverlay) closeGuide(); });
+
+    const tipsButton = document.getElementById("tipsButton");
+    const tipsOverlay = document.getElementById("tipsOverlay");
+    const tipsCloseButton = document.getElementById("tipsCloseButton");
+
+    function openTips() { tipsOverlay.classList.add("show"); }
+    function closeTips() { tipsOverlay.classList.remove("show"); }
+
+    tipsButton.addEventListener("click", openTips);
+    tipsCloseButton.addEventListener("click", closeTips);
+    tipsOverlay.addEventListener("click", (e) => { if (e.target === tipsOverlay) closeTips(); });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { closeGuide(); closeTips(); }
+    });
+
+    startGame();
+</script>
+
+</body>
+</html>
