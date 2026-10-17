@@ -1,4 +1,3 @@
-
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -14,17 +13,18 @@
   [Ver 4.7.0] 2026/09/09 : 王宮戦後会見新設、2倍特大肖像、双方消費時間集計、AI戦術カルテ
   [Ver 4.8.0] 2026/09/10 : 極上石デザイン＆棋譜検証モード、宮廷思案所極意書を実装
   [Ver 4.8.1] 2026/09/10 : 3Dフリップ完全調律（影浮遊枠と純粋3Dシリンダーのレイヤー分離）
-  [Ver 4.9.0] 2026/09/11 : 【盤石のシステム総点検＆プレイヤー視点最適化】
-    - 運命の天秤を「あなた vs 相手」にパーソナライズ化
-    - 棋譜検証モードの会見復帰時の自動復元、リアルタイム実況セリフ
-  [Ver 5.0.0] 2026/09/12 : 【宮廷オセロ 究極体験＆納得感の完全調律】
-    - 直近マスに誰が打ったか一目でわかる「［ あなた ］」「［ 相手 ］」ブラケット装飾
-    - 相手ゾーンに相手の消費時間（リアルタイムタイマー）を新設
-    - 常時ヒント時のAI計算中は双方のタイマーをノーカウント停止＆専用ステータス表示
-    - ヒント推奨マス打点時の「悪手誤判定」を完全ブロック（最善手・好手確定化）
-    - 勝敗画面の刷新：敗北（DEFEAT）の瞬時認識、相手肖像画への「降参・完敗」バッジ＆エフェクト
-    - Lv.6老賢王撃破時の「グランドエンディング（全6傑カーテンコール・栄光の戴冠式）」実装
-    - 棋譜検証モードの因果関係ストーリー解説化（「なぜ悪かったのか、その後どうなったか」の可視化）
+  [Ver 4.9.0] 2026/09/11 : 運命の天秤パーソナライズ化、棋譜検証の会見自動復元＆リアルタイム実況
+  [Ver 5.0.0] 2026/09/12 : 相手リアルタイムタイマー、ヒント時の悪手誤判定撲滅、会見主客明確化
+  [Ver 5.1.0] 2026/09/13 : 【気品・テンポ・ゲーム性の完全調律】
+    - 3D石反転アニメーションを0.48秒の優雅で極めて滑らかな物理ロールへ調律
+    - 直近マス表示のスマートな金枠パルス（文字ラベル撤去）への回帰
+    - AI思考ルーチンの最適化による長考・詰まりの完全解消（サクサク進行）
+    - ヒント使用状況に応じた勝利メッセージ適応（「次回はヒントなしで挑め」）
+    - Lv.6老賢王の完全自力（ノーヒント）勝利時のみグランドエンディング解禁
+    - タイトル位置の1行引き上げ＆直下への改行追加、天秤1行上部移動、盤面左右最大化
+  [Ver 5.1.1] 2026/09/14 : 【音響ライフサイクル＆WebAudioデバイスエラー完全修正（Bug Fix）】
+    - スマホ・タブレット等の最小化・他タブ移動・スリープ時におけるBGM自動一時停止＆復帰の実装（Visibility API / Page Lifecycle完全連動）
+    - WebAudioレンダラー切断による「AudioContext encountered an error」エラーの完全解消（自動リカバリ機構＆安全なPromise/例外ハンドリング導入）
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -40,12 +40,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         :root {
             --royal-gold: linear-gradient(135deg, #fff9e6 0%, #ecd08c 25%, #c5973e 50%, #8c6218 75%, #f7e6ba 100%);
@@ -56,175 +51,94 @@
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
             --panel-bg: rgba(16, 19, 26, 0.92);
             --imperial-green: radial-gradient(circle at 45% 45%, #0f522e 0%, #093b20 55%, #042413 100%);
-            --frame-pad: clamp(7px, 2vw, 13px);
+            --frame-pad: clamp(5px, 1.4vw, 9px);
             --char-accent: #ffd700;
             --char-glow: rgba(255, 215, 0, 0.6);
         }
 
         html, body {
-            width: 100%;
-            height: 100%;
-            height: 100dvh;
-            max-height: 100dvh;
-            overflow: hidden;
-            background: var(--dynasty-bg);
-            color: #f7eed8;
+            width: 100%; height: 100%; height: 100dvh; max-height: 100dvh; overflow: hidden;
+            background: var(--dynasty-bg); color: #f7eed8;
             font-family: 'Shippori Mincho', "Yu Mincho", "Hiragino Mincho ProN", serif;
             -webkit-font-smoothing: antialiased;
         }
 
         body {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
             padding: env(safe-area-inset-top, 2px) env(safe-area-inset-right, 4px) 0 env(safe-area-inset-left, 4px);
             position: relative;
         }
 
         body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
+            content: ""; position: fixed; inset: 0;
             background-image: 
                 radial-gradient(circle at 25px 25px, rgba(212, 167, 72, 0.035) 2%, transparent 0%),
                 radial-gradient(circle at 75px 75px, rgba(212, 167, 72, 0.035) 2%, transparent 0%);
-            background-size: 100px 100px;
-            pointer-events: none;
-            z-index: 0;
+            background-size: 100px 100px; pointer-events: none; z-index: 0;
         }
 
         /* --- ヘッダー --- */
         header {
-            width: 100%;
-            max-width: 1080px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            padding-top: clamp(20px, 3.6dvh, 28px);
-            padding-bottom: clamp(3px, 0.8dvh, 6px);
-            z-index: 10;
-            flex-shrink: 0;
+            width: 100%; max-width: 1080px; display: flex; flex-direction: column; align-items: center;
+            position: relative; padding-top: clamp(6px, 1.3dvh, 12px); padding-bottom: 0px;
+            z-index: 10; flex-shrink: 0;
         }
 
         .header-title-wrap {
-            display: flex;
-            align-items: baseline;
-            justify-content: center;
-            gap: 6px;
-            text-align: center;
+            display: flex; align-items: baseline; justify-content: center; gap: 6px; text-align: center;
+            margin-bottom: clamp(10px, 1.8dvh, 16px);
         }
 
         .main-header-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: clamp(13px, 3.6vw, 17px);
-            font-weight: 900;
-            letter-spacing: 0.12em;
-            background: var(--royal-gold);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 2px 8px rgba(197, 151, 62, 0.45);
-            white-space: nowrap;
+            font-size: clamp(13px, 3.6vw, 17px); font-weight: 900; letter-spacing: 0.12em;
+            background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 8px rgba(197, 151, 62, 0.45); white-space: nowrap;
         }
 
         .header-subtitle {
-            font-family: 'Cinzel', serif;
-            font-size: 8px;
-            font-weight: 700;
-            letter-spacing: 0.22em;
-            color: #cca45b;
-            text-transform: uppercase;
+            font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700;
+            letter-spacing: 0.22em; color: #cca45b; text-transform: uppercase;
         }
 
         .header-actions {
-            position: absolute;
-            top: env(safe-area-inset-top, 2px);
-            right: 4px;
-            display: flex;
-            gap: 4px;
-            align-items: center;
+            position: absolute; top: env(safe-area-inset-top, 2px); right: 4px; display: flex; gap: 4px; align-items: center;
         }
 
         .header-btn {
             background: linear-gradient(135deg, rgba(34, 38, 50, 0.9) 0%, rgba(18, 20, 28, 0.9) 100%);
-            border: 1px solid var(--gold-border);
-            border-radius: 14px;
-            padding: 2px 6px;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #faebd0;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-            transition: all 0.2s ease;
+            border: 1px solid var(--gold-border); border-radius: 14px; padding: 2px 6px;
+            font-size: 9.5px; font-weight: 700; color: #faebd0; display: flex; align-items: center;
+            gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: all 0.2s ease;
         }
 
-        .header-btn:hover {
-            border-color: #f7e6ba;
-            box-shadow: 0 2px 8px var(--gold-glow);
-            transform: translateY(-1px);
-        }
+        .header-btn:hover { border-color: #f7e6ba; box-shadow: 0 2px 8px var(--gold-glow); transform: translateY(-1px); }
 
         /* --- メインコンテナ --- */
         .app-container {
-            width: 100%;
-            max-width: 1080px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            z-index: 2;
-            min-height: 0;
-            padding: 0;
+            width: 100%; max-width: 1080px; flex: 1; display: flex; flex-direction: column;
+            justify-content: space-between; align-items: center; position: relative; z-index: 2; min-height: 0; padding: 0;
         }
 
         /* ゾーン①：対戦相手ゾーン */
         .opponent-zone {
-            width: min(94vw, 440px);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            width: min(96vw, 440px); display: flex; align-items: center; gap: 8px;
             padding: clamp(3px, 0.8dvh, 6px) 8px;
             background: linear-gradient(135deg, rgba(22, 26, 36, 0.88) 0%, rgba(10, 12, 18, 0.95) 100%);
-            border: 1px solid var(--gold-border);
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            z-index: 10;
-            flex-shrink: 0;
-            transition: border-color 0.4s ease;
+            border: 1px solid var(--gold-border); border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);
+            z-index: 10; flex-shrink: 0; transition: border-color 0.4s ease;
         }
 
-        .opponent-avatar-wrap {
-            position: relative;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .opponent-avatar-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
         .voice-wave-ring {
-            position: absolute;
-            inset: -4px;
-            border-radius: 50%;
-            border: 2px solid var(--char-accent);
-            pointer-events: none;
-            opacity: 0;
-            z-index: 1;
+            position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--char-accent);
+            pointer-events: none; opacity: 0; z-index: 1;
         }
 
-        .is-talking .voice-wave-ring.wave-1 {
-            animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
-        }
-
-        .is-talking .voice-wave-ring.wave-2 {
-            animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) 0.22s forwards;
-        }
+        .is-talking .voice-wave-ring.wave-1 { animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
+        .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) 0.22s forwards; }
 
         @keyframes oval-voice-ripple {
             0% { transform: scale(1); opacity: 0.9; }
@@ -232,38 +146,21 @@
         }
 
         .opponent-avatar-frame {
-            width: clamp(50px, 13vw, 60px);
-            height: clamp(70px, 18.5vw, 84px);
-            border-radius: 50%;
+            width: clamp(50px, 13vw, 60px); height: clamp(70px, 18.5vw, 84px); border-radius: 50%;
             border: 3px solid var(--char-accent);
             box-shadow: 0 0 0 2px #38240f, 0 0 14px var(--char-glow), inset 0 0 10px rgba(0, 0, 0, 0.9);
             background: radial-gradient(ellipse at 40% 35%, #3a3224 0%, #171510 65%, #080705 100%);
-            position: relative;
-            z-index: 2;
-            transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative; z-index: 2; transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+            display: flex; align-items: center; justify-content: center;
         }
 
         .avatar-img-box {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
             box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85);
         }
 
-        .avatar-img-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
+        .avatar-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .avatar-fallback-icon { font-size: 28px; color: #ffd700; }
 
         .is-talking { animation: talking-bounce 0.65s ease-in-out; }
@@ -274,123 +171,56 @@
             75% { transform: scale(1.02) translateY(-1.5px); }
         }
 
-        .opponent-avatar-frame.thinking-aura {
-            animation: oval-aura 1.8s infinite alternate ease-in-out;
-        }
-
+        .opponent-avatar-frame.thinking-aura { animation: oval-aura 1.8s infinite alternate ease-in-out; }
         @keyframes oval-aura {
             from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); }
             to { box-shadow: 0 0 0 3px var(--char-accent), 0 0 24px var(--char-glow); }
         }
 
         .opponent-rank-badge {
-            position: absolute;
-            bottom: -3px;
-            right: -3px;
+            position: absolute; bottom: -3px; right: -3px;
             background: linear-gradient(135deg, var(--char-accent) 0%, #7d5918 100%);
-            color: #121008;
-            font-family: 'Cinzel', serif;
-            font-size: 8.5px;
-            font-weight: 900;
-            padding: 1px 5px;
-            border-radius: 10px;
-            border: 1px solid #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-            line-height: 1.2;
-            z-index: 3;
+            color: #121008; font-family: 'Cinzel', serif; font-size: 8.5px; font-weight: 900;
+            padding: 1px 5px; border-radius: 10px; border: 1px solid #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); line-height: 1.2; z-index: 3;
         }
 
         .opponent-info-wrap {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-width: 0;
-            gap: 2px;
+            flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2px;
         }
 
-        .opponent-header-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
+        .opponent-header-row { display: flex; align-items: center; justify-content: space-between; }
         .opponent-name-group { display: flex; align-items: baseline; gap: 4px; }
         .opponent-name { font-size: 12.5px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
         .opponent-title { font-size: 8.5px; color: #bfa882; font-weight: 600; }
 
-        .opponent-stats-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .opponent-timer {
-            font-family: 'Cinzel', serif;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #d1b888;
-            display: flex;
-            align-items: center;
-            gap: 2px;
-        }
+        .opponent-stats-group { display: flex; align-items: center; gap: 5px; }
+        .opponent-timer { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #d1b888; display: flex; align-items: center; gap: 2px; }
 
         .opponent-score-badge {
-            font-family: 'Cinzel', serif;
-            font-size: 12px;
-            font-weight: 900;
-            padding: 1px 6px;
-            border-radius: 6px;
-            background: rgba(8, 10, 14, 0.85);
-            border: 1px solid var(--gold-border);
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            font-family: 'Cinzel', serif; font-size: 12px; font-weight: 900; padding: 1px 6px;
+            border-radius: 6px; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border);
+            color: #ffffff; display: flex; align-items: center; gap: 4px;
         }
 
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
-            border: 1px solid rgba(212, 167, 72, 0.38);
-            border-radius: 8px;
-            border-top-left-radius: 2px;
-            padding: 3px 7px;
-            font-size: 10px;
-            line-height: 1.35;
-            color: #f7eed8;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
-            position: relative;
-            white-space: normal;
-            word-break: break-all;
-            animation: bubble-appear 0.28s ease-out;
-            min-height: 28px;
-            display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
+            border: 1px solid rgba(212, 167, 72, 0.38); border-radius: 8px; border-top-left-radius: 2px;
+            padding: 3px 7px; font-size: 10px; line-height: 1.35; color: #f7eed8;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); position: relative; white-space: normal;
+            word-break: break-all; animation: bubble-appear 0.28s ease-out; min-height: 28px;
+            display: flex; align-items: center; transition: all 0.3s ease;
         }
 
         .opponent-speech-bubble::before {
-            content: "";
-            position: absolute;
-            left: -5px;
-            top: 10px;
-            width: 0;
-            height: 0;
-            border-top: 4px solid transparent;
-            border-bottom: 4px solid transparent;
-            border-right: 5px solid rgba(212, 167, 72, 0.6);
+            content: ""; position: absolute; left: -5px; top: 10px; width: 0; height: 0;
+            border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
         }
 
-        .opponent-speech-bubble.is-climax {
-            border-color: var(--char-accent);
-            box-shadow: 0 0 14px var(--char-glow);
-        }
-
+        .opponent-speech-bubble.is-climax { border-color: var(--char-accent); box-shadow: 0 0 14px var(--char-glow); }
         .opponent-speech-bubble.is-climax span {
             background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, var(--char-accent) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;
             filter: drop-shadow(0 0 4px var(--char-glow));
         }
 
@@ -401,214 +231,78 @@
 
         /* ゾーン②：盤面ゾーン */
         .board-zone {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            position: relative;
-            margin: 0;
-            gap: clamp(2px, 0.6dvh, 4px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex-shrink: 0; position: relative; margin: 0; width: 100%; gap: clamp(2px, 0.5dvh, 4px);
         }
 
         .battle-gauge-container {
-            width: min(88vw, 36.5dvh);
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            padding: 1px 2px;
-            flex-shrink: 0;
+            width: min(calc(100vw - 12px), 38.5dvh); display: flex; flex-direction: column; gap: 2px;
+            padding: 1px 2px; flex-shrink: 0; margin-top: -6px; margin-bottom: 3px;
         }
 
-        .battle-gauge-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            font-weight: 800;
-            padding: 0 2px;
-        }
-
+        .battle-gauge-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; padding: 0 2px; }
         .battle-badge {
-            font-size: 11px;
-            font-weight: 800;
-            color: #fff2cc;
+            font-size: 11px; font-weight: 800; color: #fff2cc;
             background: linear-gradient(135deg, rgba(140, 98, 24, 0.55) 0%, rgba(35, 25, 10, 0.75) 100%);
-            border: 1px solid var(--gold-border);
-            padding: 1.5px 7px;
-            border-radius: 5px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-            letter-spacing: 0.04em;
+            border: 1px solid var(--gold-border); padding: 1.5px 7px; border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); letter-spacing: 0.04em;
         }
 
         .battle-track {
-            position: relative;
-            height: 9px;
-            background: #111318;
-            border: 1.5px solid var(--gold-border);
-            border-radius: 6px;
-            overflow: hidden;
-            display: flex;
-            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
+            position: relative; height: 9px; background: #111318; border: 1.5px solid var(--gold-border);
+            border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
         }
 
-        .battle-center-mark {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1.5px;
-            background: rgba(255, 255, 255, 0.35);
-            z-index: 10;
-            transform: translateX(-50%);
-        }
-
+        .battle-center-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.35); z-index: 10; transform: translateX(-50%); }
         .battle-power-player {
-            height: 100%;
-            background: linear-gradient(90deg, #ffd700 0%, #ecd08c 70%, #ffffff 100%);
-            transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
-            position: relative;
+            height: 100%; background: linear-gradient(90deg, #ffd700 0%, #ecd08c 70%, #ffffff 100%);
+            transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
         }
-
         .battle-power-opponent {
-            height: 100%;
-            flex: 1;
-            background: linear-gradient(90deg, #1b1e28 0%, #2a3142 60%, #4a5568 100%);
-            transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
-            position: relative;
+            height: 100%; flex: 1; background: linear-gradient(90deg, #1b1e28 0%, #2a3142 60%, #4a5568 100%);
+            transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
         }
-
         .battle-clash-spark {
-            position: absolute;
-            top: -2px;
-            width: 5px;
-            height: 13px;
-            background: #ffffff;
-            border-radius: 2px;
-            box-shadow: 0 0 8px #ffd700, 0 0 14px #ffffff;
-            transform: translateX(-50%);
-            z-index: 15;
+            position: absolute; top: -2px; width: 5px; height: 13px; background: #ffffff; border-radius: 2px;
+            box-shadow: 0 0 8px #ffd700, 0 0 14px #ffffff; transform: translateX(-50%); z-index: 15;
             transition: left 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
         }
 
         .dynasty-board-chassis {
-            position: relative;
-            padding: var(--frame-pad);
+            position: relative; padding: var(--frame-pad);
             background: linear-gradient(135deg, #3d2314 0%, #201108 50%, #120904 100%);
-            border-radius: 12px;
-            border: 2px solid #54331e;
+            border-radius: 12px; border: 2px solid #54331e;
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.88), 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-            flex-shrink: 0;
+            flex-shrink: 0; width: fit-content;
         }
 
-        .corner-ornament {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            border: 2px solid #d4a748;
-            pointer-events: none;
-        }
+        .corner-ornament { position: absolute; width: 10px; height: 10px; border: 2px solid #d4a748; pointer-events: none; }
         .corner-tl { top: 3px; left: 3px; border-right: none; border-bottom: none; }
         .corner-tr { top: 3px; right: 3px; border-left: none; border-bottom: none; }
         .corner-bl { bottom: 3px; left: 3px; border-right: none; border-top: none; }
         .corner-br { bottom: 3px; right: 3px; border-left: none; border-top: none; }
 
         .coord-label {
-            position: absolute;
-            font-family: 'Cinzel', serif;
-            font-size: clamp(7.5px, 1.6vw, 9px);
-            font-weight: 700;
-            color: #cca45b;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
+            position: absolute; font-family: 'Cinzel', serif; font-size: clamp(7.5px, 1.6vw, 9px); font-weight: 700;
+            color: #cca45b; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; pointer-events: none;
         }
 
         #board {
-            width: min(88vw, 36.5dvh);
-            height: min(88vw, 36.5dvh);
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
-            background: var(--imperial-green);
-            border: 2px solid #140d07;
-            border-radius: 4px;
-            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.9);
-            position: relative;
-            flex-shrink: 0;
+            width: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
+            height: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            background: var(--imperial-green); border: 2px solid #140d07; border-radius: 4px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.9); position: relative; flex-shrink: 0;
         }
 
         .cell {
-            position: relative;
-            border: 1px solid rgba(0, 0, 0, 0.5);
-            box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            perspective: 900px;
+            position: relative; border: 1px solid rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.1);
+            display: flex; justify-content: center; align-items: center; cursor: pointer; perspective: 900px;
         }
 
-        /* ==========================================================================
-           ◆ 直近マス「主客識別カッコ［ ］」デザイン（Ver 5.0.0 新機能）
-        ========================================================================== */
-        /* ① プレイヤーの最新手：黄金ブラケット ［ あなた ］ */
-        .last-move-player {
-            box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 14px rgba(255, 215, 0, 0.65) !important;
+        .last-move-cell {
+            box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 14px rgba(255, 215, 0, 0.7) !important;
             animation: gold-pulse 1.8s ease-in-out infinite alternate;
-        }
-
-        .last-move-player::after {
-            content: "［ あなた ］";
-            position: absolute;
-            bottom: -7px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 7.5px;
-            font-weight: 900;
-            color: #1a1204;
-            background: linear-gradient(135deg, #fff3b3 0%, #ffd700 100%);
-            border: 1px solid #ffffff;
-            border-radius: 4px;
-            padding: 0 3px;
-            line-height: 1.1;
-            white-space: nowrap;
-            z-index: 25;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-            pointer-events: none;
-        }
-
-        /* ② 相手（AI）の最新手：深紅/テーマカラーブラケット ［ 相手 ］ */
-        .last-move-cpu {
-            box-shadow: inset 0 0 0 2px var(--char-accent), inset 0 0 14px var(--char-glow) !important;
-            animation: cpu-last-pulse 1.8s ease-in-out infinite alternate;
-        }
-
-        .last-move-cpu::after {
-            content: "［ 相手 ］";
-            position: absolute;
-            top: -7px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 7.5px;
-            font-weight: 900;
-            color: #ffffff;
-            background: linear-gradient(135deg, var(--char-accent) 0%, #441118 100%);
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            border-radius: 4px;
-            padding: 0 3px;
-            line-height: 1.1;
-            white-space: nowrap;
-            z-index: 25;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
-            pointer-events: none;
-        }
-
-        @keyframes cpu-last-pulse {
-            from { box-shadow: inset 0 0 0 2px var(--char-accent), inset 0 0 8px var(--char-glow); }
-            to { box-shadow: inset 0 0 0 2.5px #ffffff, inset 0 0 16px var(--char-glow); }
         }
 
         @keyframes gold-pulse {
@@ -628,39 +322,25 @@
 
         .can-place { background-color: rgba(212, 167, 72, 0.08); }
         .can-place::after {
-            content: "";
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: rgba(255, 240, 205, 0.55);
-            box-shadow: 0 0 6px rgba(212, 167, 72, 0.8);
-            pointer-events: none;
+            content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+            background: rgba(255, 240, 205, 0.55); box-shadow: 0 0 6px rgba(212, 167, 72, 0.8); pointer-events: none;
         }
 
         .can-place::before {
-            content: "";
-            position: absolute;
-            width: 82%;
-            height: 82%;
-            border-radius: 50%;
-            opacity: 0;
+            content: ""; position: absolute; width: 82%; height: 82%; border-radius: 50%; opacity: 0;
             transform: scale(0.7) translateY(-6px);
             transition: opacity 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
-            pointer-events: none;
-            z-index: 5;
+            pointer-events: none; z-index: 5;
         }
 
         .preview-black.can-place::before {
             background: linear-gradient(145deg, rgba(30, 32, 38, 0.85) 0%, rgba(12, 13, 16, 0.95) 100%);
-            border: 1.5px solid rgba(212, 167, 72, 0.6);
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7);
+            border: 1.5px solid rgba(212, 167, 72, 0.6); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7);
         }
 
         .preview-white.can-place::before {
             background: linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 236, 226, 0.9) 100%);
-            border: 1.5px solid rgba(212, 167, 72, 0.7);
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+            border: 1.5px solid rgba(212, 167, 72, 0.7); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
         }
 
         .can-place:hover::before { opacity: 0.92; transform: scale(1) translateY(0); }
@@ -672,12 +352,7 @@
         }
 
         .hint-cell::after {
-            content: "💡";
-            position: absolute;
-            top: 1px;
-            right: 1px;
-            font-size: 10.5px;
-            pointer-events: none;
+            content: "💡"; position: absolute; top: 1px; right: 1px; font-size: 10.5px; pointer-events: none;
         }
 
         @keyframes hint-pulse {
@@ -686,90 +361,55 @@
         }
 
         .move-toast {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.6);
-            opacity: 0;
-            pointer-events: none;
-            padding: 7px 14px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 13px;
-            letter-spacing: 0.08em;
-            z-index: 50;
-            transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.25);
-            white-space: nowrap;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6);
+            opacity: 0; pointer-events: none; padding: 7px 14px; border-radius: 20px; font-weight: 800;
+            font-size: 13px; letter-spacing: 0.08em; z-index: 50;
+            transition: all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.25); white-space: nowrap;
         }
 
         .move-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         .toast-good {
             background: linear-gradient(135deg, rgba(35, 30, 18, 0.95) 0%, rgba(18, 15, 8, 0.98) 100%);
-            border: 1.5px solid #ffd700;
-            color: #fff4bd;
-            box-shadow: 0 0 24px rgba(255, 215, 0, 0.65);
+            border: 1.5px solid #ffd700; color: #fff4bd; box-shadow: 0 0 24px rgba(255, 215, 0, 0.65);
         }
 
         .toast-bad {
             background: linear-gradient(135deg, rgba(40, 15, 15, 0.95) 0%, rgba(20, 8, 8, 0.98) 100%);
-            border: 1.5px solid #ff4d4d;
-            color: #ffd2d2;
-            box-shadow: 0 0 24px rgba(255, 77, 77, 0.65);
+            border: 1.5px solid #ff4d4d; color: #ffd2d2; box-shadow: 0 0 24px rgba(255, 77, 77, 0.65);
         }
 
-        /* 3Dフリップ＆石本体 */
+        /* 3D反転アニメーション */
         .stone-wrapper {
-            position: relative;
-            width: 86%;
-            height: 86%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative; width: 86%; height: 86%; display: flex; align-items: center; justify-content: center;
         }
 
         .stone {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            z-index: 2;
+            position: relative; width: 100%; height: 100%; border-radius: 50%; z-index: 2;
             filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82));
         }
 
-        .stone-new {
-            animation: stone-drop-clean 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-        }
-
+        .stone-new { animation: stone-drop-clean 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
         @keyframes stone-drop-clean {
             from { transform: translateY(-16px) scale(0.65); opacity: 0; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.4)); }
             to { transform: translateY(0) scale(1); opacity: 1; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
         .stone-flip-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
             perspective: 1000px;
-            animation: flip-lift-shadow 0.32s cubic-bezier(0.25, 1, 0.4, 1) forwards;
+            animation: flip-lift-shadow 0.48s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
             z-index: 10;
         }
 
         @keyframes flip-lift-shadow {
             0% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
-            45% { transform: translateY(-8px) scale(1.06); filter: drop-shadow(0 11px 12px rgba(0, 0, 0, 0.35)); }
+            45% { transform: translateY(-10px) scale(1.08); filter: drop-shadow(0 14px 15px rgba(0, 0, 0, 0.35)); }
             100% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
         .stone-flip-cylinder {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            transform-style: preserve-3d;
-            animation: flip-spin-3d 0.32s cubic-bezier(0.25, 1, 0.4, 1) forwards;
+            position: relative; width: 100%; height: 100%; border-radius: 50%; transform-style: preserve-3d;
+            animation: flip-spin-3d 0.48s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
         }
 
         @keyframes flip-spin-3d {
@@ -778,21 +418,14 @@
         }
 
         .stone-face {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
+            position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
         }
 
         .stone-face-front { transform: rotateY(0deg) translateZ(1.5px); }
         .stone-face-back { transform: rotateY(180deg) translateZ(1.5px); }
 
         .stone-edge-rim {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            transform: translateZ(0px);
+            position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px);
             background: linear-gradient(90deg, #101114 0%, #1a1c22 49%, #3b372f 50%, #ede7da 51%, #fcfbf7 100%);
             border: 1px solid rgba(45, 42, 38, 0.85);
         }
@@ -811,59 +444,29 @@
 
         /* ゾーン③：操作ゾーン */
         .player-control-zone {
-            width: min(94vw, 440px);
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            flex-shrink: 0;
-            position: relative;
+            width: min(96vw, 440px); display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative;
         }
 
         .royal-card {
-            background: var(--panel-bg);
-            border: 1px solid var(--gold-border);
-            border-radius: 12px;
-            padding: clamp(4px, 0.9dvh, 6px) 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            position: relative;
+            background: var(--panel-bg); border: 1px solid var(--gold-border); border-radius: 12px;
+            padding: clamp(4px, 0.9dvh, 6px) 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px); position: relative;
         }
 
         .royal-card::before {
-            content: "";
-            position: absolute;
-            inset: 2px;
-            border: 1px solid rgba(212, 167, 72, 0.2);
-            border-radius: 10px;
-            pointer-events: none;
+            content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2);
+            border-radius: 10px; pointer-events: none;
         }
 
-        .player-status-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-            margin-bottom: 4px;
-        }
+        .player-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 
         #status {
-            flex: 1;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            text-align: left;
-            min-height: 18px;
-            display: flex;
-            align-items: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            flex: 1; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-align: left;
+            min-height: 18px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         #status.status-human-turn {
-            background: var(--royal-gold-bright);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             animation: human-turn-blink 1.4s ease-in-out infinite;
         }
 
@@ -873,16 +476,11 @@
         }
 
         #status.status-cpu-turn {
-            color: #d1b888;
-            -webkit-text-fill-color: #d1b888;
-            opacity: 0.85;
-            animation: cpu-pulse 1.8s ease-in-out infinite;
+            color: #d1b888; -webkit-text-fill-color: #d1b888; opacity: 0.85; animation: cpu-pulse 1.8s ease-in-out infinite;
         }
 
         #status.status-hint-thinking {
-            color: #a4ebf2;
-            -webkit-text-fill-color: #a4ebf2;
-            text-shadow: 0 0 8px rgba(72, 166, 176, 0.7);
+            color: #a4ebf2; -webkit-text-fill-color: #a4ebf2; text-shadow: 0 0 8px rgba(72, 166, 176, 0.7);
             animation: hint-thinking-pulse 1.2s ease-in-out infinite;
         }
 
@@ -891,391 +489,179 @@
 
         .player-stats-group { display: flex; align-items: center; gap: 5px; }
         .player-score-badge {
-            font-family: 'Cinzel', serif;
-            font-size: 12.5px;
-            font-weight: 900;
-            padding: 1px 6px;
-            border-radius: 6px;
-            background: rgba(8, 10, 14, 0.9);
-            border: 1px solid #ffd700;
-            color: #fff4bd;
-            box-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
+            font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 900; padding: 1px 6px;
+            border-radius: 6px; background: rgba(8, 10, 14, 0.9); border: 1px solid #ffd700;
+            color: #fff4bd; box-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
         }
 
         .player-timer { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 600; color: #baa070; }
 
         .color-selector {
-            display: flex;
-            background: rgba(8, 10, 14, 0.85);
-            border: 1px solid var(--gold-border);
-            border-radius: 6px;
-            padding: 2px;
-            gap: 2px;
+            display: flex; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border);
+            border-radius: 6px; padding: 2px; gap: 2px;
         }
 
         .color-btn {
-            font-family: inherit;
-            font-size: 9px;
-            font-weight: 700;
-            padding: 2.5px 6px;
-            border-radius: 4px;
-            border: 1px solid transparent;
-            background: transparent;
-            color: #aa9c80;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            font-family: inherit; font-size: 9px; font-weight: 700; padding: 2.5px 6px;
+            border-radius: 4px; border: 1px solid transparent; background: transparent; color: #aa9c80;
+            cursor: pointer; transition: all 0.2s ease;
         }
 
         .color-btn.active {
-            background: var(--pure-gold-btn) !important;
-            color: #1a1204 !important;
-            border: 1px solid #ffffff !important;
-            font-weight: 900;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.85);
+            background: var(--pure-gold-btn) !important; color: #1a1204 !important; border: 1px solid #ffffff !important;
+            font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.85);
             transform: translateY(-1px);
         }
 
-        .action-grid-row1 {
-            display: grid;
-            grid-template-columns: 1.25fr 1fr;
-            gap: 4px;
-            margin-bottom: 4px;
-        }
-
-        .action-grid-row2 {
-            display: grid;
-            grid-template-columns: 1fr 1.1fr 1fr 1.15fr;
-            gap: 4px;
-        }
+        .action-grid-row1 { display: grid; grid-template-columns: 1.25fr 1fr; gap: 4px; margin-bottom: 4px; }
+        .action-grid-row2 { display: grid; grid-template-columns: 1fr 1.1fr 1fr 1.15fr; gap: 4px; }
 
         select {
-            font-family: inherit;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2.5px 4px;
-            border-radius: 6px;
-            border: 1px solid var(--gold-border);
-            background: linear-gradient(180deg, #222633 0%, #131620 100%);
-            color: #faebd0;
-            outline: none;
-            width: 100%;
+            font-family: inherit; font-size: 10px; font-weight: 700; padding: 2.5px 4px; border-radius: 6px;
+            border: 1px solid var(--gold-border); background: linear-gradient(180deg, #222633 0%, #131620 100%);
+            color: #faebd0; outline: none; width: 100%;
         }
 
         button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; white-space: nowrap; }
 
         .btn-royal {
-            padding: 3.5px 2px;
-            font-size: 10px;
-            font-weight: 700;
-            border: 1px solid var(--gold-border);
-            background: linear-gradient(180deg, #2c3242 0%, #171b26 100%);
-            color: #f7eed8;
+            padding: 3.5px 2px; font-size: 10px; font-weight: 700; border: 1px solid var(--gold-border);
+            background: linear-gradient(180deg, #2c3242 0%, #171b26 100%); color: #f7eed8;
         }
 
         .btn-royal:hover { border-color: #fae6b2; }
-
-        #undoButton {
-            background: linear-gradient(180deg, #3d3420 0%, #1f190d 100%);
-            color: #fce7ba;
-            border-color: #c5973e;
-            font-weight: 800;
-        }
-
-        #restartButton {
-            background: linear-gradient(180deg, #44371e 0%, #201a0d 100%);
-            color: #fff2d1;
-            border-color: #d4a748;
-            font-weight: 800;
-            letter-spacing: 0.05em;
-        }
-
-        #guideButton {
-            background: linear-gradient(180deg, #2a2c3a 0%, #151620 100%);
-            color: #faebd0;
-            border-color: var(--gold-border);
-            font-weight: 800;
-        }
-
-        #hintButton {
-            background: linear-gradient(180deg, #1b3d42 0%, #102427 100%);
-            color: #daf7fa;
-            border-color: #48a6b0;
-            font-weight: 800;
-        }
+        #undoButton { background: linear-gradient(180deg, #3d3420 0%, #1f190d 100%); color: #fce7ba; border-color: #c5973e; font-weight: 800; }
+        #restartButton { background: linear-gradient(180deg, #44371e 0%, #201a0d 100%); color: #fff2d1; border-color: #d4a748; font-weight: 800; letter-spacing: 0.05em; }
+        #guideButton { background: linear-gradient(180deg, #2a2c3a 0%, #151620 100%); color: #faebd0; border-color: var(--gold-border); font-weight: 800; }
+        #hintButton { background: linear-gradient(180deg, #1b3d42 0%, #102427 100%); color: #daf7fa; border-color: #48a6b0; font-weight: 800; }
 
         .hint-fixed-display {
-            width: 100%;
-            height: clamp(50px, 6.8dvh, 62px);
-            margin-top: 4px;
-            padding: clamp(2px, 0.6dvh, 4px) 8px;
-            border: 1px solid rgba(72, 166, 176, 0.45);
-            border-radius: 8px;
-            background: rgba(10, 16, 22, 0.95);
+            width: 100%; height: clamp(50px, 6.8dvh, 62px); margin-top: 4px; padding: clamp(2px, 0.6dvh, 4px) 8px;
+            border: 1px solid rgba(72, 166, 176, 0.45); border-radius: 8px; background: rgba(10, 16, 22, 0.95);
             box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
+            display: flex; flex-direction: column; justify-content: center; overflow: hidden; position: relative;
         }
 
         .hint-fixed-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid rgba(72, 166, 176, 0.25);
-            padding-bottom: 1px;
-            margin-bottom: 2px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(72, 166, 176, 0.25); padding-bottom: 1px; margin-bottom: 2px;
         }
 
         .hint-badge-tag { font-size: 9.5px; font-weight: 800; color: #a4ebf2; display: flex; align-items: center; gap: 4px; }
         .hint-target-coord { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 900; color: #fff2d1; }
 
         .hint-elegant-gold-text {
-            font-size: 10px;
-            line-height: 1.35;
-            color: #ecd08c;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-            overflow-y: auto;
-            flex: 1;
+            font-size: 10px; line-height: 1.35; color: #ecd08c; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+            overflow-y: auto; flex: 1;
         }
 
         .hint-placeholder-text { font-size: 10px; color: #7d8b99; font-style: italic; text-align: center; line-height: 18px; }
 
-        /* ==========================================================================
-           ◆ 棋譜検証（振り返りモード）パネル（Ver 5.0.0 因果関係解説化）
-        ========================================================================== */
+        /* 棋譜検証パネル */
         .review-mode-panel {
-            display: none;
-            width: 100%;
-            background: linear-gradient(165deg, #18202d 0%, #0d1017 100%);
-            border: 1.5px solid #48a6b0;
-            border-radius: 12px;
-            padding: 6px 9px;
-            box-shadow: 0 0 20px rgba(72, 166, 176, 0.35);
-            flex-direction: column;
-            gap: 5px;
+            display: none; width: 100%; background: linear-gradient(165deg, #18202d 0%, #0d1017 100%);
+            border: 1.5px solid #48a6b0; border-radius: 12px; padding: 6px 9px;
+            box-shadow: 0 0 20px rgba(72, 166, 176, 0.35); flex-direction: column; gap: 5px;
         }
 
         .review-mode-panel.show { display: flex; }
 
         .review-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(72, 166, 176, 0.3);
-            padding-bottom: 3px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(72, 166, 176, 0.3); padding-bottom: 3px;
         }
 
         .review-step-label { font-size: 11px; font-weight: 800; color: #a4ebf2; }
         .review-turn-info { font-family: 'Cinzel', serif; font-size: 10.5px; font-weight: 700; color: #fff2cc; }
 
-        /* 因果関係詳細解説ボックス */
         .review-context-box {
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid rgba(72, 166, 176, 0.3);
-            border-radius: 6px;
-            padding: 4px 6px;
-            font-size: 9.5px;
-            line-height: 1.4;
-            color: #ecd08c;
-            min-height: 32px;
-            display: flex;
-            align-items: center;
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(72, 166, 176, 0.3);
+            border-radius: 6px; padding: 4px 6px; font-size: 9.5px; line-height: 1.4; color: #ecd08c;
+            min-height: 32px; display: flex; align-items: center;
         }
 
         .review-controls-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
         .review-controls-row2 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 4px; }
 
         .btn-review-nav {
-            padding: 4.5px 3px;
-            font-size: 10px;
-            font-weight: 800;
-            border-radius: 6px;
-            border: 1px solid var(--gold-border);
-            background: linear-gradient(180deg, #2a3346 0%, #141a24 100%);
-            color: #ffffff;
-            transition: all 0.2s ease;
+            padding: 4.5px 3px; font-size: 10px; font-weight: 800; border-radius: 6px; border: 1px solid var(--gold-border);
+            background: linear-gradient(180deg, #2a3346 0%, #141a24 100%); color: #ffffff; transition: all 0.2s ease;
         }
 
         .btn-review-nav:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.8); }
+        .btn-jump-good { background: linear-gradient(180deg, #3d351b 0%, #1f190b 100%); border: 1px solid #ffd700; color: #fff2bd; font-weight: 800; }
+        .btn-jump-bad { background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%); border: 1px solid #ff6b6b; color: #ffd8d8; font-weight: 800; }
+        .btn-review-exit { background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; font-weight: 900; box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
 
-        .btn-jump-good {
-            background: linear-gradient(180deg, #3d351b 0%, #1f190b 100%);
-            border: 1px solid #ffd700;
-            color: #fff2bd;
-            font-weight: 800;
-        }
-
-        .btn-jump-bad {
-            background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%);
-            border: 1px solid #ff6b6b;
-            color: #ffd8d8;
-            font-weight: 800;
-        }
-
-        .btn-review-exit {
-            background: var(--pure-gold-btn);
-            color: #121008;
-            border: 1px solid #ffffff;
-            font-weight: 900;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
-        }
-
-        /* ==========================================================================
-           ◆ 王宮戦後会見（ROYAL DEBRIEFING）フルモーダル（Ver 5.0.0 敗北識別＆主客明瞭化）
-        ========================================================================== */
+        /* 王宮戦後会見モーダル */
         .royal-result-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            background: rgba(4, 5, 8, 0.94);
-            backdrop-filter: blur(10px);
-            padding: 12px;
+            display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center;
+            background: rgba(4, 5, 8, 0.94); backdrop-filter: blur(10px); padding: 12px;
         }
 
         .royal-result-modal.show { display: flex; animation: modal-fade-in 0.35s ease-out forwards; }
         @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
         .royal-result-card {
-            width: 100%;
-            max-width: 440px;
-            max-height: 94dvh;
-            overflow-y: auto;
+            width: 100%; max-width: 440px; max-height: 94dvh; overflow-y: auto;
             background: linear-gradient(165deg, #1c212d 0%, #11141c 55%, #0a0b10 100%);
-            border: 2px solid var(--char-accent);
-            border-radius: 16px;
-            padding: 16px 14px;
-            text-align: center;
-            box-shadow: 0 0 32px var(--char-glow), 0 24px 60px rgba(0, 0, 0, 0.95);
-            position: relative;
+            border: 2px solid var(--char-accent); border-radius: 16px; padding: 16px 14px; text-align: center;
+            box-shadow: 0 0 32px var(--char-glow), 0 24px 60px rgba(0, 0, 0, 0.95); position: relative;
             animation: result-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
         }
 
-        @keyframes result-pop {
-            from { transform: scale(0.9); }
-            to { transform: scale(1); }
-        }
+        @keyframes result-pop { from { transform: scale(0.9); } to { transform: scale(1); } }
 
         .result-main-title {
-            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: 21px;
-            font-weight: 900;
-            letter-spacing: 0.1em;
-            margin-bottom: 4px;
-            line-height: 1.25;
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 21px; font-weight: 900;
+            letter-spacing: 0.1em; margin-bottom: 4px; line-height: 1.25;
         }
 
         .result-title-win {
             background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, #ffd700 80%, #d4a748 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.7));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.7));
         }
 
         .result-title-lose {
             background: linear-gradient(135deg, #ffffff 0%, #ff9e9e 40%, #ff4d4d 80%, #a61212 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 2px 10px rgba(255, 77, 77, 0.7));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 10px rgba(255, 77, 77, 0.7));
         }
 
         .result-title-draw { color: #e5e0d4; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
 
-        .result-avatar-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 6px 0 8px 0;
-            position: relative;
-        }
+        .result-avatar-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 6px 0 8px 0; position: relative; }
 
-        /* 相手の勝敗ステータス（主客誤認を断ち切る帯） */
         .opponent-status-tag {
-            font-size: 11.5px;
-            font-weight: 800;
-            padding: 2px 10px;
-            border-radius: 12px;
-            margin-bottom: 5px;
-            letter-spacing: 0.05em;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            font-size: 11.5px; font-weight: 800; padding: 2px 10px; border-radius: 12px; margin-bottom: 5px;
+            letter-spacing: 0.05em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
         }
 
-        .tag-opponent-surrendered {
-            background: linear-gradient(135deg, #2b3a4a 0%, #151d26 100%);
-            border: 1px solid #ffd700;
-            color: #fff2bd;
-        }
-
-        .tag-opponent-triumphant {
-            background: linear-gradient(135deg, #4d1c1c 0%, #260c0c 100%);
-            border: 1px solid #ff6b6b;
-            color: #ffd8d8;
-        }
+        .tag-opponent-surrendered { background: linear-gradient(135deg, #2b3a4a 0%, #151d26 100%); border: 1px solid #ffd700; color: #fff2bd; }
+        .tag-opponent-triumphant { background: linear-gradient(135deg, #4d1c1c 0%, #260c0c 100%); border: 1px solid #ff6b6b; color: #ffd8d8; }
 
         .result-avatar-frame {
-            width: 110px;
-            height: 148px;
-            border-radius: 50%;
-            border: 4px solid var(--char-accent);
+            width: 110px; height: 148px; border-radius: 50%; border: 4px solid var(--char-accent);
             box-shadow: 0 0 0 3px #38240f, 0 0 20px var(--char-glow), inset 0 0 14px rgba(0, 0, 0, 0.9);
             background: radial-gradient(ellipse at 40% 35%, #3a3224 0%, #171510 65%, #080705 100%);
-            overflow: hidden;
-            position: relative;
-            margin-bottom: 6px;
-            transition: all 0.4s ease;
+            overflow: hidden; position: relative; margin-bottom: 6px; transition: all 0.4s ease;
         }
 
-        .result-avatar-frame.opponent-lost-filter {
-            filter: grayscale(0.25) contrast(0.9);
-        }
-
-        .result-avatar-frame img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .result-avatar-frame.opponent-lost-filter { filter: grayscale(0.25) contrast(0.9); }
+        .result-avatar-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         .result-quote-card {
             background: linear-gradient(135deg, rgba(32, 38, 52, 0.85) 0%, rgba(16, 18, 26, 0.92) 100%);
-            border: 1px solid rgba(212, 167, 72, 0.35);
-            border-radius: 10px;
-            padding: 8px 12px;
-            font-size: 11.5px;
-            line-height: 1.45;
-            color: #f7eed8;
-            margin-bottom: 9px;
-            font-style: italic;
-            position: relative;
-            text-align: left;
+            border: 1px solid rgba(212, 167, 72, 0.35); border-radius: 10px; padding: 8px 12px; font-size: 11.5px;
+            line-height: 1.45; color: #f7eed8; margin-bottom: 9px; font-style: italic; position: relative; text-align: left;
         }
 
         .result-quote-card::before {
-            content: "💬";
-            position: absolute;
-            left: 10px;
-            top: -10px;
-            font-size: 14px;
-            background: #11141c;
-            border-radius: 50%;
-            padding: 0 2px;
+            content: "💬"; position: absolute; left: 10px; top: -10px; font-size: 14px; background: #11141c; border-radius: 50%; padding: 0 2px;
         }
 
         .result-stats-card {
-            background: rgba(0, 0, 0, 0.35);
-            border: 1px solid var(--gold-border);
-            border-radius: 10px;
-            padding: 8px 12px;
-            margin-bottom: 9px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 11px;
+            background: rgba(0, 0, 0, 0.35); border: 1px solid var(--gold-border); border-radius: 10px;
+            padding: 8px 12px; margin-bottom: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;
         }
 
         .stats-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
@@ -1284,23 +670,12 @@
 
         .ai-tactics-carte {
             background: linear-gradient(135deg, rgba(22, 28, 38, 0.9) 0%, rgba(12, 14, 20, 0.95) 100%);
-            border: 1.5px solid rgba(72, 166, 176, 0.5);
-            border-radius: 10px;
-            padding: 8px 10px;
-            margin-bottom: 11px;
-            text-align: left;
+            border: 1.5px solid rgba(72, 166, 176, 0.5); border-radius: 10px; padding: 8px 10px; margin-bottom: 11px; text-align: left;
         }
 
         .carte-header {
-            font-size: 11.5px;
-            font-weight: 800;
-            color: #a4ebf2;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 5px;
-            padding-bottom: 3px;
-            border-bottom: 1px solid rgba(72, 166, 176, 0.25);
+            font-size: 11.5px; font-weight: 800; color: #a4ebf2; display: flex; align-items: center; gap: 5px;
+            margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid rgba(72, 166, 176, 0.25);
         }
 
         .carte-row { margin-bottom: 5px; font-size: 11px; line-height: 1.4; }
@@ -1309,15 +684,8 @@
         .carte-label.good { color: #ffd700; }
         .carte-label.bad { color: #ff7878; }
         .carte-coord-badge {
-            font-family: 'Cinzel', serif;
-            font-size: 12px;
-            font-weight: 900;
-            padding: 0 5px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #ffffff;
-            margin: 0 3px;
+            font-family: 'Cinzel', serif; font-size: 12px; font-weight: 900; padding: 0 5px; border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #ffffff; margin: 0 3px;
         }
         .carte-desc { color: #ecd08c; margin-top: 1px; padding-left: 14px; font-size: 10.5px; }
 
@@ -1325,292 +693,124 @@
         .result-main-btn-row { display: flex; gap: 8px; }
 
         .result-btn-gold {
-            background: var(--pure-gold-btn);
-            color: #1a1204;
-            border: 1px solid #ffffff;
+            background: var(--pure-gold-btn); color: #1a1204; border: 1px solid #ffffff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 0 16px rgba(255, 215, 0, 0.75);
-            font-size: 12.5px;
-            font-weight: 900;
-            padding: 9px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: all 0.2s ease;
+            font-size: 12.5px; font-weight: 900; padding: 9px 12px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;
         }
 
-        .result-btn-gold:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8), 0 0 22px rgba(255, 215, 0, 0.95);
-        }
+        .result-btn-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8), 0 0 22px rgba(255, 215, 0, 0.95); }
 
         .result-btn-dark {
-            background: rgba(255, 255, 255, 0.08);
-            color: #f7eed8;
-            border: 1px solid var(--gold-border);
-            padding: 7px 12px;
-            font-size: 11px;
-            font-weight: 800;
-            border-radius: 8px;
-            cursor: pointer;
+            background: rgba(255, 255, 255, 0.08); color: #f7eed8; border: 1px solid var(--gold-border);
+            padding: 7px 12px; font-size: 11px; font-weight: 800; border-radius: 8px; cursor: pointer;
         }
+        .result-btn-dark:hover { background: rgba(255, 255, 255, 0.15); border-color: #ffd700; }
 
-        .result-btn-dark:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #ffd700;
-        }
-
-        /* ==========================================================================
-           ◆ 栄光の戴冠式（グランドエンディングモーダル）
-        ========================================================================== */
+        /* 栄光の戴冠式モーダル */
         #endingModal .royal-result-card {
-            max-width: 500px;
-            border-color: #ffd700;
-            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95);
+            max-width: 500px; border-color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95);
         }
 
         .ending-hero-title {
-            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: 23px;
-            font-weight: 900;
-            letter-spacing: 0.15em;
-            background: var(--royal-gold-bright);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 23px; font-weight: 900;
+            letter-spacing: 0.15em; background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
         }
 
-        .ending-tribute-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            margin: 10px 0 14px 0;
-        }
-
+        .ending-tribute-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 14px 0; }
         .tribute-card {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(212, 167, 72, 0.3);
-            border-radius: 8px;
-            padding: 6px 4px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 3px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3);
+            border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px;
         }
-
-        .tribute-img {
-            width: 38px;
-            height: 48px;
-            border-radius: 50%;
-            border: 1.5px solid #ffd700;
-            overflow: hidden;
-            background: #111;
-        }
-
+        .tribute-img { width: 38px; height: 48px; border-radius: 50%; border: 1.5px solid #ffd700; overflow: hidden; background: #111; }
         .tribute-img img { width: 100%; height: 100%; object-fit: cover; }
         .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
         .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
 
         /* フッター */
         footer.app-footer {
-            width: 100%;
-            max-width: 1080px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 2px 8px;
-            font-size: 9px;
-            color: #b59f78;
-            z-index: 10;
-            flex-shrink: 0;
+            width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center;
+            padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0;
         }
 
-        .bottom-safe-space { width: 100%; height: clamp(10px, 1.8dvh, 16px); flex-shrink: 0; }
+        .bottom-safe-space { width: 100%; height: clamp(8px, 1.5dvh, 14px); flex-shrink: 0; }
 
         .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-family: 'Cinzel', serif;
-            font-size: 9.5px;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            background: var(--royal-gold);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 4px; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700;
+            letter-spacing: 0.12em; background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
         .footer-version {
-            font-family: 'Cinzel', serif;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #e5c378;
-            cursor: pointer;
-            text-decoration: underline;
-            text-underline-offset: 2px;
-            padding: 1px 4px;
-            border-radius: 4px;
+            font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer;
+            text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px;
         }
-
         .footer-version:hover { color: #ffffff; background: rgba(212, 167, 72, 0.2); text-shadow: 0 0 8px var(--gold-glow); }
 
         @media (min-aspect-ratio: 1/1) {
-            .app-container {
-                flex-direction: row;
-                justify-content: center;
-                align-items: center;
-                gap: 16px;
-                padding: 0 8px;
-            }
-            .board-zone { margin: 0; }
+            .app-container { flex-direction: row; justify-content: center; align-items: center; gap: 16px; padding: 0 8px; }
+            .board-zone { margin: 0; width: auto; }
             #board { width: min(70dvh, 44vw); height: min(70dvh, 44vw); }
-            .battle-gauge-container { width: min(70dvh, 44vw); }
+            .battle-gauge-container { width: min(70dvh, 44vw); margin-top: 0; }
             .opponent-zone, .player-control-zone { width: 340px; }
         }
 
         .dynasty-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 16px 12px;
-            background: rgba(4, 5, 8, 0.88);
-            backdrop-filter: blur(8px);
+            display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center;
+            padding: 16px 12px; background: rgba(4, 5, 8, 0.88); backdrop-filter: blur(8px);
         }
-
         .dynasty-overlay.show { display: flex; }
 
         .dynasty-modal {
-            width: 100%;
-            max-width: 580px;
-            max-height: 86dvh;
-            overflow-y: auto;
-            text-align: left;
-            color: #f7eed8;
-            background: linear-gradient(160deg, #1b1e28 0%, #101218 100%);
-            border: 1px solid var(--gold-border);
-            border-radius: 12px;
-            padding: 16px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+            width: 100%; max-width: 580px; max-height: 86dvh; overflow-y: auto; text-align: left; color: #f7eed8;
+            background: linear-gradient(160deg, #1b1e28 0%, #101218 100%); border: 1px solid var(--gold-border);
+            border-radius: 12px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
         }
 
         .guide-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(212, 167, 72, 0.25);
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+            padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
         }
-
         .guide-header h2 { font-size: 15px; font-weight: 800; color: #e5c378; }
         .modal-close-btn {
-            width: 26px; height: 26px; font-size: 13px; cursor: pointer;
-            color: #f7eed8; background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 50%;
+            width: 26px; height: 26px; font-size: 13px; cursor: pointer; color: #f7eed8;
+            background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 50%;
         }
 
-        .manual-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 12px;
-            border-bottom: 1px solid rgba(212, 167, 72, 0.3);
-            padding-bottom: 6px;
-        }
-
+        .manual-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; }
         .manual-tab-btn {
-            flex: 1;
-            padding: 5px 3px;
-            font-size: 11px;
-            font-weight: 700;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(212, 167, 72, 0.2);
-            color: #c9ba9f;
-            border-radius: 6px;
+            flex: 1; padding: 5px 3px; font-size: 11px; font-weight: 700; background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(212, 167, 72, 0.2); color: #c9ba9f; border-radius: 6px;
         }
-
         .manual-tab-btn.active {
-            background: linear-gradient(135deg, #c5973e 0%, #8c6218 100%);
-            color: #ffffff;
-            border-color: #ffd700;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, #c5973e 0%, #8c6218 100%); color: #ffffff; border-color: #ffd700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
-
         .manual-tab-content { display: none; }
         .manual-tab-content.active { display: block; }
 
         .manual-card {
-            border: 1px solid rgba(212, 167, 72, 0.25);
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            padding: 10px 12px;
-            margin-bottom: 9px;
-            font-size: 11.5px;
-            line-height: 1.6;
+            border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6;
         }
-
-        .manual-card-title {
-            font-size: 12.5px;
-            font-weight: 800;
-            color: #fff2cc;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 4px;
-        }
+        .manual-card-title { font-size: 12.5px; font-weight: 800; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 
         .manual-char-card {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            border: 1px solid rgba(212, 167, 72, 0.25);
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px;
-            padding: 8px 10px;
-            margin-bottom: 8px;
+            display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25);
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
         }
-
         .manual-char-avatar-mini {
-            width: 44px;
-            height: 58px;
-            border-radius: 50%;
-            border: 2px solid var(--gold-border);
-            overflow: hidden;
-            flex-shrink: 0;
-            background: #111;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            width: 44px; height: 58px; border-radius: 50%; border: 2px solid var(--gold-border); overflow: hidden;
+            flex-shrink: 0; background: #111; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
         }
-
         .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
         .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800; color: #ffd700; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.35); padding: 1px 5px; border-radius: 3px; }
 
         .chronicle-timeline { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
-        .chronicle-item {
-            position: relative;
-            padding-left: 18px;
-            border-left: 2px solid rgba(212, 167, 72, 0.35);
-            font-size: 11px;
-            line-height: 1.45;
-        }
-
+        .chronicle-item { position: relative; padding-left: 18px; border-left: 2px solid rgba(212, 167, 72, 0.35); font-size: 11px; line-height: 1.45; }
         .chronicle-item::before {
-            content: "";
-            position: absolute;
-            left: -5.5px;
-            top: 2px;
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #ffd700;
-            box-shadow: 0 0 6px #ffd700;
+            content: ""; position: absolute; left: -5.5px; top: 2px; width: 9px; height: 9px;
+            border-radius: 50%; background: #ffd700; box-shadow: 0 0 6px #ffd700;
         }
-
         .chronicle-version { font-family: 'Cinzel', serif; font-weight: 800; color: #fff4bd; font-size: 11.5px; }
         .chronicle-date { font-size: 9.5px; color: #baa070; margin-left: 6px; }
         .chronicle-desc { color: #ded6c2; margin-top: 2px; }
@@ -1658,7 +858,6 @@
                         <span class="opponent-title" id="opponentTitle">（宮廷道化師）</span>
                     </div>
                     <div class="opponent-stats-group">
-                        <!-- 相手専用リアルタイムタイマー（Ver 5.0.0新設） -->
                         <span class="opponent-timer" id="opponentTime" title="相手の総消費思考時間">⏱️ 00:00</span>
                         <div class="opponent-score-badge">
                             <span id="opponentPieceIcon">⚪</span>
@@ -1674,7 +873,7 @@
 
         <!-- ゾーン②：盤面ゾーン -->
         <div class="board-zone">
-            <!-- 運命の天秤（あなた vs 相手） -->
+            <!-- 運命の天秤 -->
             <div class="battle-gauge-container">
                 <div class="battle-gauge-header">
                     <span id="battleStatPlayer">⚫ あなた 50%</span>
@@ -1689,6 +888,7 @@
                 </div>
             </div>
 
+            <!-- 盤外枠シャーシ -->
             <div class="dynasty-board-chassis" id="boardChassis">
                 <div class="corner-ornament corner-tl"></div>
                 <div class="corner-ornament corner-tr"></div>
@@ -1754,13 +954,12 @@
                 </div>
             </div>
 
-            <!-- 本格『棋譜検証（振り返り）モード』パネル（因果関係解説化） -->
+            <!-- 本格『棋譜検証（振り返り）モード』パネル -->
             <div class="review-mode-panel" id="reviewModePanel">
                 <div class="review-header-row">
                     <div class="review-step-label">🔍【棋譜検証モード】</div>
                     <div class="review-turn-info" id="reviewTurnInfo">第 0 手 / 全 0 手</div>
                 </div>
-                <!-- 因果関係文脈ボックス -->
                 <div class="review-context-box" id="reviewContextBox">
                     一手ずつ手筋を振り返り、前後の因果関係を検証できます。
                 </div>
@@ -1779,15 +978,12 @@
 
     </div>
 
-    <!-- ==========================================================================
-         ◆ 王宮戦後会見（ROYAL DEBRIEFING）フルモーダル
-    ========================================================================== -->
+    <!-- 王宮戦後会見モーダル -->
     <div id="royalResultModal" class="royal-result-modal">
         <div class="royal-result-card">
             <div class="result-main-title" id="resultMainTitle">👑 完全勝利 (VICTORY)</div>
 
             <div class="result-avatar-container">
-                <!-- 相手の降参/勝利ステータスを明示するバッジ帯（主客誤認完全解消） -->
                 <div class="opponent-status-tag tag-opponent-surrendered" id="opponentStatusTag">
                     【対戦相手】道化師 ピエロ（降参・完敗）
                 </div>
@@ -1836,22 +1032,20 @@
         </div>
     </div>
 
-    <!-- ==========================================================================
-         ◆ 栄光の戴冠式（グランドエンディングモーダル：Lv.6制覇記念）
-    ========================================================================== -->
+    <!-- 栄光の戴冠式モーダル -->
     <div id="endingModal" class="royal-result-modal">
         <div class="royal-result-card">
             <div class="ending-hero-title">🏆 GRAND TRIUMPH</div>
             <div style="font-size:13px; font-weight:800; color:#ffd700; margin-bottom:4px;">全宮廷豪傑制覇・栄光の戴冠式</div>
             <p style="font-size:11px; color:#e0d3bc; line-height:1.5; margin-bottom:10px;">
-                神域の老賢王オルレアンをも打ち破り、貴方様はこの王国の頂点たる「オセロ覇王」へと君臨いたしました！宮廷の全豪傑たちより、至高の賛辞が贈られます。
+                AIの指南に一切頼ることなく、己の知謀のみで至高の老賢王オルレアンをも打ち破り、貴方様は王国の頂点たる「真のオセロ覇王」へと戴冠いたしました！
             </p>
 
             <div class="ending-tribute-grid">
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char1.png" alt="ピエロ" onerror="this.src='';this.parentElement.textContent='🃏'"></div>
                     <div class="tribute-name">ピエロ</div>
-                    <div class="tribute-msg">「まさか王様まで倒しちゃうなんて大拍手でゴザイマス！」</div>
+                    <div class="tribute-msg">「自力で王様を倒すなんて本物の天才でゴザイマス！」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char2.png" alt="コレット" onerror="this.src='';this.parentElement.textContent='🎀'"></div>
@@ -1866,17 +1060,17 @@
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="tribute-name">エリザベート</div>
-                    <div class="tribute-msg">「ふふ…最高の知性に乾杯。今宵は貴方様の宴ですわ。」</div>
+                    <div class="tribute-msg">「ふふ…至高の知性に乾杯。今宵は貴方様の宴ですわ。」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char5.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
                     <div class="tribute-name">ヴォルフガング</div>
-                    <div class="tribute-msg">「我が冷徹な計算をも超えた神の一手、脱帽いたす。」</div>
+                    <div class="tribute-msg">「冷徹な知略の極み、完全無欠の勝利に敬服いたす。」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
                     <div class="tribute-name">オルレアン</div>
-                    <div class="tribute-msg">「余の玉座を託そう！新しき王の誕生に祝福あれ！」</div>
+                    <div class="tribute-msg">「余の玉座を託そう！新しき覇王の誕生を祝福せよ！」</div>
                 </div>
             </div>
 
@@ -1891,7 +1085,7 @@
         <div class="footer-brand">
             <span>👑 OTHELLO 2026 AI SENSEI</span>
         </div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.0.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.1.1</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1913,7 +1107,7 @@
             <div id="tab-ops" class="manual-tab-content active">
                 <div class="manual-card">
                     <div class="manual-card-title">👑 宮廷対面コロシアム構図</div>
-                    <div>画面上部に「相手の肖像画・セリフ・消費時間・持ち石」、画面下部に「あなた自身の手番・消費時間・石数」を対面配置。直前に打たれたマスには「［ あなた ］」「［ 相手 ］」の王朝ブラケットが灯り、最新の攻防が一目で分かります。</div>
+                    <div>画面上部に「相手の肖像画・セリフ・消費時間・持ち石」、画面下部に「あなた自身の手番・消費時間・石数」を対面配置。直前に打たれた最新手には気品ある金の光枠が灯ります。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">⚖️ 運命の天秤（あなた vs 相手）</div>
@@ -1961,7 +1155,7 @@
                     <div class="manual-char-avatar-mini"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
                     <div class="manual-char-info">
                         <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン</div>
-                        <div>神域の完全計算AI。終盤12手完全読みを誇り、わずかな油断や悪手も決して見逃さない、王国最高峰の絶対君主です。</div>
+                        <div>神域の完全計算AI。終盤完全読みを誇り、ヒントなしの真剣勝負で打ち破って初めて戴冠式への扉が開かれます。</div>
                     </div>
                 </div>
             </div>
@@ -1969,19 +1163,19 @@
             <div id="tab-tips" class="manual-tab-content">
                 <div class="manual-card">
                     <div class="manual-card-title">🌱 序盤の極意「中割り（なかわり）と開放度理論」</div>
-                    <div>オセロ初心者が最も陥りやすい罠は「序盤からたくさん石を取ること」です。外側の石を多く取ると、相手に足場（打てるマス）を大量に与えてしまいます。盤面の内側にある石だけをひっくり返す<b>「中割り」</b>を意識しましょう。</div>
+                    <div>初心者が最も陥りやすい罠は「序盤からたくさん石を取ること」です。盤面の内側にある石だけをひっくり返す<b>「中割り」</b>を意識しましょう。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">⚔️ 中盤の極意「壁の構築とウィングの罠」</div>
-                    <div>中盤は、自分の石が一列に並んだ「壁」を作らないことが大切です。壁を作ると相手に外周を自由に取られてしまいます。また、辺の3マスを中途半端に取る「ウィング」は角を献上する典型的な罠となります。</div>
+                    <div>中盤は、自分の石が一列に並んだ「壁」を作らないことが大切です。辺の3マスを中途半端に取る「ウィング」は角を献上する典型的な罠となります。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">👑 終盤の極意「偶数理論（パリティ）の鉄則」</div>
-                    <div>盤面が埋まる終盤、勝敗を分けるのは<b>「偶数理論」</b>です。分割された空きマスが「偶数個」のエリアには、相手に先に打たせ、自分が最後に打ち込むことで手番の主導権を握れます。</div>
+                    <div>分割された空きマスが「偶数個」のエリアには、相手に先に打たせ、自分が最後に打ち込むことで手番の主導権を握れます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">🛡️ 隅（角）と危険マス（X・C打点）の攻防秘伝</div>
-                    <div>四隅の「角」は二度とひっくり返らない最強の確定石です。その角の斜め前にある<b>「Xマス」</b>や、隣の<b>「Cマス」</b>に安易に打つと角を奪われます。</div>
+                    <div>四隅の「角」は最強の確定石です。その角の斜め前にある<b>「Xマス」</b>や、隣の<b>「Cマス」</b>に安易に打つと角を奪われます。</div>
                 </div>
             </div>
         </div>
@@ -1996,28 +1190,20 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 5.1.1</span><span class="chronicle-date">2026/09/14</span>
+                    <div class="chronicle-desc">【音響ライフサイクル＆WebAudioデバイスエラー完全修正】スマホ・タブレット等の最小化・他タブ移動・スリープ時にBGMを自動一時停止＆復帰するライフサイクル制御を実装。WebAudioレンダラー切断によるAudioContextエラーの自動リカバリ・安全ハンドリングを確立。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 5.1.0</span><span class="chronicle-date">2026/09/13</span>
+                    <div class="chronicle-desc">【気品・テンポ・ゲーム性の完全調律】3D石反転アニメを0.48秒の滑らかな物理ロールへ調律、直近手表示の金枠回帰、AI思考高速化、ヒント使用勝敗コメント適応、Lv.6ノーヒント限定戴冠式、レイアウト微調整を達成。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.0.0</span><span class="chronicle-date">2026/09/12</span>
-                    <div class="chronicle-desc">【究極体験＆納得感の完全調律】直近着手マスの主客識別カッコ［ ］装飾、相手の消費時間タイマー新設、AIヒント思案中のタイマー完全停止＆専用ステータス、ヒント時の悪手誤判定撲滅、勝敗画面の主客誤認解消（降参バッジ＆敗北認識強化）、Lv.6戴冠式グランドエンディング、棋譜検証の因果関係ストーリー解説化を達成。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 4.9.0</span><span class="chronicle-date">2026/09/11</span>
-                    <div class="chronicle-desc">天秤の「あなたvs相手」パーソナライズ化、棋譜検証の会見自動復元＆リアルタイム実況セリフ、CSSクリーンアップ＆完全ノンスクロール保証、Lv.6終盤最適化を達成。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 4.8.1</span><span class="chronicle-date">2026/09/10</span>
-                    <div class="chronicle-desc">シャドウ浮遊枠と純粋3Dシリンダーの完全分離により表裏突き抜けを完全解消。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 4.8.0</span><span class="chronicle-date">2026/09/10</span>
-                    <div class="chronicle-desc">ピアノブラック＆白磁アイボリー石、棋譜検証モード、思案所肖像画、プロ極意書を網羅。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 4.7.0</span><span class="chronicle-date">2026/09/09</span>
-                    <div class="chronicle-desc">王宮戦後会見、2倍特大肖像画、キャラ肉声とAI戦術カルテの2段分離、双方消費時間の個別集計を導入。</div>
+                    <div class="chronicle-desc">相手リアルタイムタイマー、ヒント時の悪手誤判定撲滅、会見主客明確化を導入。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 1.0.0</span><span class="chronicle-date">2026/08/10</span>
-                    <div class="chronicle-desc">オセロ基本盤面、合法手判定、AI対戦エンジン（ミニマックス法・αβ枝刈り）を実装。</div>
+                    <div class="chronicle-desc">初回リリース。基本オセロ盤面、合法手判定、AI対戦エンジンを実装。</div>
                 </div>
             </div>
         </div>
@@ -2025,7 +1211,7 @@
 
 <script>
     /* ==========================================================================
-       ROYAL OTHELLO ENGINE (Ver 5.0.0 究極調律版)
+       ROYAL OTHELLO ENGINE (Ver 5.1.1 音響ライフサイクル修復版)
     ========================================================================== */
     const boardSize = 8;
     const BLACK = 1;
@@ -2037,8 +1223,8 @@
     let pendingAnimation = null, hintMove = null;
     let historyStack = [];
 
-    // 直近の着手追跡（誰がどこに打ったかをカッコ表示するため）
-    let lastMoveInfo = null; // { row, col, player }
+    let lastMove = null; // [row, col]
+    let usedHintInGame = false;
 
     let gameStepLogs = [];
     let reviewStepIndex = 0;
@@ -2046,7 +1232,6 @@
     let tacticsBestIndex = -1;
     let tacticsWorstIndex = -1;
 
-    // 時間集計 & AIヒント計算中フラグ（タイマー停止用）
     let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
     let isAiThinkingHint = false;
     let timerInterval = null;
@@ -2155,8 +1340,8 @@
                 climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？", "ヒヒッ！ これが最後の悪あがきでゴザイマス！"],
                 cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
                 playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
-                win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！盤面がボクの色に染まっていく眺めは最高ダネ！悔しかったらまたいつでもおいでヨ！", "まさかの大勝利！？宮廷一の奇跡でゴザイマス！ボクのおどけた手に惑わされちゃったかニャ？次はもっと油断しちゃダメデスヨ〜！"],
-                lose: ["参った参った〜！さすが貴方様、完敗でゴザイマス！ボクのふざけた揺さぶりにも微動だにせず、見事な知略の進軍でした！宮廷一のオセロの達人として、王宮中に言いふらしてあげマスネ！", "降参ダ〜！ボクの浅知恵じゃ、貴方様の堂々たる打ち筋には手も足も出ないヨ！お見事すぎる一手一手に、思わず拍手喝采でゴザイマス！"]
+                win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！盤面がボクの色に染まっていく眺めは最高ダネ！悔しかったらまたいつでもおいでヨ！"],
+                lose: ["参った参った〜！さすが貴方様、完敗でゴザイマス！ボクのふざけた揺さぶりにも微動だにせず、見事な知略の進軍でした！宮廷一のオセロの達人として、王宮中に言いふらしてあげマスネ！"]
             }
         },
         2: {
@@ -2173,8 +1358,8 @@
                 climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！", "最後の一手まで、あきらめませんっ！"],
                 cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
                 playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
-                win: ["勝てちゃいました…！私、お城の侍女の中で一番オセロが強くなれちゃったかも！えへへ、たくさん石がひっくり返る瞬間、とってもワクワクしちゃいました！また私と遊んでくださいねっ！", "私の勝ちです！ご指導ありがとうございました！貴方様のお手並みに追いつきたくて、必死に考えちゃいました。今日はお祝いに、特製の紅茶を淹れてきますね！"],
-                lose: ["うぅ…！完敗です…！盤面をじっと見つめる貴方様の真剣な眼差し、本当に素敵でした！私、もっとお城の図書室で定石を勉強して、いつか貴方様をアッと言わせてみせますっ！", "やっぱりお強いです…！私の並べた石が、魔法みたいに全部ひっくり返されちゃいました…！貴方様のオセロ、とっても美しくて感動です！もっともっと教えてください！"]
+                win: ["勝てちゃいました…！私、お城の侍女の中で一番オセロが強くなれちゃったかも！えへへ、たくさん石がひっくり返る瞬間、とってもワクワクしちゃいました！また私と遊んでくださいねっ！"],
+                lose: ["うぅ…！完敗です…！盤面をじっと見つめる貴方様の真剣な眼差し、本当に素敵でした！私、もっとお城の図書室で定石を勉強して、いつか貴方様をアッと言わせてみせますっ！"]
             }
         },
         3: {
@@ -2191,13 +1376,13 @@
                 climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！", "我が騎士道の誇りをかけ、全力で迎え撃つ！"],
                 cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
                 playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
-                win: ["王国の勝利だ！我が近衛騎士団の鉄壁の陣形、そう易々と崩せはせんぞ！だが貴殿の鋭い太刀筋、実に天晴れであった！戦士としての我が血が久々に滾ったぞ！良き手合わせであった！", "騎士道の勝利！四隅を制圧し、中央を断つ定石通りの進軍が功を奏したな！貴殿の武勇にも最大限の敬意を表する！次の戦場でも、互いに全力を尽くそうぞ！"],
-                lose: ["見事な用兵…完敗だ！我が誇る防壁を正面から粉砕されるとはな…！貴殿の盤上の武勇と冷静沈着な読み、まさに一軍の将たる器だ！我が剣に誓って、貴殿に最大限の敬意を表する！", "我が前線が完全に包囲されたか…！貴殿の見事な進軍の前に、我が騎士団は完膚なきまでに打ち破られた！この敗北を糧に、我が剣技をさらに磨き上げよう！天晴れなり！"]
+                win: ["王国の勝利だ！我が近衛騎士団の鉄壁の陣形、そう易々と崩せはせんぞ！だが貴殿の鋭い太刀筋、実に天晴れであった！戦士としての我が血が久々に滾ったぞ！良き手合わせであった！"],
+                lose: ["見事な用兵…完敗だ！我が誇る防壁を正面から粉砕されるとはな…！貴殿の盤上の武勇と冷静沈着な読み、まさに一軍の将たる器だ！我が剣に誓って、貴殿に最大限の敬意を表する！"]
             }
         },
         4: {
             id: 4, name: "伯爵夫人 エリザベート", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
-            imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 5, exact: 0,
+            imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 4, exact: 0,
             quotes: {
                 start: ["優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。", "美しき盤上の舞踏会… 存分に楽しませてくださる？"],
                 thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。", "焦りは禁物… 優雅に罠を張り巡らせましょう。"],
@@ -2209,13 +1394,13 @@
                 climax: ["ふふ… 舞踏会もいよいよクライマックスですわね。", "どちらが最後まで気品を保てるかしら…？"],
                 cpuPass: ["あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。"],
                 playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
-                win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。あなたの逃げ道を一輪ずつ摘み取っていく時間は、極上の紅茶のように甘美でございました。またいつでも舞踏会にいらして？", "うふふ、淑女の張り巡らせた罠からは、そう簡単には抜け出せませんのよ。でも、わたくしをここまで本気にさせた殿方は久しぶりですわ。今宵は格別に楽しい夜になりましたわね。"],
-                lose: ["まさかこのわたくしが、盤上で踊らされてしまうなんて…！わたくしの薔薇を一気に散らしてみせるなんて、ずいぶんと罪深い殿方ですこと。ふふ…でも、骨のある殿方は嫌いではありませんわ。お見事でございました。", "完敗ですわ…！わたくしの策略のさらに上を行く冷徹な知性、恐れ入りましたわ。わたくしを負かしたのですもの、次は宮廷の頂点まで駆け上がってみせてくださる？見事でしたわ。"]
+                win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。あなたの逃げ道を一輪ずつ摘み取っていく時間は、極上の紅茶のように甘美でございました。またいつでも舞踏会にいらして？"],
+                lose: ["まさかこのわたくしが、盤上で踊らされてしまうなんて…！わたくしの薔薇を一気に散らしてみせるなんて、ずいぶんと罪深い殿方ですこと。ふふ…でも、骨のある殿方は嫌いではありませんわ。お見事でございました。"]
             }
         },
         5: {
             id: 5, name: "宰相 ヴォルフガング", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
-            imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 6, exact: 10,
+            imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 5, exact: 8,
             quotes: {
                 start: ["盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。", "盤上の駒を動かすのは力ではない。冷徹な知略だ。"],
                 thinking: ["数手先の展開はすべて計算済みだ…。", "貴公の打てるマスは… もう数箇所しかあるまい。"],
@@ -2227,13 +1412,13 @@
                 climax: ["終盤の完全計算領域に入った。一手の狂いも許されんぞ。", "詰みだ… 貴公に逆転の筋は残されていない。"],
                 cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
                 playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
-                win: ["すべては我が冷徹な計算の帰結だ。国家を治める者の大局観、そう易々と覆せるものではない。貴公の知略も凡百の域は遥かに超えていたが、盤上の偶数理論を制したのは私だ。良き盤上遊戯であった。", "計算通りの勝利だ。序盤の中割りから終盤のパリティ支配まで、我が設計図に一点の狂いも生じなかった。だが貴公の急所を突く鋭敏な太刀筋、私の背筋をわずかに凍らせたぞ。天晴れだ。"],
-                lose: ["この私が…読み負けたというのか！？我が完璧な深謀遠慮の包囲網を、わずかな隙間から突破されるとは…！貴公の知謀、恐るべしだ。言い訳の余地なき完敗を認めよう。貴公こそ真の知者だ。", "痛恨の極み…！我が計算の遥か先を見据えたその手筋、鳥肌が立つほど見事であった。国家を揺るがすほどの謀略家が、よもや盤上に現れようとはな…！我が完敗だ。最大限の賛辞を贈ろう。"]
+                win: ["すべては我が冷徹な計算の帰結だ。国家を治める者の大局観、そう易々と覆せるものではない。貴公の知略も凡百の域は遥かに超えていたが、盤上の偶数理論を制したのは私だ。良き盤上遊戯であった。"],
+                lose: ["この私が…読み負けたというのか！？我が完璧な深謀遠慮の包囲網を、わずかな隙間から突破されるとは…！貴公の知謀、恐るべしだ。言い訳の余地なき完敗を認めよう。貴公こそ真の知者だ。"]
             }
         },
         6: {
             id: 6, name: "老賢王 オルレアン", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
-            imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 8, exact: 12,
+            imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 6, exact: 10,
             quotes: {
                 start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。", "王国の覇者たる資格があるか、余が試して進ぜよう！"],
                 thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。", "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。"],
@@ -2245,102 +1430,157 @@
                 climax: ["いよいよ最終局面！ 余の全知全能をもって迎え撃とう！", "神域の読み合い… どちらが勝っても悔いなし！"],
                 cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。"],
                 playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
-                win: ["良き戦いであったぞ、若人よ！そなたの放つ鋭い魂の太刀筋、余の老いた胸を熱く焦がしてくれた！だが、幾星霜の風雪を越えてきた王の玉座、そう簡単に譲るわけにはゆかぬ！そなたの再度の挑戦、心より待っておるぞ！", "王の威厳、しかと盤上に刻ませてもらった！神域の読み合いの中で、そなたが見せた不屈の闘志、誠に見事であった！真の強敵と巡り合えたこと、余の長き生涯における無上の歓びである！"],
-                lose: ["天晴れだ…！王国の覇者たる資格、今ここにそなたへと託そうぞ！余の全知全能を注ぎ込んだ読みを、神懸かりの一手で打ち砕いてみせたな！新しき王の誕生を、全臣民とともに心より祝福しよう！堂々の戴冠である！", "見事なり…！余の全力を超え、完璧なる布陣で玉座を奪い取ってみせたな！老兵は去るのみよ…今日よりはこの盤上の天下、そなたの思うがままに治めるがよい！至高の勝利、天晴れであった！"]
+                win: ["良き戦いであったぞ、若人よ！そなたの放つ鋭い魂の太刀筋、余の老いた胸を熱く焦がしてくれた！だが、幾星霜の風雪を越えてきた王の玉座、そう簡単に譲るわけにはゆかぬ！そなたの再度の挑戦、心より待っておるぞ！"],
+                lose: ["天晴れだ…！王国の覇者たる資格、今ここにそなたへと託そうぞ！余の全知全能を注ぎ込んだ読みを、神懸かりの一手で打ち砕いてみせたな！新しき王の誕生を、全臣民とともに心より祝福しよう！堂々の戴冠である！"]
             }
         }
     };
 
-    /* --- BGM再生 --- */
+    /* ==========================================================================
+       ◆ 音響ライフサイクル＆WebAudio自動リカバリ管理（Ver 5.1.1 核心部）
+    ========================================================================== */
     const bgm = document.getElementById("bgmAudio");
     bgm.volume = 0.32;
 
-    function tryPlayBgm() {
-        if (!isMuted && bgm.paused) bgm.play().catch(() => {});
+    let audioCtx = null;
+
+    // 安全にAudioContextを取得＆自己修復
+    function getAudioContext() {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return null;
+
+            if (!audioCtx || audioCtx.state === "closed") {
+                audioCtx = new AudioContextClass();
+            }
+
+            if (audioCtx.state === "suspended") {
+                audioCtx.resume().catch(() => {});
+            }
+            return audioCtx;
+        } catch (e) {
+            audioCtx = null;
+            return null;
+        }
     }
 
-    document.addEventListener("click", tryPlayBgm, { once: true });
-    document.addEventListener("touchstart", tryPlayBgm, { once: true });
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && !isMuted && bgm.paused) bgm.play().catch(() => {});
+    function tryPlayBgm() {
+        if (!isMuted && bgm.paused && !document.hidden) {
+            bgm.play().catch(() => {});
+        }
+    }
+
+    // 初回ユーザーインタラクションによるロック解除
+    const unlockAudio = () => {
+        tryPlayBgm();
+        getAudioContext();
+    };
+    document.addEventListener("click", unlockAudio, { once: true });
+    document.addEventListener("touchstart", unlockAudio, { once: true });
+
+    /* --- スマホ・タブレットの最小化・裏画面・スリープ監視（Page Lifecycle） --- */
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            // 裏画面・最小化・スリープ時：即時停止してレンダラー負荷遮断
+            try {
+                if (!bgm.paused) bgm.pause();
+                if (audioCtx && audioCtx.state === "running") {
+                    audioCtx.suspend().catch(() => {});
+                }
+            } catch (e) {}
+        } else {
+            // 復帰時：手動ミュートでなければ再開
+            if (!isMuted) {
+                bgm.play().catch(() => {});
+                if (audioCtx && audioCtx.state === "suspended") {
+                    audioCtx.resume().catch(() => {});
+                }
+            }
+        }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", () => {
+        try { bgm.pause(); if (audioCtx) audioCtx.suspend().catch(() => {}); } catch(e){}
+    });
+    window.addEventListener("pageshow", () => {
+        if (!isMuted && !document.hidden) tryPlayBgm();
     });
 
-    /* --- 効果音モジュール --- */
-    let audioCtx = null;
-    function getAudioContext() {
-        if (!audioCtx) {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContextClass();
-        }
-        if (audioCtx.state === "suspended") audioCtx.resume();
-        return audioCtx;
-    }
-
     function createNoiseNode(ctx, duration, decayRate) {
-        const len = Math.floor(ctx.sampleRate * duration);
-        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-        const data = buf.getChannelData(0);
-        for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * decayRate));
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        return src;
+        try {
+            const len = Math.floor(ctx.sampleRate * duration);
+            if (len <= 0) return null;
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * decayRate));
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            return src;
+        } catch (e) {
+            return null;
+        }
     }
 
     function playPlaceSound() {
-        if (isMuted) return;
+        if (isMuted || document.hidden) return;
         try {
-            const ctx = getAudioContext(), now = ctx.currentTime;
-            const noise = createNoiseNode(ctx, 0.035, 0.12);
-            const filter = ctx.createBiquadFilter();
-            filter.type = "bandpass"; filter.frequency.setValueAtTime(1500, now); filter.Q.setValueAtTime(1.8, now);
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const noise = createNoiseNode(ctx, 0.04, 0.14);
+            if (noise) {
+                const filter = ctx.createBiquadFilter();
+                filter.type = "bandpass"; filter.frequency.setValueAtTime(1400, now); filter.Q.setValueAtTime(1.8, now);
 
-            const nGain = ctx.createGain();
-            nGain.gain.setValueAtTime(0.9, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-
-            noise.connect(filter).connect(nGain).connect(ctx.destination);
-            noise.start(now);
+                const nGain = ctx.createGain();
+                nGain.gain.setValueAtTime(0.9, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                noise.connect(filter).connect(nGain).connect(ctx.destination);
+                noise.start(now);
+            }
 
             const osc = ctx.createOscillator();
-            osc.frequency.setValueAtTime(230, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.09);
+            osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(45, now + 0.1);
             const tGain = ctx.createGain();
-            tGain.gain.setValueAtTime(1.1, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-
+            tGain.gain.setValueAtTime(1.1, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
             osc.connect(tGain).connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.09);
+            osc.start(now); osc.stop(now + 0.1);
         } catch (e) {}
     }
 
     function playFlipSingleSound(pitchFactor = 1.0, isLast = false) {
-        if (isMuted) return;
+        if (isMuted || document.hidden) return;
         try {
-            const ctx = getAudioContext(), now = ctx.currentTime;
-            const noise = createNoiseNode(ctx, 0.026, 0.22);
-            const filter = ctx.createBiquadFilter();
-            filter.type = "bandpass"; filter.frequency.setValueAtTime((isLast ? 2700 : 2100) * pitchFactor, now); filter.Q.setValueAtTime(2.2, now);
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const noise = createNoiseNode(ctx, 0.035, 0.25);
+            if (noise) {
+                const filter = ctx.createBiquadFilter();
+                filter.type = "bandpass"; filter.frequency.setValueAtTime((isLast ? 2500 : 1900) * pitchFactor, now); filter.Q.setValueAtTime(2.0, now);
 
-            const vol = isLast ? 0.7 : 0.52;
-            const nGain = ctx.createGain();
-            nGain.gain.setValueAtTime(vol, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.026);
-
-            noise.connect(filter).connect(nGain).connect(ctx.destination);
-            noise.start(now);
+                const vol = isLast ? 0.65 : 0.48;
+                const nGain = ctx.createGain();
+                nGain.gain.setValueAtTime(vol, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+                noise.connect(filter).connect(nGain).connect(ctx.destination);
+                noise.start(now);
+            }
 
             const osc = ctx.createOscillator();
-            osc.frequency.setValueAtTime(320 * pitchFactor, now); osc.frequency.exponentialRampToValueAtTime(110 * pitchFactor, now + 0.035);
+            osc.frequency.setValueAtTime(280 * pitchFactor, now); osc.frequency.exponentialRampToValueAtTime(95 * pitchFactor, now + 0.045);
             const tGain = ctx.createGain();
-            tGain.gain.setValueAtTime(vol * 0.5, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-
+            tGain.gain.setValueAtTime((isLast ? 0.65 : 0.48) * 0.5, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
             osc.connect(tGain).connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.035);
+            osc.start(now); osc.stop(now + 0.045);
         } catch (e) {}
     }
 
     function playFlipSequence(count) {
-        if (isMuted) return;
+        if (isMuted || document.hidden) return;
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
-                playFlipSingleSound(0.94 + i * 0.065, i === count - 1);
-            }, i * 55 + 80);
+                playFlipSingleSound(0.92 + i * 0.055, i === count - 1);
+            }, i * 75 + 100);
         }
     }
 
@@ -2431,9 +1671,6 @@
         setOpponentQuote("start");
     }
 
-    /* ==========================================================================
-       ◆ 運命の天秤（あなた vs 相手 パーソナライズ化）
-    ========================================================================== */
     function updateBalanceGauge() {
         if (!board) return;
         const emptyCount = getEmptyCount(board);
@@ -2470,10 +1707,11 @@
         historyStack.push({
             board: cloneBoard(board),
             currentPlayer: currentPlayer,
-            lastMoveInfo: lastMoveInfo ? { ...lastMoveInfo } : null,
+            lastMove: lastMove ? [...lastMove] : null,
             elapsedSeconds: elapsedSeconds,
             playerSeconds: playerSeconds,
             cpuSeconds: cpuSeconds,
+            usedHintInGame: usedHintInGame,
             playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs)),
             gameStepLogsLength: gameStepLogs.length
         });
@@ -2501,10 +1739,11 @@
         if (targetState) {
             board = cloneBoard(targetState.board);
             currentPlayer = targetState.currentPlayer;
-            lastMoveInfo = targetState.lastMoveInfo;
+            lastMove = targetState.lastMove;
             elapsedSeconds = targetState.elapsedSeconds;
             playerSeconds = targetState.playerSeconds;
             cpuSeconds = targetState.cpuSeconds;
+            usedHintInGame = targetState.usedHintInGame || false;
             playerMoveLogs = targetState.playerMoveLogs || [];
             gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
             pendingAnimation = null;
@@ -2544,7 +1783,8 @@
         gameOver = false;
         isBusy = false;
         isAiThinkingHint = false;
-        lastMoveInfo = null;
+        lastMove = null;
+        usedHintInGame = (getHintMode() === "always");
         pendingAnimation = null;
         historyStack = [];
         playerMoveLogs = [];
@@ -2560,7 +1800,6 @@
         playerSeconds = 0;
         cpuSeconds = 0;
 
-        // タイマー更新（AIヒント計算中は双方の時間をノーカウント停止）
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if (!gameOver && !isReviewMode && !isAiThinkingHint) {
@@ -2587,7 +1826,7 @@
         } else {
             setStatus("cpu-turn", "相手（黒）が先手です。思考中...");
             DOM.opponentAvatarFrame.classList.add("thinking-aura");
-            setTimeout(computerMove, 500);
+            setTimeout(computerMove, 300);
         }
     }
 
@@ -2653,9 +1892,7 @@
         return true;
     }
 
-    /* ==========================================================================
-       ◆ プレイヤー着手（ヒント一致による悪手誤判定防止ロジック統合）
-    ========================================================================== */
+    /* プレイヤー着手 */
     async function putStone(row, col) {
         if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
         if (!canPlace(row, col, humanColor, board)) return;
@@ -2663,7 +1900,8 @@
         saveHistory();
         isBusy = true;
 
-        // ヒントで推奨されていたマスか判定（悪手誤判定を完全ブロック）
+        if (getHintMode() === "always") usedHintInGame = true;
+
         const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
         clearHint();
 
@@ -2673,40 +1911,28 @@
         let flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, humanColor, board));
 
         makeMove(board, row, col, humanColor);
-
-        // 直近着手の更新（プレイヤーの手として記録）
-        lastMoveInfo = { row, col, player: humanColor };
+        lastMove = [row, col];
 
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const oppMovesAfter = getValidMoves(cpuColor, board).length;
         const scoreDiff = postScore - preScore;
 
         let contextNote = `あなたの着手（${toNotation(row, col)}）。`;
-        if (isMatchedWithHint) {
-            contextNote += "宮廷AIの指南（ヒント）に従った的確な一手。";
-        } else if (isCorner(row, col)) {
-            contextNote += "四隅の角を制圧した決定打。";
-        } else if (isDanger(row, col)) {
-            contextNote += "角の隣（危険マス）に打ち込み、相手に角の隙を与えました。";
-        } else {
-            contextNote += `石を ${flipped.length} 個反転させました。`;
-        }
+        if (isMatchedWithHint) contextNote += "宮廷AIの指南（ヒント）に従った的確な一手。";
+        else if (isCorner(row, col)) contextNote += "四隅の角を制圧した決定打。";
+        else if (isDanger(row, col)) contextNote += "角の隣（危険マス）に打ち込みました。";
+        else contextNote += `石を ${flipped.length} 個反転させました。`;
 
         recordGameStep([row, col], humanColor, contextNote);
 
         playerMoveLogs.push({
-            row, col,
-            coord: toNotation(row, col),
-            scoreDiff,
-            isCorner: isCorner(row, col),
-            isDanger: isDanger(row, col),
-            isHintMatch: isMatchedWithHint,
-            flippedCount: flipped.length,
+            row, col, coord: toNotation(row, col), scoreDiff,
+            isCorner: isCorner(row, col), isDanger: isDanger(row, col),
+            isHintMatch: isMatchedWithHint, flippedCount: flipped.length,
             oppMovesReduction: oppMovesBefore - oppMovesAfter,
             stepIndex: gameStepLogs.length - 1
         });
 
-        // トースト採点判定（ヒント一致時は絶対に悪手にしない）
         if (isMatchedWithHint) {
             showMoveToast("good", "🎯 最善手（指南通り）");
             setOpponentQuote("playerGood");
@@ -2722,7 +1948,6 @@
             showMoveToast("good", "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerGood");
         } else if (!isMatchedWithHint && (isDanger(row, col) || scoreDiff < -135)) {
-            // ヒントと一致していない場合のみ悪手判定を許可
             showMoveToast("bad", "⚠️ 悪手 (BAD)");
             setOpponentQuote("playerBad");
         }
@@ -2734,7 +1959,7 @@
 
         drawBoard();
         updateBalanceGauge();
-        await sleep((flipped.length * 55) + 320);
+        await sleep((flipped.length * 75) + 480);
 
         drawBoard();
         currentPlayer = cpuColor;
@@ -2765,7 +1990,7 @@
                 setStatus("cpu-turn", "置ける場所がないためパスです。");
                 setOpponentQuote("playerPass");
                 DOM.opponentAvatarFrame.classList.add("thinking-aura");
-                setTimeout(computerMove, 600);
+                setTimeout(computerMove, 300);
             }
             updateUndoButtonState();
             return;
@@ -2845,7 +2070,7 @@
         updateUndoButtonState();
         setStatus("cpu-turn", "相手が思考を巡らせています…");
 
-        await sleep(380);
+        await sleep(220);
         if (gameOver || isReviewMode) return;
 
         const char = getCurrentCharacter();
@@ -2853,9 +2078,7 @@
         if (move) {
             let flipped = sortFlippedByDistance(move[0], move[1], getFlippableStones(move[0], move[1], cpuColor, board));
             makeMove(board, move[0], move[1], cpuColor);
-
-            // 直近着手の更新（相手の手として記録）
-            lastMoveInfo = { row, col: move[1], row: move[0], player: cpuColor };
+            lastMove = [move[0], move[1]];
 
             let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
             if (isCorner(move[0], move[1])) {
@@ -2877,7 +2100,7 @@
 
             drawBoard();
             updateBalanceGauge();
-            await sleep((flipped.length * 55) + 320);
+            await sleep((flipped.length * 75) + 480);
             drawBoard();
         }
 
@@ -2893,17 +2116,16 @@
             setOpponentQuote("playerPass");
             DOM.opponentAvatarFrame.classList.add("thinking-aura");
             currentPlayer = cpuColor;
-            setTimeout(computerMove, 600);
+            setTimeout(computerMove, 400);
             return;
         }
 
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
-        // 常時ヒントモードの場合、AIヒント算出中はタイマーを止め専用表示
         if (getHintMode() === "always") {
             isAiThinkingHint = true;
             setStatus("hint-thinking", "💡 宮廷AIが最適手（ヒント）を思案中…");
-            await sleep(50);
+            await sleep(40);
             computeHint();
             isAiThinkingHint = false;
         }
@@ -3009,8 +2231,10 @@
     function updateHintModeUI() {
         const mode = getHintMode();
         DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
-        if (mode === "always") maybeAutoHint();
-        else clearHint();
+        if (mode === "always") {
+            usedHintInGame = true;
+            maybeAutoHint();
+        } else clearHint();
     }
 
     function buildHintReasons(chosen, allMoves) {
@@ -3042,11 +2266,13 @@
 
     function computeHint() {
         if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
+        usedHintInGame = true;
+
         const moves = getValidMoves(humanColor, board);
         if (moves.length === 0) return;
 
         const emptyCount = getEmptyCount(board);
-        const depth = emptyCount <= 12 ? emptyCount : 7;
+        const depth = emptyCount <= 10 ? emptyCount : 5;
         let bestScore = -Infinity, bestMoves = [];
 
         for (const move of orderMoves(moves, board)) {
@@ -3069,9 +2295,6 @@
         drawBoard();
     }
 
-    /* ==========================================================================
-       ◆ 盤面描画（直近手の主客識別カッコ［ ］の合成表示）
-    ========================================================================== */
     function drawBoard() {
         DOM.board.innerHTML = "";
         const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
@@ -3085,13 +2308,8 @@
                     cell.classList.add("can-place", previewClass);
                 }
 
-                // 直近手の主客識別カッコ［ ］表示
-                if (!isReviewMode && lastMoveInfo && lastMoveInfo.row === r && lastMoveInfo.col === c) {
-                    if (lastMoveInfo.player === humanColor) {
-                        cell.classList.add("last-move-player");
-                    } else {
-                        cell.classList.add("last-move-cpu");
-                    }
+                if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
+                    cell.classList.add("last-move-cell");
                 }
 
                 if (!isReviewMode && hintMove && hintMove[0] === r && hintMove[1] === c) {
@@ -3119,7 +2337,7 @@
 
                         const fIdx = pendingAnimation.flipped.findIndex(([fr, fc]) => fr === r && fc === c);
                         if (fIdx >= 0) {
-                            const delayStr = `${fIdx * 55}ms`;
+                            const delayStr = `${fIdx * 75}ms`;
                             flipWrap.style.animationDelay = delayStr;
                             cylinder.style.animationDelay = delayStr;
                         }
@@ -3173,9 +2391,6 @@
         DOM.playerScore.textContent = (humanColor === BLACK) ? stones.black : stones.white;
     }
 
-    /* ==========================================================================
-       ◆ 因果関係つき戦術カルテ生成
-    ========================================================================== */
     function generateTacticsReport() {
         if (playerMoveLogs.length === 0) {
             return {
@@ -3202,7 +2417,7 @@
 
         let worst = playerMoveLogs[0];
         for (const log of playerMoveLogs) {
-            if (log.isHintMatch) continue; // ヒント一致手は悪手候補から除外
+            if (log.isHintMatch) continue;
             let penalty = log.scoreDiff;
             if (log.isDanger) penalty -= 180;
             let currentWorstPenalty = worst.scoreDiff - (worst.isDanger ? 180 : 0);
@@ -3226,9 +2441,7 @@
         };
     }
 
-    /* ==========================================================================
-       ◆ 勝敗決着＆王宮戦後会見（主客誤認解消＆Lv6エンディング連動）
-    ========================================================================== */
+    /* 勝敗決着＆王宮戦後会見 */
     function endGame() {
         gameOver = true;
         isBusy = false;
@@ -3267,12 +2480,20 @@
             setStatus("win", "👑 栄光の勝利！ あなたの勝ちです！");
             setOpponentQuote("lose");
 
-            // 相手肖像画に「降参・完敗」バッジ＆エフェクト
             DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-surrendered";
             DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（降参・完敗）`;
             DOM.resultAvatarFrame.classList.add("opponent-lost-filter");
 
-            quoteText = Array.isArray(char.quotes.lose) ? char.quotes.lose[Math.floor(Math.random() * char.quotes.lose.length)] : char.quotes.lose;
+            if (usedHintInGame) {
+                quoteText = `見事な勝利でゴザイマス…が！ AIの指南（ヒント）を借りての勝利でしたネ！ 次回はぜひ【ヒントなし（真剣勝負）】でボクに挑んでみてくだサイ！`;
+                if (char.id === 6) {
+                    quoteText = `ふむ…宮廷AIの知恵を借りて余を破ったか。見事だが、真の覇王として戴冠するには己の知恵のみで余に勝たねばならん。ヒントなしの真剣勝負で余を打ち破ってみせよ！`;
+                } else if (char.id >= 3) {
+                    quoteText = `知略は見事だが…AIの助力を得ていたようだな！ 貴殿の真の武勇を示すならば、次はヒントなしで我と剣を交えようぞ！`;
+                }
+            } else {
+                quoteText = Array.isArray(char.quotes.lose) ? char.quotes.lose[Math.floor(Math.random() * char.quotes.lose.length)] : char.quotes.lose;
+            }
         } else if (isDraw) {
             DOM.resultMainTitle.className = "result-main-title result-title-draw";
             DOM.resultMainTitle.textContent = "⚖️ 格式高き引き分け (DRAW)";
@@ -3289,7 +2510,6 @@
             setStatus("lose", "🥀 惜敗… 相手の勝利です。");
             setOpponentQuote("win");
 
-            // 相手肖像画に「勝ち誇る」バッジ
             DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-triumphant";
             DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（会心の勝利）`;
             DOM.resultAvatarFrame.classList.remove("opponent-lost-filter");
@@ -3305,7 +2525,6 @@
         DOM.carteBadCoord.textContent = report.badCoord;
         DOM.carteBadDesc.textContent = report.badDesc;
 
-        // 進軍ボタンの分岐（Lv.6老賢王撃破時のグランドエンディング）
         if (isWin) {
             if (char.id < 6) {
                 const nextChar = CHARACTERS[char.id + 1];
@@ -3317,13 +2536,23 @@
                     startGame();
                 };
             } else {
-                // Lv.6勝利：グランドエンディングボタン
-                DOM.btnAdvanceIcon.textContent = "🏆";
-                DOM.btnAdvanceText.textContent = "王国完全制覇！ 栄光の戴冠式へ";
-                DOM.btnResultAdvance.onclick = () => {
-                    DOM.royalResultModal.classList.remove("show");
-                    DOM.endingModal.classList.add("show");
-                };
+                if (!usedHintInGame) {
+                    DOM.btnAdvanceIcon.textContent = "🏆";
+                    DOM.btnAdvanceText.textContent = "真の完全制覇！ 栄光の戴冠式へ";
+                    DOM.btnResultAdvance.onclick = () => {
+                        DOM.royalResultModal.classList.remove("show");
+                        DOM.endingModal.classList.add("show");
+                    };
+                } else {
+                    DOM.btnAdvanceIcon.textContent = "👑";
+                    DOM.btnAdvanceText.textContent = "ヒントなし（真剣勝負）で老賢王に再戦";
+                    DOM.btnResultAdvance.onclick = () => {
+                        DOM.hintMode.value = "off";
+                        updateHintModeUI();
+                        DOM.royalResultModal.classList.remove("show");
+                        startGame();
+                    };
+                }
             }
         } else {
             DOM.btnAdvanceIcon.textContent = "⚜️";
@@ -3337,9 +2566,7 @@
         setTimeout(() => DOM.royalResultModal.classList.add("show"), 800);
     }
 
-    /* ==========================================================================
-       ◆ 棋譜検証（振り返り）モード（因果関係ストーリー解説）
-    ========================================================================== */
+    /* 棋譜検証（振り返り）モード */
     function enterReviewMode() {
         if (gameStepLogs.length === 0) return;
         isReviewMode = true;
@@ -3374,7 +2601,6 @@
         DOM.btnReviewPrev.disabled = (index === 0);
         DOM.btnReviewNext.disabled = (index === totalSteps);
 
-        // 因果関係ストーリー文脈の反映
         let contextText = step.contextNote || "棋譜の一手です。";
         if (index === tacticsBestIndex && index > 0) {
             contextText = `【最善の勝機】${contextText}（ここでの的確な着手が戦局を決定づけました）`;
@@ -3383,7 +2609,6 @@
         }
         DOM.reviewContextBox.textContent = contextText;
 
-        // 相手セリフ枠との実況連動
         const char = getCurrentCharacter();
         if (index === 0) {
             DOM.speechText.textContent = "【初期配置】対局開始時の盤面です。";
@@ -3404,7 +2629,6 @@
     document.getElementById("restartButton").addEventListener("click", startGame);
     DOM.undoButton.addEventListener("click", undoMove);
     DOM.hintButton.addEventListener("click", computeHint);
-
     DOM.btnStartReview.addEventListener("click", enterReviewMode);
 
     DOM.btnReviewPrev.addEventListener("click", () => {
@@ -3428,7 +2652,6 @@
         DOM.royalResultModal.classList.add("show");
     });
 
-    // グランドエンディングから最初（Lv.1ピエロ）に戻るボタン
     DOM.btnRestartFromBeginning.addEventListener("click", () => {
         DOM.endingModal.classList.remove("show");
         DOM.characterSelect.value = "1";
@@ -3480,7 +2703,7 @@
             bgm.pause();
             soundIcon.textContent = "🔇"; soundText.textContent = "OFF";
         } else {
-            bgm.play().catch(() => {});
+            if (!document.hidden) bgm.play().catch(() => {});
             soundIcon.textContent = "🔔"; soundText.textContent = "ON";
         }
     });
@@ -3521,10 +2744,11 @@
         }
     });
 
-    // 初期化実行
     initCoordLabels();
     startGame();
 </script>
 
 </body>
 </html>
+
+
