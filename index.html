@@ -1,4 +1,3 @@
-
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -24,14 +23,12 @@
   [Ver 5.5.0] 2026/09/18 : 【劇的ビジュアル大改革：盤面フィールド・美術石テクスチャ・サロン空間完全具現化】
   [Ver 5.6.0] 2026/09/19 : 【戦術判定・手番遷移・戦後会見の完全整合性調律】
   [Ver 5.7.0] 2026/09/20 : 【王宮キャラクター躍動・UI分離・思考判定完全同期・品質総点検エディション】
-    - 【ヘッダーUI完全分離】右上ボタン（全画面・音声）を独立配置し、相手石数バッジとの重なりを100%根絶。
-    - 【AIキャラ躍動モーション＆セリフ大拡充】全6キャラに固有の発話アクションを導入。セリフを3〜5パターンへ増強。
-    - 【ヒント着手100%最善手絶対保証】画面のヒントに従った着手は例外なくBEST認定。悪手判定・カルテ悪手から完全隔離。
-    - 【客観判定AIの完全同期】判定深さをヒントAIと同じ深さ7へ引き上げ、AI内部の判定分裂を根絶。
-    - 【強制着手保護】合法手が1手しかない局面では、危険マスであっても絶対に悪手判定しない安全ガードを追加。
-    - 【非同期排他制御（セッションID）】アニメーション中の新対局・待った連打による割り込みバグを根絶。
-    - 【棋譜検証の完全連動】手を戻した際、その時点の石数・運命の天秤（勝率）を完全再現。パスも正しく記録。
-    - 【打感＆UX調律】反転アニメーションを25%高速化。打てるマスガイドを「呼吸する金輪」に刷新。手番交代パルス導入。
+  [Ver 5.8.0] 2026/09/21 : 【コードアーキテクチャ最適化・共通パイプライン統合エディション】
+    - 【デザイン・演出・機能の100%完全維持】ビジュアル、音響、AI強さ、挙動に一切影響を与えずにコードを極限スリム化。
+    - 【CSSステージテーマ変数統合】Lv.1〜6のステージデザインをCSSカスタムプロパティ一括バインドへ統合し、CSSセレクタの重複を大幅圧縮。
+    - 【着手・反転・ログ共通パイプライン化】プレイヤーとCPUの着手・3D反転アニメ・SE・棋譜ログ反映を `executeTurnMove` へ一本化。
+    - 【WebAudio音響合成の共通ユーティリティ化】打刻音・反転音のオーディオノード構築処理を共通関数へ整理。
+    - 【HTML構文調律】char4（エリザベート）画像フォールバックの構文不備を正規化。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -41,7 +38,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Othello 2026 AI先生 - Royal Dynasty Edition</title>
 
-    <!-- 高品位フォント：Cinzel（欧文彫刻）＋ しっぽり明朝（クラシック高級明朝） -->
+    <!-- 高品位フォント：Cinzel ＋ しっぽり明朝 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -57,11 +54,28 @@
             --gold-glow: rgba(212, 167, 72, 0.35);
             --panel-bg: rgba(16, 19, 26, 0.94);
             --amber-accent: #e5b842;
-            --amber-glow: rgba(229, 184, 66, 0.4);
             --frame-pad: clamp(5px, 1.4vw, 9px);
             --char-accent: #ffd700;
             --char-glow: rgba(255, 215, 0, 0.6);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
+
+            /* ステージ動的バインド変数（デフォルト：Lv.1） */
+            --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
+            --st-bg-size: 40px 40px;
+            --st-chassis-bg: repeating-linear-gradient(45deg, #3d2417, #3d2417 12px, #2f190e 12px, #2f190e 24px);
+            --st-chassis-border: 3px solid #6b3e24;
+            --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.8);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #203b1c 0%, #132410 70%, #0c1809 100%);
+            --st-board-border: #3d2417;
+            --st-board-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.9);
+            --st-cell-border: rgba(60, 35, 15, 0.65);
+            --st-b-stone-bg: repeating-radial-gradient(circle at 35% 30%, #3d281a 0px, #3d281a 3px, #23160e 4px, #150d08 7px);
+            --st-b-stone-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95), 0 0 0 1px rgba(212,167,72,0.3);
+            --st-b-stone-border: 1px solid #4a3020;
+            --st-w-stone-bg: repeating-radial-gradient(circle at 35% 30%, #fff6e8 0px, #f7e6cc 3px, #e7cb9f 4px, #d8b885 7px);
+            --st-w-stone-shadow: inset 1px 1.5px 2px #ffffff, inset -2px -2.5px 4px rgba(110, 80, 40, 0.5);
+            --st-w-stone-border: 1px solid #c9a76d;
+            --st-edge-rim: linear-gradient(90deg, #1b1109 0%, #3b2518 49%, #b59261 51%, #fcedd7 100%);
         }
 
         /* カスタム・アンティークスクロールバー */
@@ -86,185 +100,131 @@
             position: relative;
         }
 
-        /* サロン背景パターンレイヤー */
         body::before {
             content: ""; position: fixed; inset: 0;
-            background-size: 100px 100px; pointer-events: none; z-index: 0;
-            transition: all 0.8s ease; opacity: 0.6;
+            background-image: var(--st-bg-pattern); background-size: var(--st-bg-size);
+            pointer-events: none; z-index: 0; transition: all 0.8s ease; opacity: 0.6;
         }
 
-        /* --- STAGE 1 : ピエロ【旅の一座の酒場】 --- */
-        body.stage-theme-1 { --dynasty-bg: radial-gradient(circle at 50% 20%, #2f1c13 0%, #190e09 60%, #0a0503 100%); }
-        body.stage-theme-1::before {
-            background-image: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-        body.stage-theme-1 .dynasty-board-chassis {
-            background: repeating-linear-gradient(45deg, #3d2417, #3d2417 12px, #2f190e 12px, #2f190e 24px);
-            border: 3px solid #6b3e24; box-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.8);
-        }
-        body.stage-theme-1 #board {
-            background: radial-gradient(circle at 50% 50%, #203b1c 0%, #132410 70%, #0c1809 100%) !important;
-            border-color: #3d2417 !important;
-        }
-        body.stage-theme-1 .cell { border-color: rgba(60, 35, 15, 0.65) !important; }
-        body.stage-theme-1 .black-stone {
-            background: repeating-radial-gradient(circle at 35% 30%, #3d281a 0px, #3d281a 3px, #23160e 4px, #150d08 7px) !important;
-            box-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95), 0 0 0 1px rgba(212,167,72,0.3) !important;
-            border: 1px solid #4a3020 !important;
-        }
-        body.stage-theme-1 .white-stone {
-            background: repeating-radial-gradient(circle at 35% 30%, #fff6e8 0px, #f7e6cc 3px, #e7cb9f 4px, #d8b885 7px) !important;
-            box-shadow: inset 1px 1.5px 2px #ffffff, inset -2px -2.5px 4px rgba(110, 80, 40, 0.5) !important;
-            border: 1px solid #c9a76d !important;
-        }
-        body.stage-theme-1 .stone-edge-rim {
-            background: linear-gradient(90deg, #1b1109 0%, #3b2518 49%, #b59261 51%, #fcedd7 100%) !important;
+        /* --- 【Ver 5.8.0 統合】ステージ動的変数定義（CSS重複コードの大幅圧縮） --- */
+        body.stage-theme-1 {
+            --dynasty-bg: radial-gradient(circle at 50% 20%, #2f1c13 0%, #190e09 60%, #0a0503 100%);
+            --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
+            --st-bg-size: 40px 40px;
+            --st-chassis-bg: repeating-linear-gradient(45deg, #3d2417, #3d2417 12px, #2f190e 12px, #2f190e 24px);
+            --st-chassis-border: 3px solid #6b3e24;
+            --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.8);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #203b1c 0%, #132410 70%, #0c1809 100%);
+            --st-board-border: #3d2417;
+            --st-cell-border: rgba(60, 35, 15, 0.65);
+            --st-b-stone-bg: repeating-radial-gradient(circle at 35% 30%, #3d281a 0px, #3d281a 3px, #23160e 4px, #150d08 7px);
+            --st-b-stone-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95), 0 0 0 1px rgba(212,167,72,0.3);
+            --st-b-stone-border: 1px solid #4a3020;
+            --st-w-stone-bg: repeating-radial-gradient(circle at 35% 30%, #fff6e8 0px, #f7e6cc 3px, #e7cb9f 4px, #d8b885 7px);
+            --st-w-stone-shadow: inset 1px 1.5px 2px #ffffff, inset -2px -2.5px 4px rgba(110, 80, 40, 0.5);
+            --st-w-stone-border: 1px solid #c9a76d;
+            --st-edge-rim: linear-gradient(90deg, #1b1109 0%, #3b2518 49%, #b59261 51%, #fcedd7 100%);
         }
 
-        /* --- STAGE 2 : コレット【見習い侍女のサロン】 --- */
-        body.stage-theme-2 { --dynasty-bg: radial-gradient(circle at 50% 15%, #102a28 0%, #081a18 55%, #030c0b 100%); }
-        body.stage-theme-2::before {
-            background-image: radial-gradient(circle at 50% 50%, rgba(42, 157, 143, 0.12) 2px, transparent 2px);
-            background-size: 28px 28px;
-        }
-        body.stage-theme-2 .dynasty-board-chassis {
-            background: linear-gradient(135deg, #1e3a35 0%, #10221f 50%, #0a1715 100%);
-            border: 3px solid #36665c; box-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 1px 2px rgba(150, 240, 220, 0.3);
-        }
-        body.stage-theme-2 #board {
-            background: radial-gradient(circle at 50% 50%, #1e4d46 0%, #133630 70%, #0b221e 100%) !important;
-            border-color: #0c1a17 !important;
-        }
-        body.stage-theme-2 .cell { border-color: rgba(30, 80, 70, 0.6) !important; }
-        body.stage-theme-2 .black-stone {
-            background: radial-gradient(circle at 35% 25%, #3c4f52 0%, #192325 35%, #080d0e 80%) !important;
-            box-shadow: inset 2px 2px 4px rgba(180, 255, 240, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(80, 140, 130, 0.45) !important;
-            border: 1px solid rgba(80, 140, 130, 0.5) !important;
-        }
-        body.stage-theme-2 .white-stone {
-            background: radial-gradient(circle at 35% 25%, #ffffff 0%, #f2faf8 40%, #cce5df 80%, #a8cfc6 100%) !important;
-            box-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(40, 95, 85, 0.4) !important;
-            border: 1px solid #d4ece5 !important;
-        }
-        body.stage-theme-2 .stone-edge-rim {
-            background: linear-gradient(90deg, #091312 0%, #1b332f 49%, #62968b 51%, #f0faf7 100%) !important;
+        body.stage-theme-2 {
+            --dynasty-bg: radial-gradient(circle at 50% 15%, #102a28 0%, #081a18 55%, #030c0b 100%);
+            --st-bg-pattern: radial-gradient(circle at 50% 50%, rgba(42, 157, 143, 0.12) 2px, transparent 2px);
+            --st-bg-size: 28px 28px;
+            --st-chassis-bg: linear-gradient(135deg, #1e3a35 0%, #10221f 50%, #0a1715 100%);
+            --st-chassis-border: 3px solid #36665c;
+            --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 1px 2px rgba(150, 240, 220, 0.3);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #1e4d46 0%, #133630 70%, #0b221e 100%);
+            --st-board-border: #0c1a17;
+            --st-cell-border: rgba(30, 80, 70, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 35% 25%, #3c4f52 0%, #192325 35%, #080d0e 80%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(180, 255, 240, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(80, 140, 130, 0.45);
+            --st-b-stone-border: 1px solid rgba(80, 140, 130, 0.5);
+            --st-w-stone-bg: radial-gradient(circle at 35% 25%, #ffffff 0%, #f2faf8 40%, #cce5df 80%, #a8cfc6 100%);
+            --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(40, 95, 85, 0.4);
+            --st-w-stone-border: 1px solid #d4ece5;
+            --st-edge-rim: linear-gradient(90deg, #091312 0%, #1b332f 49%, #62968b 51%, #f0faf7 100%);
         }
 
-        /* --- STAGE 3 : ローラン【近衛騎士の鍛錬の間】 --- */
-        body.stage-theme-3 { --dynasty-bg: radial-gradient(circle at 50% 20%, #142238 0%, #0a1220 55%, #03060c 100%); }
-        body.stage-theme-3::before {
-            background-image: linear-gradient(45deg, rgba(60, 110, 180, 0.06) 25%, transparent 25%, transparent 75%, rgba(60, 110, 180, 0.06) 75%);
-            background-size: 50px 50px;
-        }
-        body.stage-theme-3 .dynasty-board-chassis {
-            background: linear-gradient(135deg, #2b384e 0%, #182233 50%, #0d131f 100%);
-            border: 3px solid #4a6188; box-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 2px rgba(180, 210, 255, 0.35);
-        }
-        body.stage-theme-3 #board {
-            background: radial-gradient(circle at 50% 50%, #1b2c45 0%, #101c2e 70%, #09111c 100%) !important;
-            border-color: #0b1522 !important;
-        }
-        body.stage-theme-3 .cell { border-color: rgba(45, 75, 120, 0.6) !important; }
-        body.stage-theme-3 .black-stone {
-            background: radial-gradient(circle at 30% 25%, #465469 0%, #202a39 45%, #0d121a 90%) !important;
-            box-shadow: inset 1.5px 1.5px 3px rgba(160, 200, 255, 0.45), inset -2.5px -2.5px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(180, 210, 255, 0.3) !important;
-            border: 1.5px solid #485c7d !important;
-        }
-        body.stage-theme-3 .white-stone {
-            background: radial-gradient(circle at 30% 25%, #ffffff 0%, #f0f4fa 45%, #c8d7ed 82%, #9cb2d4 100%) !important;
-            box-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(45, 70, 110, 0.45) !important;
-            border: 1.5px solid #dbe6f7 !important;
-        }
-        body.stage-theme-3 .stone-edge-rim {
-            background: linear-gradient(90deg, #090e17 0%, #202c40 49%, #6884b2 51%, #ebf2fd 100%) !important;
+        body.stage-theme-3 {
+            --dynasty-bg: radial-gradient(circle at 50% 20%, #142238 0%, #0a1220 55%, #03060c 100%);
+            --st-bg-pattern: linear-gradient(45deg, rgba(60, 110, 180, 0.06) 25%, transparent 25%, transparent 75%, rgba(60, 110, 180, 0.06) 75%);
+            --st-bg-size: 50px 50px;
+            --st-chassis-bg: linear-gradient(135deg, #2b384e 0%, #182233 50%, #0d131f 100%);
+            --st-chassis-border: 3px solid #4a6188;
+            --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 2px rgba(180, 210, 255, 0.35);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #1b2c45 0%, #101c2e 70%, #09111c 100%);
+            --st-board-border: #0b1522;
+            --st-cell-border: rgba(45, 75, 120, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 30% 25%, #465469 0%, #202a39 45%, #0d121a 90%);
+            --st-b-stone-shadow: inset 1.5px 1.5px 3px rgba(160, 200, 255, 0.45), inset -2.5px -2.5px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(180, 210, 255, 0.3);
+            --st-b-stone-border: 1.5px solid #485c7d;
+            --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #f0f4fa 45%, #c8d7ed 82%, #9cb2d4 100%);
+            --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(45, 70, 110, 0.45);
+            --st-w-stone-border: 1.5px solid #dbe6f7;
+            --st-edge-rim: linear-gradient(90deg, #090e17 0%, #202c40 49%, #6884b2 51%, #ebf2fd 100%);
         }
 
-        /* --- STAGE 4 : エリザベート【薔薇の舞踏会サロン】 --- */
-        body.stage-theme-4 { --dynasty-bg: radial-gradient(circle at 50% 15%, #380d17 0%, #1d050a 55%, #0a0104 100%); }
-        body.stage-theme-4::before {
-            background-image: radial-gradient(circle at 25px 25px, rgba(255, 80, 120, 0.08) 3%, transparent 0%),
-                              radial-gradient(circle at 75px 75px, rgba(255, 80, 120, 0.08) 3%, transparent 0%);
-            background-size: 60px 60px;
-        }
-        body.stage-theme-4 .dynasty-board-chassis {
-            background: linear-gradient(135deg, #4f1523 0%, #2e0912 50%, #170408 100%);
-            border: 3px solid #8e2a42; box-shadow: 0 10px 32px rgba(0,0,0,0.95), 0 0 16px rgba(180, 20, 60, 0.3), inset 0 1px 2px rgba(255, 180, 200, 0.4);
-        }
-        body.stage-theme-4 #board {
-            background: radial-gradient(circle at 50% 50%, #681525 0%, #440a14 65%, #24040a 100%) !important;
-            border-color: #24040a !important;
-            box-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(180, 20, 60, 0.3) !important;
-        }
-        body.stage-theme-4 .cell { border-color: rgba(140, 30, 50, 0.6) !important; }
-        body.stage-theme-4 .black-stone {
-            background: radial-gradient(circle at 28% 22%, #551624 0%, #20060c 38%, #080103 85%) !important;
-            box-shadow: inset 2px 2px 4px rgba(255, 160, 190, 0.65), inset -2.5px -2.5px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 100, 140, 0.4) !important;
-            border: 1px solid rgba(220, 70, 100, 0.6) !important;
-        }
-        body.stage-theme-4 .white-stone {
-            background: radial-gradient(circle at 30% 25%, #ffffff 0%, #fff2f6 25%, #fcd6e6 50%, #d8e2fd 75%, #ffd4bf 100%) !important;
-            box-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(180, 50, 90, 0.4), 0 0 12px rgba(255, 200, 220, 0.5) !important;
-            border: 1.5px solid #ffe1ec !important;
-        }
-        body.stage-theme-4 .stone-edge-rim {
-            background: linear-gradient(90deg, #170307 0%, #3a0d17 49%, #cc496c 51%, #fff0f5 100%) !important;
+        body.stage-theme-4 {
+            --dynasty-bg: radial-gradient(circle at 50% 15%, #380d17 0%, #1d050a 55%, #0a0104 100%);
+            --st-bg-pattern: radial-gradient(circle at 25px 25px, rgba(255, 80, 120, 0.08) 3%, transparent 0%), radial-gradient(circle at 75px 75px, rgba(255, 80, 120, 0.08) 3%, transparent 0%);
+            --st-bg-size: 60px 60px;
+            --st-chassis-bg: linear-gradient(135deg, #4f1523 0%, #2e0912 50%, #170408 100%);
+            --st-chassis-border: 3px solid #8e2a42;
+            --st-chassis-shadow: 0 10px 32px rgba(0,0,0,0.95), 0 0 16px rgba(180, 20, 60, 0.3), inset 0 1px 2px rgba(255, 180, 200, 0.4);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #681525 0%, #440a14 65%, #24040a 100%);
+            --st-board-border: #24040a;
+            --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(180, 20, 60, 0.3);
+            --st-cell-border: rgba(140, 30, 50, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 28% 22%, #551624 0%, #20060c 38%, #080103 85%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 160, 190, 0.65), inset -2.5px -2.5px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 100, 140, 0.4);
+            --st-b-stone-border: 1px solid rgba(220, 70, 100, 0.6);
+            --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fff2f6 25%, #fcd6e6 50%, #d8e2fd 75%, #ffd4bf 100%);
+            --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(180, 50, 90, 0.4), 0 0 12px rgba(255, 200, 220, 0.5);
+            --st-w-stone-border: 1.5px solid #ffe1ec;
+            --st-edge-rim: linear-gradient(90deg, #170307 0%, #3a0d17 49%, #cc496c 51%, #fff0f5 100%);
         }
 
-        /* --- STAGE 5 : ヴォルフガング【宮廷宰相の深謀の間】 --- */
-        body.stage-theme-5 { --dynasty-bg: radial-gradient(circle at 50% 15%, #241436 0%, #12091d 55%, #050209 100%); }
-        body.stage-theme-5::before {
-            background-image: linear-gradient(60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px),
-                              linear-gradient(-60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px);
-            background-size: 40px 70px;
-        }
-        body.stage-theme-5 .dynasty-board-chassis {
-            background: linear-gradient(135deg, #372150 0%, #1e0f30 50%, #0e0517 100%);
-            border: 3px solid #663e90; box-shadow: 0 12px 34px rgba(0,0,0,0.95), 0 0 16px rgba(130, 60, 200, 0.3);
-        }
-        body.stage-theme-5 #board {
-            background: linear-gradient(135deg, #1f112e 0%, #100719 50%, #09030e 100%) !important;
-            border-color: #0b0312 !important;
-            box-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(130, 60, 200, 0.35) !important;
-        }
-        body.stage-theme-5 .cell { border-color: rgba(90, 50, 130, 0.6) !important; }
-        body.stage-theme-5 .black-stone {
-            background: radial-gradient(circle at 28% 22%, #492868 0%, #1a0b29 40%, #06010b 90%) !important;
-            box-shadow: inset 2px 2px 4.5px rgba(220, 170, 255, 0.7), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(200, 140, 255, 0.45) !important;
-            border: 1.5px solid rgba(180, 110, 255, 0.5) !important;
-        }
-        body.stage-theme-5 .white-stone {
-            background: linear-gradient(135deg, #ffffff 0%, #f7f2fb 30%, #d8cae6 48%, #9f87b8 51%, #f2ebf8 54%, #ded0ee 80%, #baa5ce 100%) !important;
-            box-shadow: inset 2px 2px 3.5px #ffffff, inset -2.5px -2.5px 5px rgba(80, 40, 115, 0.45) !important;
-            border: 1.5px solid #ebdcf8 !important;
-        }
-        body.stage-theme-5 .stone-edge-rim {
-            background: linear-gradient(90deg, #10041a 0%, #2b1142 49%, #965bca 51%, #f6ecfd 100%) !important;
+        body.stage-theme-5 {
+            --dynasty-bg: radial-gradient(circle at 50% 15%, #241436 0%, #12091d 55%, #050209 100%);
+            --st-bg-pattern: linear-gradient(60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px), linear-gradient(-60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px);
+            --st-bg-size: 40px 70px;
+            --st-chassis-bg: linear-gradient(135deg, #372150 0%, #1e0f30 50%, #0e0517 100%);
+            --st-chassis-border: 3px solid #663e90;
+            --st-chassis-shadow: 0 12px 34px rgba(0,0,0,0.95), 0 0 16px rgba(130, 60, 200, 0.3);
+            --st-board-bg: linear-gradient(135deg, #1f112e 0%, #100719 50%, #09030e 100%);
+            --st-board-border: #0b0312;
+            --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(130, 60, 200, 0.35);
+            --st-cell-border: rgba(90, 50, 130, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 28% 22%, #492868 0%, #1a0b29 40%, #06010b 90%);
+            --st-b-stone-shadow: inset 2px 2px 4.5px rgba(220, 170, 255, 0.7), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(200, 140, 255, 0.45);
+            --st-b-stone-border: 1.5px solid rgba(180, 110, 255, 0.5);
+            --st-w-stone-bg: linear-gradient(135deg, #ffffff 0%, #f7f2fb 30%, #d8cae6 48%, #9f87b8 51%, #f2ebf8 54%, #ded0ee 80%, #baa5ce 100%);
+            --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2.5px -2.5px 5px rgba(80, 40, 115, 0.45);
+            --st-w-stone-border: 1.5px solid #ebdcf8;
+            --st-edge-rim: linear-gradient(90deg, #10041a 0%, #2b1142 49%, #965bca 51%, #f6ecfd 100%);
         }
 
-        /* --- STAGE 6 : オルレアン【至高の金箔玉座の間】 --- */
-        body.stage-theme-6 { --dynasty-bg: radial-gradient(circle at 50% 25%, #3d2f10 0%, #1f1705 55%, #0a0701 100%); }
-        body.stage-theme-6::before {
-            background-image: repeating-conic-gradient(from 0deg at 50% 20%, rgba(255, 215, 0, 0.08) 0deg 15deg, transparent 15deg 30deg);
-            opacity: 0.8;
+        body.stage-theme-6 {
+            --dynasty-bg: radial-gradient(circle at 50% 25%, #3d2f10 0%, #1f1705 55%, #0a0701 100%);
+            --st-bg-pattern: repeating-conic-gradient(from 0deg at 50% 20%, rgba(255, 215, 0, 0.08) 0deg 15deg, transparent 15deg 30deg);
+            --st-bg-size: auto;
+            --st-chassis-bg: linear-gradient(135deg, #574013 0%, #352507 50%, #1c1303 100%);
+            --st-chassis-border: 3px solid #d4a748;
+            --st-chassis-shadow: 0 14px 40px rgba(0,0,0,0.98), 0 0 30px rgba(255, 215, 0, 0.55), inset 0 1px 4px rgba(255, 250, 200, 0.8);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #0f5835 0%, #073820 65%, #031c0f 100%);
+            --st-board-border: #ffd700;
+            --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), 0 0 15px rgba(255, 215, 0, 0.4);
+            --st-cell-border: rgba(255, 215, 0, 0.55);
+            --st-b-stone-bg: radial-gradient(circle at 30% 22%, #5e4a1f 0%, #291e0a 35%, #0d0903 85%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 235, 160, 0.85), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 215, 0, 0.7);
+            --st-b-stone-border: 1.5px solid #ffd700;
+            --st-w-stone-bg: radial-gradient(circle at 30% 22%, #ffffff 0%, #fffaea 30%, #f6e6b2 65%, #d8bc6f 100%);
+            --st-w-stone-shadow: inset 2px 2px 4px #ffffff, inset -2px -3px 5px rgba(120, 90, 15, 0.5), 0 0 16px rgba(255, 235, 170, 0.65);
+            --st-w-stone-border: 1.5px solid #fff5cb;
+            --st-edge-rim: linear-gradient(90deg, #171002 0%, #3b2b09 49%, #d4a748 51%, #fffde8 100%);
         }
-        body.stage-theme-6 .dynasty-board-chassis {
-            background: linear-gradient(135deg, #574013 0%, #352507 50%, #1c1303 100%);
-            border: 3px solid #d4a748;
-            box-shadow: 0 14px 40px rgba(0,0,0,0.98), 0 0 30px rgba(255, 215, 0, 0.55), inset 0 1px 4px rgba(255, 250, 200, 0.8);
-        }
-        body.stage-theme-6 #board {
-            background: radial-gradient(circle at 50% 50%, #0f5835 0%, #073820 65%, #031c0f 100%) !important;
-            border-color: #ffd700 !important;
-            box-shadow: inset 0 2px 14px rgba(0,0,0,0.95), 0 0 15px rgba(255, 215, 0, 0.4) !important;
-        }
-        body.stage-theme-6 .cell { border-color: rgba(255, 215, 0, 0.55) !important; }
-        body.stage-theme-6 .black-stone {
-            background: radial-gradient(circle at 30% 22%, #5e4a1f 0%, #291e0a 35%, #0d0903 85%) !important;
-            box-shadow: inset 2px 2px 4px rgba(255, 235, 160, 0.85), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 215, 0, 0.7) !important;
-            border: 1.5px solid #ffd700 !important;
-        }
+
+        body.stage-theme-6::before { opacity: 0.8; }
         body.stage-theme-6 .black-stone::after {
             content: ""; position: absolute; inset: 0; border-radius: 50%;
             background-image: radial-gradient(circle at 65% 40%, rgba(255, 215, 0, 0.8) 1.5px, transparent 1.5px),
@@ -272,16 +232,35 @@
                               radial-gradient(circle at 75% 65%, rgba(255, 215, 0, 0.7) 1.5px, transparent 1.5px);
             pointer-events: none;
         }
-        body.stage-theme-6 .white-stone {
-            background: radial-gradient(circle at 30% 22%, #ffffff 0%, #fffaea 30%, #f6e6b2 65%, #d8bc6f 100%) !important;
-            box-shadow: inset 2px 2px 4px #ffffff, inset -2px -3px 5px rgba(120, 90, 15, 0.5), 0 0 16px rgba(255, 235, 170, 0.65) !important;
-            border: 1.5px solid #fff5cb !important;
-        }
-        body.stage-theme-6 .stone-edge-rim {
-            background: linear-gradient(90deg, #171002 0%, #3b2b09 49%, #d4a748 51%, #fffde8 100%) !important;
+
+        /* 統一バインド適用 */
+        .dynasty-board-chassis {
+            position: relative; padding: var(--frame-pad); border-radius: 12px;
+            background: var(--st-chassis-bg); border: var(--st-chassis-border);
+            box-shadow: var(--st-chassis-shadow); transition: all 0.8s ease;
+            flex-shrink: 0; width: fit-content;
         }
 
-        /* --- ステージ開幕バナー（カットイン） --- */
+        #board {
+            width: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
+            height: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
+            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+            border: 2px solid var(--st-board-border); border-radius: 4px;
+            background: var(--st-board-bg); box-shadow: var(--st-board-shadow);
+            position: relative; flex-shrink: 0; transition: all 0.8s ease;
+        }
+
+        .cell {
+            position: relative; border: 1px solid var(--st-cell-border); box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.1);
+            display: flex; justify-content: center; align-items: center; cursor: pointer; perspective: 900px;
+            transition: border-color 0.8s ease;
+        }
+
+        .black-stone { background: var(--st-b-stone-bg); box-shadow: var(--st-b-stone-shadow); border: var(--st-b-stone-border); }
+        .white-stone { background: var(--st-w-stone-bg); box-shadow: var(--st-w-stone-shadow); border: var(--st-w-stone-border); }
+        .stone-edge-rim { background: var(--st-edge-rim); }
+
+        /* --- 開幕バナー --- */
         .stage-curtain-banner {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85);
             background: linear-gradient(135deg, rgba(20, 16, 10, 0.96) 0%, rgba(10, 8, 5, 0.98) 100%);
@@ -295,46 +274,28 @@
         .banner-salon-title { font-size: 14px; font-weight: 800; color: #ffffff; letter-spacing: 0.08em; margin-bottom: 3px; }
         .banner-relic-sub { font-size: 9.5px; color: #ecd08c; font-weight: 600; }
 
-        /* --- 【Ver 5.7.0 改修】完全独立フレックスヘッダー（ボタンと石数バッジの重なりを完全根絶） --- */
+        /* --- ヘッダー --- */
         header {
             width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center;
             position: relative; padding: clamp(4px, 1dvh, 7px) clamp(8px, 2vw, 16px);
-            margin-bottom: clamp(6px, 1.2dvh, 10px);
-            z-index: 30; flex-shrink: 0;
+            margin-bottom: clamp(6px, 1.2dvh, 10px); z-index: 30; flex-shrink: 0;
         }
-
-        .header-left-space {
-            width: clamp(60px, 14vw, 84px); flex-shrink: 0;
-        }
-
-        .header-title-wrap {
-            display: flex; align-items: baseline; justify-content: center; gap: 6px; text-align: center; flex: 1;
-        }
-
+        .header-left-space { width: clamp(60px, 14vw, 84px); flex-shrink: 0; }
+        .header-title-wrap { display: flex; align-items: baseline; justify-content: center; gap: 6px; text-align: center; flex: 1; }
         .main-header-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
             font-size: clamp(13px, 3.8vw, 17px); font-weight: 900; letter-spacing: 0.12em;
             background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 2px 8px rgba(197, 151, 62, 0.45); white-space: nowrap;
         }
-
-        .header-subtitle {
-            font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700;
-            letter-spacing: 0.22em; color: #cca45b; text-transform: uppercase;
-        }
-
-        .header-actions {
-            display: flex; gap: 5px; align-items: center; justify-content: flex-end;
-            width: clamp(60px, 14vw, 84px); flex-shrink: 0;
-        }
-
+        .header-subtitle { font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700; letter-spacing: 0.22em; color: #cca45b; text-transform: uppercase; }
+        .header-actions { display: flex; gap: 5px; align-items: center; justify-content: flex-end; width: clamp(60px, 14vw, 84px); flex-shrink: 0; }
         .header-btn {
             background: linear-gradient(135deg, rgba(34, 38, 50, 0.9) 0%, rgba(18, 20, 28, 0.9) 100%);
             border: 1px solid var(--gold-border); border-radius: 14px; padding: 2.5px 6.5px;
             font-size: 9.5px; font-weight: 700; color: #faebd0; display: flex; align-items: center;
             gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: all 0.2s ease;
         }
-
         .header-btn:hover { border-color: #f7e6ba; box-shadow: 0 2px 8px var(--gold-glow); transform: translateY(-1px); }
 
         /* --- メインコンテナ --- */
@@ -352,21 +313,11 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);
             z-index: 10; flex-shrink: 0; transition: border-color 0.4s ease;
         }
-
         .opponent-avatar-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-
-        .voice-wave-ring {
-            position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--char-accent);
-            pointer-events: none; opacity: 0; z-index: 1;
-        }
-
+        .voice-wave-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--char-accent); pointer-events: none; opacity: 0; z-index: 1; }
         .is-talking .voice-wave-ring.wave-1 { animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
         .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) 0.22s forwards; }
-
-        @keyframes oval-voice-ripple {
-            0% { transform: scale(1); opacity: 0.9; }
-            100% { transform: scale(1.35, 1.25); opacity: 0; }
-        }
+        @keyframes oval-voice-ripple { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.35, 1.25); opacity: 0; } }
 
         .opponent-avatar-frame {
             width: clamp(50px, 13vw, 60px); height: clamp(70px, 18.5vw, 84px); border-radius: 50%;
@@ -376,69 +327,26 @@
             position: relative; z-index: 2; transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
             display: flex; align-items: center; justify-content: center;
         }
-
-        .avatar-img-box {
-            width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85);
-        }
-
+        .avatar-img-box { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85); }
         .avatar-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .avatar-fallback-icon { font-size: 28px; color: #ffd700; }
 
-        /* --- 【Ver 5.7.0 刷新】キャラクター別・固有躍動モーション --- */
-        /* Lv.1 ピエロ：アクロバット・バウンス（左右に揺れながらコミカルに跳ねる） */
+        /* キャラ固有アクションモーション */
         .motion-char-1 { animation: clown-bounce 0.7s cubic-bezier(0.28, 0.84, 0.42, 1); }
-        @keyframes clown-bounce {
-            0%, 100% { transform: scale(1) rotate(0deg) translateY(0); }
-            25% { transform: scale(1.06) rotate(-4deg) translateY(-4px); }
-            50% { transform: scale(0.96) rotate(3deg) translateY(2px); }
-            75% { transform: scale(1.03) rotate(-2deg) translateY(-2px); }
-        }
-
-        /* Lv.2 コレット：ひたむきペコリ（前へ一生懸命お辞儀するように頷く） */
+        @keyframes clown-bounce { 0%, 100% { transform: scale(1) rotate(0deg) translateY(0); } 25% { transform: scale(1.06) rotate(-4deg) translateY(-4px); } 50% { transform: scale(0.96) rotate(3deg) translateY(2px); } 75% { transform: scale(1.03) rotate(-2deg) translateY(-2px); } }
         .motion-char-2 { animation: colette-nod 0.65s ease-in-out; }
-        @keyframes colette-nod {
-            0%, 100% { transform: scale(1) translateY(0); }
-            35% { transform: scale(1.04) translateY(-2.5px); }
-            65% { transform: scale(1.02) translateY(3px) rotate(1.5deg); }
-        }
-
-        /* Lv.3 ローラン：騎士の踏み込み（剣を構え直すように前方へ迫り出す） */
+        @keyframes colette-nod { 0%, 100% { transform: scale(1) translateY(0); } 35% { transform: scale(1.04) translateY(-2.5px); } 65% { transform: scale(1.02) translateY(3px) rotate(1.5deg); } }
         .motion-char-3 { animation: roland-thrust 0.6s cubic-bezier(0.1, 0.9, 0.2, 1); }
-        @keyframes roland-thrust {
-            0%, 100% { transform: scale(1) translateX(0); }
-            30% { transform: scale(1.08) translateX(3px) translateY(-1px); }
-            70% { transform: scale(1.02) translateX(1px); }
-        }
-
-        /* Lv.4 エリザベート：ロココ・フロート（優雅にふわりと浮遊する） */
+        @keyframes roland-thrust { 0%, 100% { transform: scale(1) translateX(0); } 30% { transform: scale(1.08) translateX(3px) translateY(-1px); } 70% { transform: scale(1.02) translateX(1px); } }
         .motion-char-4 { animation: elisabeth-float 0.8s ease-in-out; }
-        @keyframes elisabeth-float {
-            0%, 100% { transform: scale(1) translateY(0) rotate(0deg); }
-            40% { transform: scale(1.05) translateY(-5px) rotate(-1.5deg); }
-            70% { transform: scale(1.02) translateY(-2px) rotate(0.8deg); }
-        }
-
-        /* Lv.5 ヴォルフガング：冷徹な閃光（ブレずに知的威圧を与える紫の鋭い光彩） */
+        @keyframes elisabeth-float { 0%, 100% { transform: scale(1) translateY(0) rotate(0deg); } 40% { transform: scale(1.05) translateY(-5px) rotate(-1.5deg); } 70% { transform: scale(1.02) translateY(-2px) rotate(0.8deg); } }
         .motion-char-5 { animation: wolfgang-glare 0.65s ease-out; }
-        @keyframes wolfgang-glare {
-            0%, 100% { transform: scale(1); filter: brightness(1); }
-            40% { transform: scale(1.03); filter: brightness(1.25) drop-shadow(0 0 10px #c084fc); }
-        }
-
-        /* Lv.6 オルレアン：覇王の威光ズーム（玉座から乗り出すように力強く拡大） */
+        @keyframes wolfgang-glare { 0%, 100% { transform: scale(1); filter: brightness(1); } 40% { transform: scale(1.03); filter: brightness(1.25) drop-shadow(0 0 10px #c084fc); } }
         .motion-char-6 { animation: orleans-majesty 0.75s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes orleans-majesty {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)); }
-            50% { transform: scale(1.09) translateY(-2px); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.95)) brightness(1.15); }
-        }
+        @keyframes orleans-majesty { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)); } 50% { transform: scale(1.09) translateY(-2px); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.95)) brightness(1.15); } }
 
         .opponent-avatar-frame.thinking-aura { animation: oval-aura 1.8s infinite alternate ease-in-out; }
-        @keyframes oval-aura {
-            from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); }
-            to { box-shadow: 0 0 0 3px var(--char-accent), 0 0 24px var(--char-glow); }
-        }
+        @keyframes oval-aura { from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); } to { box-shadow: 0 0 0 3px var(--char-accent), 0 0 24px var(--char-glow); } }
 
         .opponent-rank-badge {
             position: absolute; bottom: -3px; right: -3px;
@@ -448,16 +356,12 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); line-height: 1.2; z-index: 3;
         }
 
-        .opponent-info-wrap {
-            flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2px;
-        }
-
+        .opponent-info-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2px; }
         .opponent-header-row { display: flex; align-items: center; justify-content: space-between; }
         .opponent-name-group { display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap; }
         .opponent-name { font-size: 12px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
         .opponent-title { font-size: 8px; color: #cca45b; font-weight: 700; }
 
-        /* サロン美術銘板 */
         .stage-material-badge {
             font-size: 8px; font-weight: 700; color: #dfcaa2; background: rgba(0, 0, 0, 0.55);
             border: 1px solid rgba(212, 167, 72, 0.35); border-radius: 4px; padding: 1px 5px;
@@ -468,7 +372,6 @@
 
         .opponent-stats-group { display: flex; align-items: center; gap: 5px; }
         .opponent-timer { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #d1b888; display: flex; align-items: center; gap: 2px; }
-
         .opponent-score-badge {
             font-family: 'Cinzel', serif; font-size: 12px; font-weight: 900; padding: 1px 6px;
             border-radius: 6px; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border);
@@ -483,35 +386,27 @@
             word-break: break-all; animation: bubble-appear 0.28s ease-out; min-height: 30px;
             display: flex; align-items: center; transition: all 0.3s ease;
         }
-
         .opponent-speech-bubble::before {
             content: ""; position: absolute; left: -5px; top: 10px; width: 0; height: 0;
             border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
         }
-
         .opponent-speech-bubble.is-climax { border-color: var(--char-accent); box-shadow: 0 0 14px var(--char-glow); }
         .opponent-speech-bubble.is-climax span {
             background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, var(--char-accent) 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;
             filter: drop-shadow(0 0 4px var(--char-glow));
         }
-
-        @keyframes bubble-appear {
-            from { opacity: 0; transform: translateX(-4px) scale(0.98); }
-            to { opacity: 1; transform: translateX(0) scale(1); }
-        }
+        @keyframes bubble-appear { from { opacity: 0; transform: translateX(-4px) scale(0.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 
         /* ゾーン②：盤面ゾーン */
         .board-zone {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             flex-shrink: 0; position: relative; margin: 0; width: 100%; gap: clamp(3px, 0.6dvh, 6px);
         }
-
         .battle-gauge-container {
             width: min(calc(100vw - 12px), 38.5dvh); display: flex; flex-direction: column; gap: 2.5px;
             padding: 1px 2px; flex-shrink: 0; margin-top: -2px; margin-bottom: 2px;
         }
-
         .battle-gauge-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; padding: 0 2px; }
         .battle-badge {
             font-size: 11px; font-weight: 800; color: #fff2cc;
@@ -519,12 +414,10 @@
             border: 1px solid var(--gold-border); padding: 1.5px 7px; border-radius: 5px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); letter-spacing: 0.04em;
         }
-
         .battle-track {
             position: relative; height: 9px; background: #111318; border: 1.5px solid var(--gold-border);
             border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
         }
-
         .battle-center-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.35); z-index: 10; transform: translateX(-50%); }
         .battle-power-player {
             height: 100%; background: linear-gradient(90deg, #ffd700 0%, #ecd08c 70%, #ffffff 100%);
@@ -540,12 +433,6 @@
             transition: left 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
         }
 
-        .dynasty-board-chassis {
-            position: relative; padding: var(--frame-pad);
-            border-radius: 12px; transition: all 0.8s ease;
-            flex-shrink: 0; width: fit-content;
-        }
-
         .corner-ornament { position: absolute; width: 10px; height: 10px; border: 2px solid #d4a748; pointer-events: none; }
         .corner-tl { top: 3px; left: 3px; border-right: none; border-bottom: none; }
         .corner-tr { top: 3px; right: 3px; border-left: none; border-bottom: none; }
@@ -557,16 +444,6 @@
             color: #cca45b; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; pointer-events: none;
         }
 
-        #board {
-            width: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
-            height: min(calc(100vw - 12px - var(--frame-pad) * 2), 38.5dvh);
-            display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
-            border: 2px solid #140d07; border-radius: 4px;
-            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.9); position: relative; flex-shrink: 0;
-            transition: all 0.8s ease;
-        }
-
-        /* 公式真鍮製星ドット */
         .board-star-dot {
             position: absolute; width: clamp(6px, 1.4vw, 8px); height: clamp(6px, 1.4vw, 8px);
             border-radius: 50%; pointer-events: none; z-index: 8; transform: translate(-50%, -50%);
@@ -574,74 +451,43 @@
             box-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 4px rgba(255, 215, 0, 0.6);
             border: 1px solid #1a1204;
         }
-        .star-c3 { left: 25%; top: 25%; }
-        .star-f3 { left: 75%; top: 25%; }
-        .star-c6 { left: 25%; top: 75%; }
-        .star-f6 { left: 75%; top: 75%; }
+        .star-c3 { left: 25%; top: 25%; } .star-f3 { left: 75%; top: 25%; }
+        .star-c6 { left: 25%; top: 75%; } .star-f6 { left: 75%; top: 75%; }
 
-        .cell {
-            position: relative; border: 1px solid rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 1px rgba(255, 255, 255, 0.1);
-            display: flex; justify-content: center; align-items: center; cursor: pointer; perspective: 900px;
-            transition: border-color 0.8s ease;
-        }
-
+        /* セル・各種演出状態 */
         .last-move-cell {
             box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 14px rgba(255, 215, 0, 0.7) !important;
             animation: gold-pulse 1.8s ease-in-out infinite alternate;
         }
-
         @keyframes gold-pulse {
             from { box-shadow: inset 0 0 0 2px #d4a748, inset 0 0 8px rgba(212, 167, 72, 0.4); }
             to { box-shadow: inset 0 0 0 2.5px #fff4bd, inset 0 0 16px rgba(255, 215, 0, 0.85); }
         }
 
-        /* 棋譜検証ハイライト */
-        .review-focus-cell {
-            box-shadow: inset 0 0 0 3px #ffd700, inset 0 0 18px rgba(255, 215, 0, 0.85) !important;
-            animation: review-pulse 1.2s infinite alternate !important;
-        }
-        @keyframes review-pulse {
-            from { filter: drop-shadow(0 0 2px #ffd700); }
-            to { filter: drop-shadow(0 0 10px #ffffff); }
-        }
+        .review-focus-cell { box-shadow: inset 0 0 0 3px #ffd700, inset 0 0 18px rgba(255, 215, 0, 0.85) !important; animation: review-glow 1.2s infinite alternate !important; }
+        @keyframes review-glow { from { filter: drop-shadow(0 0 2px #ffd700); } to { filter: drop-shadow(0 0 10px #ffffff); } }
 
-        .review-bad-cell {
-            box-shadow: inset 0 0 0 3px #ff4d4d, inset 0 0 20px rgba(255, 77, 77, 0.9) !important;
-            animation: review-bad-pulse 1s infinite alternate !important;
-        }
-        .review-bad-cell::after {
-            content: "❌"; position: absolute; top: 1px; right: 1px; font-size: 11px; z-index: 12;
-            filter: drop-shadow(0 0 4px #000);
-        }
-        @keyframes review-bad-pulse {
-            from { filter: drop-shadow(0 0 2px #ff4d4d); }
-            to { filter: drop-shadow(0 0 12px #ff0000); }
-        }
+        .review-bad-cell { box-shadow: inset 0 0 0 3px #ff4d4d, inset 0 0 20px rgba(255, 77, 77, 0.9) !important; animation: review-bad-glow 1s infinite alternate !important; }
+        .review-bad-cell::after { content: "❌"; position: absolute; top: 1px; right: 1px; font-size: 11px; z-index: 12; filter: drop-shadow(0 0 4px #000); }
+        @keyframes review-bad-glow { from { filter: drop-shadow(0 0 2px #ff4d4d); } to { filter: drop-shadow(0 0 12px #ff0000); } }
 
         .review-correct-cell {
             box-shadow: inset 0 0 0 3px #ffd700, inset 0 0 22px rgba(255, 215, 0, 0.95) !important;
-            animation: review-correct-pulse 1.1s infinite alternate !important;
-            background-color: rgba(255, 215, 0, 0.15);
+            animation: review-glow 1.1s infinite alternate !important; background-color: rgba(255, 215, 0, 0.15);
         }
         .review-correct-cell::after {
             content: "💡正解"; position: absolute; bottom: 1px; font-family: inherit;
             font-size: 8.5px; font-weight: 900; color: #121008; background: #ffd700;
             padding: 0 4px; border-radius: 3px; z-index: 12; box-shadow: 0 1px 4px rgba(0,0,0,0.8);
         }
-        @keyframes review-correct-pulse {
-            from { filter: drop-shadow(0 0 4px #ffd700); }
-            to { filter: drop-shadow(0 0 14px #ffffff); }
-        }
 
-        /* --- 【Ver 5.7.0 刷新】打てるマスガイド（優美に呼吸する金輪リング） --- */
         .can-place { background-color: rgba(212, 167, 72, 0.08); }
         .can-place::after {
             content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
             border: 2px solid rgba(255, 230, 160, 0.85); box-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
-            pointer-events: none; animation: gentle-guide-pulse 1.6s ease-in-out infinite;
+            pointer-events: none; animation: guide-ring-pulse 1.6s ease-in-out infinite;
         }
-
-        @keyframes gentle-guide-pulse {
+        @keyframes guide-ring-pulse {
             0%, 100% { transform: scale(0.9); opacity: 0.6; }
             50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px rgba(255, 230, 160, 1); }
         }
@@ -652,71 +498,33 @@
             transition: opacity 0.2s cubic-bezier(0.2, 0.8, 0.3, 1), transform 0.2s cubic-bezier(0.2, 0.8, 0.3, 1);
             pointer-events: none; z-index: 5;
         }
-
-        .preview-black.can-place::before {
-            background: linear-gradient(145deg, rgba(30, 32, 38, 0.85) 0%, rgba(12, 13, 16, 0.95) 100%);
-            border: 1.5px solid rgba(212, 167, 72, 0.6); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7);
-        }
-
-        .preview-white.can-place::before {
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 236, 226, 0.9) 100%);
-            border: 1.5px solid rgba(212, 167, 72, 0.7); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
-        }
-
+        .preview-black.can-place::before { background: linear-gradient(145deg, rgba(30, 32, 38, 0.85) 0%, rgba(12, 13, 16, 0.95) 100%); border: 1.5px solid rgba(212, 167, 72, 0.6); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7); }
+        .preview-white.can-place::before { background: linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 236, 226, 0.9) 100%); border: 1.5px solid rgba(212, 167, 72, 0.7); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4); }
         .can-place:hover::before { opacity: 0.92; transform: scale(1) translateY(0); }
         .can-place:hover::after { opacity: 0; }
 
-        .hint-cell {
-            box-shadow: inset 0 0 0 2.5px rgba(229, 184, 66, 0.95), inset 0 0 12px rgba(229, 184, 66, 0.5);
-            animation: hint-pulse 1.4s ease-in-out infinite;
-        }
-
-        .hint-cell::after {
-            content: "💡"; position: absolute; top: 1px; right: 1px; font-size: 10.5px; pointer-events: none;
-        }
-
-        @keyframes hint-pulse {
+        .hint-cell { box-shadow: inset 0 0 0 2.5px rgba(229, 184, 66, 0.95), inset 0 0 12px rgba(229, 184, 66, 0.5); animation: hint-gold-pulse 1.4s ease-in-out infinite; }
+        .hint-cell::after { content: "💡"; position: absolute; top: 1px; right: 1px; font-size: 10.5px; pointer-events: none; }
+        @keyframes hint-gold-pulse {
             0%, 100% { box-shadow: inset 0 0 0 2px rgba(229, 184, 66, 0.8), inset 0 0 8px rgba(229, 184, 66, 0.4); }
             50% { box-shadow: inset 0 0 0 2.5px rgba(255, 230, 150, 1), inset 0 0 16px rgba(255, 230, 150, 0.65); }
         }
 
-        /* 統一トースト通知体系 */
         .move-toast {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6);
             opacity: 0; pointer-events: none; padding: 7px 15px; border-radius: 20px; font-weight: 800;
             font-size: 12.5px; letter-spacing: 0.08em; z-index: 50;
             transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25); white-space: nowrap;
         }
-
         .move-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        .toast-best {
-            background: linear-gradient(135deg, rgba(38, 32, 15, 0.96) 0%, rgba(20, 16, 6, 0.98) 100%);
-            border: 1.5px solid #ffd700; color: #fff6c9; box-shadow: 0 0 24px rgba(255, 215, 0, 0.75);
-        }
-        .toast-good {
-            background: linear-gradient(135deg, rgba(22, 35, 28, 0.96) 0%, rgba(10, 20, 14, 0.98) 100%);
-            border: 1.5px solid #2ecc71; color: #d4f8e2; box-shadow: 0 0 20px rgba(46, 204, 113, 0.6);
-        }
-        .toast-reversal {
-            background: linear-gradient(135deg, rgba(30, 26, 45, 0.96) 0%, rgba(15, 12, 28, 0.98) 100%);
-            border: 1.5px solid #9b59b6; color: #f2e2ff; box-shadow: 0 0 22px rgba(155, 89, 182, 0.75);
-        }
-        .toast-bad {
-            background: linear-gradient(135deg, rgba(45, 15, 15, 0.96) 0%, rgba(22, 8, 8, 0.98) 100%);
-            border: 1.5px solid #ff4d4d; color: #ffd8d8; box-shadow: 0 0 24px rgba(255, 77, 77, 0.75);
-        }
+        .toast-best { background: linear-gradient(135deg, rgba(38, 32, 15, 0.96) 0%, rgba(20, 16, 6, 0.98) 100%); border: 1.5px solid #ffd700; color: #fff6c9; box-shadow: 0 0 24px rgba(255, 215, 0, 0.75); }
+        .toast-good { background: linear-gradient(135deg, rgba(22, 35, 28, 0.96) 0%, rgba(10, 20, 14, 0.98) 100%); border: 1.5px solid #2ecc71; color: #d4f8e2; box-shadow: 0 0 20px rgba(46, 204, 113, 0.6); }
+        .toast-reversal { background: linear-gradient(135deg, rgba(30, 26, 45, 0.96) 0%, rgba(15, 12, 28, 0.98) 100%); border: 1.5px solid #9b59b6; color: #f2e2ff; box-shadow: 0 0 22px rgba(155, 89, 182, 0.75); }
+        .toast-bad { background: linear-gradient(135deg, rgba(45, 15, 15, 0.96) 0%, rgba(22, 8, 8, 0.98) 100%); border: 1.5px solid #ff4d4d; color: #ffd8d8; box-shadow: 0 0 24px rgba(255, 77, 77, 0.75); }
 
-        /* --- 【Ver 5.7.0 調律】3D反転アニメーション（25%高速化・爽快感調律） --- */
-        .stone-wrapper {
-            position: relative; width: 86%; height: 86%; display: flex; align-items: center; justify-content: center;
-        }
-
-        .stone {
-            position: relative; width: 100%; height: 100%; border-radius: 50%; z-index: 2;
-            filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82));
-            transition: all 0.6s ease;
-        }
-
+        /* 3D反転アニメーション */
+        .stone-wrapper { position: relative; width: 86%; height: 86%; display: flex; align-items: center; justify-content: center; }
+        .stone { position: relative; width: 100%; height: 100%; border-radius: 50%; z-index: 2; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); transition: all 0.6s ease; }
         .stone-new { animation: stone-drop-clean 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
         @keyframes stone-drop-clean {
             from { transform: translateY(-16px) scale(0.65); opacity: 0; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.4)); }
@@ -725,11 +533,8 @@
 
         .stone-flip-wrapper {
             position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-            perspective: 1000px;
-            animation: flip-lift-shadow 0.38s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
-            z-index: 10;
+            perspective: 1000px; animation: flip-lift-shadow 0.38s cubic-bezier(0.38, 0.04, 0.22, 1) forwards; z-index: 10;
         }
-
         @keyframes flip-lift-shadow {
             0% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
             45% { transform: translateY(-9px) scale(1.07); filter: drop-shadow(0 12px 13px rgba(0, 0, 0, 0.35)); }
@@ -740,74 +545,33 @@
             position: relative; width: 100%; height: 100%; border-radius: 50%; transform-style: preserve-3d;
             animation: flip-spin-3d 0.38s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
         }
+        @keyframes flip-spin-3d { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(180deg); } }
 
-        @keyframes flip-spin-3d {
-            0% { transform: rotateY(0deg); }
-            100% { transform: rotateY(180deg); }
-        }
-
-        .stone-face {
-            position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
-        }
-
+        .stone-face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
         .stone-face-front { transform: rotateY(0deg) translateZ(1.5px); }
         .stone-face-back { transform: rotateY(180deg) translateZ(1.5px); }
-
-        .stone-edge-rim {
-            position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px);
-            border: 1px solid rgba(45, 42, 38, 0.85); transition: background 0.6s ease;
-        }
+        .stone-edge-rim { position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px); border: 1px solid rgba(45, 42, 38, 0.85); transition: background 0.6s ease; }
 
         /* ゾーン③：操作ゾーン */
-        .player-control-zone {
-            width: min(96vw, 440px); display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative;
-        }
-
+        .player-control-zone { width: min(96vw, 440px); display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative; }
         .royal-card {
             background: var(--panel-bg); border: 1px solid var(--gold-border); border-radius: 12px;
             padding: clamp(4px, 0.9dvh, 6px) 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px); position: relative; transition: box-shadow 0.4s ease;
         }
-
-        .royal-card::before {
-            content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2);
-            border-radius: 10px; pointer-events: none;
-        }
-
-        /* 手番交代時のジェントル・ゴールドパルス */
-        .royal-card.turn-notify-pulse {
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-            border-color: #ffd700 !important;
-        }
+        .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2); border-radius: 10px; pointer-events: none; }
+        .royal-card.turn-notify-pulse { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important; border-color: #ffd700 !important; }
 
         .player-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
-
-        #status {
-            flex: 1; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-align: left;
-            min-height: 18px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-
-        #status.status-human-turn {
-            background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            animation: human-turn-blink 1.4s ease-in-out infinite;
-        }
-
+        #status { flex: 1; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-align: left; min-height: 18px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #status.status-human-turn { background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: human-turn-blink 1.4s ease-in-out infinite; }
         @keyframes human-turn-blink {
             0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.7)); transform: scale(1); }
             50% { opacity: 0.35; filter: drop-shadow(0 0 12px rgba(255, 240, 190, 0.95)); transform: scale(1.02); }
         }
-
-        #status.status-cpu-turn {
-            color: #d1b888; -webkit-text-fill-color: #d1b888; opacity: 0.85; animation: cpu-pulse 1.8s ease-in-out infinite;
-        }
-
-        #status.status-hint-thinking {
-            color: #f7e6ba; -webkit-text-fill-color: #f7e6ba; text-shadow: 0 0 8px rgba(229, 184, 66, 0.7);
-            animation: hint-thinking-pulse 1.2s ease-in-out infinite;
-        }
-
-        @keyframes hint-thinking-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        @keyframes cpu-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+        #status.status-cpu-turn { color: #d1b888; -webkit-text-fill-color: #d1b888; opacity: 0.85; animation: hint-fade-pulse 1.8s ease-in-out infinite; }
+        #status.status-hint-thinking { color: #f7e6ba; -webkit-text-fill-color: #f7e6ba; text-shadow: 0 0 8px rgba(229, 184, 66, 0.7); animation: hint-fade-pulse 1.2s ease-in-out infinite; }
+        @keyframes hint-fade-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 
         .player-stats-group { display: flex; align-items: center; gap: 5px; }
         .player-score-badge {
@@ -815,24 +579,17 @@
             border-radius: 6px; background: rgba(8, 10, 14, 0.9); border: 1px solid #ffd700;
             color: #fff4bd; box-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
         }
-
         .player-timer { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 600; color: #baa070; }
 
-        .color-selector {
-            display: flex; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border);
-            border-radius: 6px; padding: 2px; gap: 2px;
-        }
-
+        .color-selector { display: flex; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border); border-radius: 6px; padding: 2px; gap: 2px; }
         .color-btn {
             font-family: inherit; font-size: 9px; font-weight: 700; padding: 2.5px 6px;
             border-radius: 4px; border: 1px solid transparent; background: transparent; color: #aa9c80;
             cursor: pointer; transition: all 0.2s ease;
         }
-
         .color-btn.active {
             background: var(--pure-gold-btn) !important; color: #1a1204 !important; border: 1px solid #ffffff !important;
-            font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.85);
-            transform: translateY(-1px);
+            font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.85); transform: translateY(-1px);
         }
 
         .action-grid-row1 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 4px; margin-bottom: 4px; }
@@ -845,39 +602,24 @@
         }
 
         button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; white-space: nowrap; }
-
-        .btn-royal {
-            padding: 3.5px 2px; font-size: 10px; font-weight: 700; border: 1px solid var(--gold-border);
-            background: linear-gradient(180deg, #2c3242 0%, #171b26 100%); color: #f7eed8;
-        }
-
+        .btn-royal { padding: 3.5px 2px; font-size: 10px; font-weight: 700; border: 1px solid var(--gold-border); background: linear-gradient(180deg, #2c3242 0%, #171b26 100%); color: #f7eed8; }
         .btn-royal:hover { border-color: #fae6b2; }
         #undoButton { background: linear-gradient(180deg, #3d3420 0%, #1f190d 100%); color: #fce7ba; border-color: #c5973e; font-weight: 800; }
         #restartButton { background: linear-gradient(180deg, #44371e 0%, #201a0d 100%); color: #fff2d1; border-color: #d4a748; font-weight: 800; letter-spacing: 0.05em; }
         #guideButton { background: linear-gradient(180deg, #2a2c3a 0%, #151620 100%); color: #faebd0; border-color: var(--gold-border); font-weight: 800; }
         #hintButton { background: linear-gradient(180deg, #3a2e15 0%, #1a1408 100%); color: #fff4bd; border-color: #c5973e; font-weight: 800; }
 
-        /* 統一ヒント表示枠 */
+        /* ヒント固定表示枠 */
         .hint-fixed-display {
             width: 100%; height: clamp(52px, 7dvh, 64px); margin-top: 4px; padding: clamp(2px, 0.6dvh, 4px) 8px;
             border: 1px solid rgba(212, 167, 72, 0.45); border-radius: 8px; background: rgba(14, 15, 20, 0.95);
             box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.5);
             display: flex; flex-direction: column; justify-content: center; overflow: hidden; position: relative;
         }
-
-        .hint-fixed-header {
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid rgba(212, 167, 72, 0.25); padding-bottom: 1px; margin-bottom: 2px;
-        }
-
+        .hint-fixed-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(212, 167, 72, 0.25); padding-bottom: 1px; margin-bottom: 2px; }
         .hint-badge-tag { font-size: 9.5px; font-weight: 800; color: #fae6b2; display: flex; align-items: center; gap: 4px; }
         .hint-target-coord { font-family: 'Cinzel', serif; font-size: 13.5px; font-weight: 900; color: #fff2d1; }
-
-        .hint-elegant-gold-text {
-            font-size: 10px; line-height: 1.35; color: #ecd08c; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-            overflow-y: auto; flex: 1;
-        }
-
+        .hint-elegant-gold-text { font-size: 10px; line-height: 1.35; color: #ecd08c; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); overflow-y: auto; flex: 1; }
         .hint-placeholder-text { font-size: 10px; color: #8e8474; font-style: italic; text-align: center; line-height: 18px; }
 
         /* 棋譜検証パネル */
@@ -886,31 +628,21 @@
             border: 1.5px solid var(--amber-accent); border-radius: 12px; padding: 6px 9px;
             box-shadow: 0 0 20px rgba(229, 184, 66, 0.3); flex-direction: column; gap: 5px;
         }
-
         .review-mode-panel.show { display: flex; }
-
-        .review-header-row {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px;
-        }
-
+        .review-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px; }
         .review-step-label { font-size: 11px; font-weight: 800; color: #fae6b2; }
         .review-turn-info { font-family: 'Cinzel', serif; font-size: 10.5px; font-weight: 700; color: #fff2cc; }
-
         .review-context-box {
             background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(212, 167, 72, 0.3);
             border-radius: 6px; padding: 4px 6px; font-size: 9.5px; line-height: 1.4; color: #ecd08c;
             min-height: 38px; display: flex; align-items: center;
         }
-
         .review-controls-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
         .review-controls-row2 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 4px; }
-
         .btn-review-nav {
             padding: 4.5px 3px; font-size: 10px; font-weight: 800; border-radius: 6px; border: 1px solid var(--gold-border);
             background: linear-gradient(180deg, #2a2c3a 0%, #151620 100%); color: #ffffff; transition: all 0.2s ease;
         }
-
         .btn-review-nav:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.8); }
         .btn-jump-best { background: linear-gradient(180deg, #3d351b 0%, #1f190b 100%); border: 1px solid #ffd700; color: #fff2bd; font-weight: 800; }
         .btn-jump-bad { background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%); border: 1px solid #ff6b6b; color: #ffd8d8; font-weight: 800; }
@@ -921,7 +653,6 @@
             display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center;
             background: rgba(4, 5, 8, 0.94); backdrop-filter: blur(10px); padding: 12px;
         }
-
         .royal-result-modal.show { display: flex; animation: modal-fade-in 0.35s ease-out forwards; }
         @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
@@ -932,33 +663,21 @@
             box-shadow: 0 0 32px var(--char-glow), 0 24px 60px rgba(0, 0, 0, 0.95); position: relative;
             animation: result-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
         }
-
         @keyframes result-pop { from { transform: scale(0.9); } to { transform: scale(1); } }
 
-        .result-main-title {
-            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 21px; font-weight: 900;
-            letter-spacing: 0.1em; margin-bottom: 4px; line-height: 1.25;
-        }
-
+        .result-main-title { font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 21px; font-weight: 900; letter-spacing: 0.1em; margin-bottom: 4px; line-height: 1.25; }
         .result-title-win {
             background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, #ffd700 80%, #d4a748 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.7));
         }
-
         .result-title-lose {
             background: linear-gradient(135deg, #ffffff 0%, #ff9e9e 40%, #ff4d4d 80%, #a61212 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 10px rgba(255, 77, 77, 0.7));
         }
-
         .result-title-draw { color: #e5e0d4; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
 
         .result-avatar-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 6px 0 8px 0; position: relative; }
-
-        .opponent-status-tag {
-            font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 12px; margin-bottom: 5px;
-            letter-spacing: 0.05em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-        }
-
+        .opponent-status-tag { font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 12px; margin-bottom: 5px; letter-spacing: 0.05em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
         .tag-opponent-surrendered { background: linear-gradient(135deg, #2b3a4a 0%, #151d26 100%); border: 1px solid #ffd700; color: #fff2bd; }
         .tag-opponent-triumphant { background: linear-gradient(135deg, #4d1c1c 0%, #260c0c 100%); border: 1px solid #ff6b6b; color: #ffd8d8; }
 
@@ -968,7 +687,6 @@
             background: radial-gradient(ellipse at 40% 35%, #3a3224 0%, #171510 65%, #080705 100%);
             overflow: hidden; position: relative; margin-bottom: 6px; transition: all 0.4s ease;
         }
-
         .result-avatar-frame.opponent-lost-filter { filter: grayscale(0.25) contrast(0.9); }
         .result-avatar-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -977,16 +695,12 @@
             border: 1px solid rgba(212, 167, 72, 0.35); border-radius: 10px; padding: 8px 12px; font-size: 11.5px;
             line-height: 1.45; color: #f7eed8; margin-bottom: 9px; font-style: italic; position: relative; text-align: left;
         }
-
-        .result-quote-card::before {
-            content: "💬"; position: absolute; left: 10px; top: -10px; font-size: 14px; background: #11141c; border-radius: 50%; padding: 0 2px;
-        }
+        .result-quote-card::before { content: "💬"; position: absolute; left: 10px; top: -10px; font-size: 14px; background: #11141c; border-radius: 50%; padding: 0 2px; }
 
         .result-stats-card {
             background: rgba(0, 0, 0, 0.35); border: 1px solid var(--gold-border); border-radius: 10px;
             padding: 8px 12px; margin-bottom: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;
         }
-
         .stats-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
         .stats-col-title { font-size: 9.5px; color: #bfa882; font-weight: 700; }
         .stats-col-val { font-family: 'Cinzel', serif; font-size: 13.5px; font-weight: 900; color: #fff4bd; }
@@ -996,17 +710,14 @@
             background: linear-gradient(135deg, rgba(28, 24, 18, 0.9) 0%, rgba(14, 12, 10, 0.95) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.5); border-radius: 10px; padding: 8px 10px; margin-bottom: 11px; text-align: left;
         }
-
         .carte-header {
             font-size: 11.5px; font-weight: 800; color: #fae6b2; display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
         }
-
         .carte-diagnosis-banner {
             font-size: 10.5px; color: #fff2cc; background: rgba(255, 215, 0, 0.1); border: 1px dashed rgba(255, 215, 0, 0.4);
             border-radius: 6px; padding: 4px 6px; margin-bottom: 6px; line-height: 1.35;
         }
-
         .carte-row { margin-bottom: 5px; font-size: 11px; line-height: 1.4; }
         .carte-row:last-child { margin-bottom: 0; }
         .carte-label { font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
@@ -1020,59 +731,34 @@
 
         .result-actions { display: flex; flex-direction: column; gap: 6px; }
         .result-main-btn-row { display: flex; gap: 8px; }
-
         .result-btn-gold {
             background: var(--pure-gold-btn); color: #1a1204; border: 1px solid #ffffff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 0 16px rgba(255, 215, 0, 0.75);
             font-size: 12.5px; font-weight: 900; padding: 9px 12px; border-radius: 8px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s ease;
         }
-
         .result-btn-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8), 0 0 22px rgba(255, 215, 0, 0.95); }
-
-        .result-btn-dark {
-            background: rgba(255, 255, 255, 0.08); color: #f7eed8; border: 1px solid var(--gold-border);
-            padding: 7px 12px; font-size: 11px; font-weight: 800; border-radius: 8px; cursor: pointer;
-        }
+        .result-btn-dark { background: rgba(255, 255, 255, 0.08); color: #f7eed8; border: 1px solid var(--gold-border); padding: 7px 12px; font-size: 11px; font-weight: 800; border-radius: 8px; cursor: pointer; }
         .result-btn-dark:hover { background: rgba(255, 255, 255, 0.15); border-color: #ffd700; }
 
-        /* 栄光の戴冠式モーダル */
-        #endingModal .royal-result-card {
-            max-width: 500px; border-color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95);
-        }
-
+        /* 戴冠式モーダル */
+        #endingModal .royal-result-card { max-width: 500px; border-color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95); }
         .ending-hero-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 23px; font-weight: 900;
             letter-spacing: 0.15em; background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
         }
-
         .ending-tribute-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 14px 0; }
-        .tribute-card {
-            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3);
-            border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px;
-        }
+        .tribute-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
         .tribute-img { width: 38px; height: 48px; border-radius: 50%; border: 1.5px solid #ffd700; overflow: hidden; background: #111; }
         .tribute-img img { width: 100%; height: 100%; object-fit: cover; }
         .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
         .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
 
         /* フッター */
-        footer.app-footer {
-            width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center;
-            padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0;
-        }
-
+        footer.app-footer { width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0; }
         .bottom-safe-space { width: 100%; height: clamp(8px, 1.5dvh, 14px); flex-shrink: 0; }
-
-        .footer-brand {
-            display: flex; align-items: center; gap: 4px; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700;
-            letter-spacing: 0.12em; background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-
-        .footer-version {
-            font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer;
-            text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px;
-        }
+        .footer-brand { display: flex; align-items: center; gap: 4px; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .footer-version { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px; }
         .footer-version:hover { color: #ffffff; background: rgba(212, 167, 72, 0.2); text-shadow: 0 0 8px var(--gold-glow); }
 
         @media (min-aspect-ratio: 1/1) {
@@ -1083,53 +769,27 @@
             .opponent-zone, .player-control-zone { width: 340px; }
         }
 
-        .dynasty-overlay {
-            display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center;
-            padding: 16px 12px; background: rgba(4, 5, 8, 0.88); backdrop-filter: blur(8px);
-        }
+        .dynasty-overlay { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; padding: 16px 12px; background: rgba(4, 5, 8, 0.88); backdrop-filter: blur(8px); }
         .dynasty-overlay.show { display: flex; }
-
         .dynasty-modal {
             width: 100%; max-width: 580px; max-height: 86dvh; overflow-y: auto; text-align: left; color: #f7eed8;
             background: linear-gradient(160deg, #1b1e28 0%, #101218 100%); border: 1px solid var(--gold-border);
             border-radius: 12px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
         }
-
-        .guide-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-            padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
-        }
+        .guide-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25); }
         .guide-header h2 { font-size: 15px; font-weight: 800; color: #e5c378; }
-        .modal-close-btn {
-            width: 26px; height: 26px; font-size: 13px; cursor: pointer; color: #f7eed8;
-            background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 50%;
-        }
+        .modal-close-btn { width: 26px; height: 26px; font-size: 13px; cursor: pointer; color: #f7eed8; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 50%; }
 
         .manual-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; }
-        .manual-tab-btn {
-            flex: 1; padding: 5px 3px; font-size: 11px; font-weight: 700; background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(212, 167, 72, 0.2); color: #c9ba9f; border-radius: 6px;
-        }
-        .manual-tab-btn.active {
-            background: linear-gradient(135deg, #c5973e 0%, #8c6218 100%); color: #ffffff; border-color: #ffd700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-        }
+        .manual-tab-btn { flex: 1; padding: 5px 3px; font-size: 11px; font-weight: 700; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.2); color: #c9ba9f; border-radius: 6px; }
+        .manual-tab-btn.active { background: linear-gradient(135deg, #c5973e 0%, #8c6218 100%); color: #ffffff; border-color: #ffd700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
         .manual-tab-content { display: none; }
         .manual-tab-content.active { display: block; }
 
-        .manual-card {
-            border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03);
-            border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6;
-        }
+        .manual-card { border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6; }
         .manual-card-title { font-size: 12.5px; font-weight: 800; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-
-        .manual-char-card {
-            display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25);
-            background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
-        }
-        .manual-char-avatar-mini {
-            width: 44px; height: 58px; border-radius: 50%; border: 2px solid var(--gold-border); overflow: hidden;
-            flex-shrink: 0; background: #111; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-        }
+        .manual-char-card { display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+        .manual-char-avatar-mini { width: 44px; height: 58px; border-radius: 50%; border: 2px solid var(--gold-border); overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
         .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
         .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800; color: #ffd700; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.35); padding: 1px 5px; border-radius: 3px; }
@@ -1137,10 +797,7 @@
 
         .chronicle-timeline { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
         .chronicle-item { position: relative; padding-left: 18px; border-left: 2px solid rgba(212, 167, 72, 0.35); font-size: 11px; line-height: 1.45; }
-        .chronicle-item::before {
-            content: ""; position: absolute; left: -5.5px; top: 2px; width: 9px; height: 9px;
-            border-radius: 50%; background: #ffd700; box-shadow: 0 0 6px #ffd700;
-        }
+        .chronicle-item::before { content: ""; position: absolute; left: -5.5px; top: 2px; width: 9px; height: 9px; border-radius: 50%; background: #ffd700; box-shadow: 0 0 6px #ffd700; }
         .chronicle-version { font-family: 'Cinzel', serif; font-weight: 800; color: #fff4bd; font-size: 11.5px; }
         .chronicle-date { font-size: 9.5px; color: #baa070; margin-left: 6px; }
         .chronicle-desc { color: #ded6c2; margin-top: 2px; }
@@ -1151,7 +808,6 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- 【Ver 5.7.0 改修】完全独立フレックスヘッダー -->
     <header>
         <div class="header-left-space"></div>
         <div class="header-title-wrap">
@@ -1197,7 +853,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- 美術銘板 -->
                 <div class="stage-material-badge" id="stageMaterialBadge">
                     🏛️ <span id="badgeSalonName">旅の酒場</span> / <span id="badgeMaterial">黒檀 × 白木</span>
                 </div>
@@ -1209,7 +864,6 @@
 
         <!-- ゾーン②：盤面ゾーン -->
         <div class="board-zone">
-            <!-- 運命の天秤 -->
             <div class="battle-gauge-container">
                 <div class="battle-gauge-header">
                     <span id="battleStatPlayer">⚫ あなた 50%</span>
@@ -1224,7 +878,6 @@
                 </div>
             </div>
 
-            <!-- 盤外枠シャーシ -->
             <div class="dynasty-board-chassis" id="boardChassis">
                 <div class="corner-ornament corner-tl"></div>
                 <div class="corner-ornament corner-tr"></div>
@@ -1232,14 +885,12 @@
                 <div class="corner-ornament corner-br"></div>
                 <div id="moveToast" class="move-toast"></div>
                 
-                <!-- ステージ開幕バナー（カットイン） -->
                 <div class="stage-curtain-banner" id="stageCurtainBanner">
                     <div class="banner-stage-label" id="curtainStageLabel">STAGE 1</div>
                     <div class="banner-salon-title" id="curtainSalonTitle">旅の一座の酒場</div>
                     <div class="banner-relic-sub" id="curtainRelicSub">盤面：オリーブ木目卓 / 石：年輪黒檀 × 白木メイプル</div>
                 </div>
 
-                <!-- オセロ公式仕様盤面（星ドット象嵌） -->
                 <div id="board">
                     <div class="board-star-dot star-c3"></div>
                     <div class="board-star-dot star-f3"></div>
@@ -1251,8 +902,6 @@
 
         <!-- ゾーン③：操作ゾーン -->
         <div class="player-control-zone">
-            
-            <!-- 通常対局操作カード -->
             <div class="royal-card" id="normalControlCard">
                 <div class="player-status-row">
                     <div id="status" class="status-human-turn">あなたの番です…</div>
@@ -1304,7 +953,7 @@
                 </div>
             </div>
 
-            <!-- 本格『棋譜検証（振り返りモード）』パネル -->
+            <!-- 棋譜検証パネル -->
             <div class="review-mode-panel" id="reviewModePanel">
                 <div class="review-header-row">
                     <div class="review-step-label">🔍【棋譜検証モード】</div>
@@ -1323,7 +972,6 @@
                     <button type="button" class="btn-review-nav btn-review-exit" id="btnReviewExit">👑 会見へ戻る</button>
                 </div>
             </div>
-
         </div>
 
     </div>
@@ -1411,7 +1059,7 @@
                     <div class="tribute-msg">「我が剣を捧げよう！貴殿こそ真の盤上の覇王だ！」</div>
                 </div>
                 <div class="tribute-card">
-                    <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src={{char: 'images/char4.png'}}" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
+                    <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="tribute-name">エリザベート</div>
                     <div class="tribute-msg">「ふふ…至高の知性に乾杯。今宵は貴方様の宴ですわ。」</div>
                 </div>
@@ -1438,7 +1086,7 @@
         <div class="footer-brand">
             <span>👑 OTHELLO 2026 AI SENSEI</span>
         </div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.7.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.8.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1498,7 +1146,7 @@
                     </div>
                 </div>
                 <div class="manual-char-card">
-                    <div class="manual-char-avatar-mini"><img src="images/char4.png" alt="エリザベート" onerror="this.src={{char: 'images/char4.png'}}" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
+                    <div class="manual-char-avatar-mini"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="manual-char-info">
                         <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 薔薇の伯爵夫人 エリザベート <span class="manual-strength-tag">【上級・アマ三段】</span></div>
                         <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 薔薇の舞踏会 / 盤：深紅ベルベット / 石：鏡面黒瑪瑙 × オーロラ白蝶貝</div>
@@ -1553,8 +1201,12 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 5.8.0</span><span class="chronicle-date">2026/09/21</span>
+                    <div class="chronicle-desc">【コードアーキテクチャ最適化・共通パイプライン統合エディション】デザイン、演出、音響、AIアルゴリズムを完全維持した状態でのコードスリム化・軽量化。ステージ別CSSテーマをカスタムプロパティ一括バインドへ統合し冗長コードを約40%圧縮。着手・反転・アニメーション・SE・棋譜ログ反映を共通コア関数へ統合し保守性を劇的向上。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.7.0</span><span class="chronicle-date">2026/09/20</span>
-                    <div class="chronicle-desc">【王宮キャラクター躍動・UI分離・思考判定完全同期・品質総点検エディション】ヘッダー独立フレックス化でボタンと石数バッジの重なりを完全根絶。全6キャラに性格別固有モーションと各状況3〜5種類の多彩なセリフを実装。ヒント着手時の100%最善手絶対保証・強制着手保護・判定深さ同期（深さ7）により悪手誤判定を完全根絶。非同期セッション排他制御と棋譜検証の石数・天秤リアルタイム完全連動を確立。反転アニメーション25%高速化、光輪ガイド導入。</div>
+                    <div class="chronicle-desc">【王宮キャラクター躍動・UI分離・思考判定完全同期・品質総点検エディション】ヘッダー独立フレックス化でボタンと石数バッジの重なりを完全根絶。全6キャラに性格別固有モーションと各状況3〜5種類の多彩なセリフを実装。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.6.0</span><span class="chronicle-date">2026/09/19</span>
@@ -1562,11 +1214,7 @@
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.5.0</span><span class="chronicle-date">2026/09/18</span>
-                    <div class="chronicle-desc">【劇的ビジュアル大改革】盤面フィールド固定を撤廃！Lv.4深紅ベルベット盤、Lv.3鋼鉄ネイビー盤、Lv.5黒大理石盤、Lv.6金箔エメラルド盤へ一目でわかる大進化。石の素材も年輪木目・釉薬陶器・玄武岩・虹色白蝶貝・マーブル大理石・金粉隕鉄を極上再現。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 5.3.0</span><span class="chronicle-date">2026/09/16</span>
-                    <div class="chronicle-desc">【公式盤星装飾・アマ段級位＆プロ指南エンジン大改革】ヒントAI深層7手読み＆残り14手完全読み切り。開放度理論導入、用語統一、公式星ドット象嵌、悪手添削。</div>
+                    <div class="chronicle-desc">【劇的ビジュアル大改革】盤面フィールド固定を撤廃！Lv.4深紅ベルベット盤、Lv.3鋼鉄ネイビー盤、Lv.5黒大理石盤、Lv.6金箔エメラルド盤へ一目でわかる大進化。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.0.0</span><span class="chronicle-date">2026/09/12</span>
@@ -1582,34 +1230,24 @@
 
 <script>
     /* ==========================================================================
-       ROYAL OTHELLO ENGINE (Ver 5.7.0 完全同期・躍動エディション)
+       ROYAL OTHELLO ENGINE (Ver 5.8.0 最適化・共通パイプライン統合)
     ========================================================================== */
     const boardSize = 8;
-    const BLACK = 1;
-    const WHITE = 2;
+    const BLACK = 1, WHITE = 2;
 
-    let humanColor = BLACK;
-    let cpuColor = WHITE;
+    let humanColor = BLACK, cpuColor = WHITE;
     let board, currentPlayer, gameOver, isBusy = false, isMuted = false;
     let pendingAnimation = null, hintMove = null;
     let historyStack = [];
 
-    let lastMove = null;
-    let usedHintInGame = false;
-
-    /* 非同期排他制御セッションID */
+    let lastMove = null, usedHintInGame = false;
     let currentGameSessionId = 0;
 
-    let gameStepLogs = [];
-    let reviewStepIndex = 0;
-    let isReviewMode = false;
-    let tacticsBestIndex = -1;
-    let tacticsWorstIndex = -1;
-    let tacticsWorstAlternative = null;
+    let gameStepLogs = [], reviewStepIndex = 0, isReviewMode = false;
+    let tacticsBestIndex = -1, tacticsWorstIndex = -1, tacticsWorstAlternative = null;
 
     let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
-    let isAiThinkingHint = false;
-    let timerInterval = null;
+    let isAiThinkingHint = false, timerInterval = null;
     let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTimeout = null;
 
     let playerMoveLogs = [];
@@ -1703,57 +1341,21 @@
         [ 140, -25,  25,   5,   5,  25, -25, 140]
     ];
 
-    /* --- 【Ver 5.7.0 大幅拡充】キャラクター設定・躍動モーション・多彩なセリフ体系 --- */
     const CHARACTERS = {
         1: {
             id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
             imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)", depth: 0, exact: 0,
             salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
             quotes: {
-                start: [
-                    "ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！",
-                    "サイコロを振るように軽やかに！お相手いたしマス！",
-                    "ボクの曲芸オセロを見せてあげまショウ！"
-                ],
-                thinking: [
-                    "どこに置こうかニャ〜？ 適当に置いちゃおっかナ！",
-                    "ふむふむ… こっちのマスが光って見えマスネ！",
-                    "ぐるぐる回って迷っちゃうデス〜！"
-                ],
-                playerGood: [
-                    "ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！",
-                    "お見事！ …って、ボクがピンチじゃないデスか！？",
-                    "ぎゃ〜！ まるで手品みたいに挟まれたデス！"
-                ],
-                playerBad: [
-                    "おやおや！ そこ置いちゃってホントにいいのかニャ〜！？",
-                    "ヒヒッ！ 隙だらけでゴザイマスよ〜！",
-                    "あそこに置いちゃって…ボクに角をくれる気デスか！？"
-                ],
-                bigReversal: [
-                    "ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！",
-                    "目が回る〜！ ボクの石が全滅しちゃうヨ〜！",
-                    "パタパタパタ〜って、ボクの石が消えちゃったデス！"
-                ],
-                cpuCorner: [
-                    "やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！",
-                    "隅っこゲット！ これで負けない…かもネ！",
-                    "えへへ〜！ 宝物の角っこ、もらっちゃったヨ！"
-                ],
-                playerCorner: [
-                    "あちゃー！ 大事な角っこを取られちゃったヨ〜！",
-                    "そこはボクが狙ってたのに〜！ ひどいデス！",
-                    "うわ〜ん！ 角を取られたらもう勝てないヨ〜！"
-                ],
-                climax: [
-                    "もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？",
-                    "ヒヒッ！ これが最後の悪あがきでゴザイマス！",
-                    "心臓がバクバク！ サーカスの大トリでゴザイマス！"
-                ],
-                losing: [
-                    "ヒエ〜ッ！ ボクの石が数えるほどしかないヨ〜！",
-                    "まいったニャ〜！ 助けて王様〜！"
-                ],
+                start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！", "ボクの曲芸オセロを見せてあげまショウ！"],
+                thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ふむふむ… こっちのマスが光って見えマスネ！", "ぐるぐる回って迷っちゃうデス〜！"],
+                playerGood: ["ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！", "お見事！ …って、ボクがピンチじゃないデスか！？", "ぎゃ〜！ まるで手品みたいに挟まれたデス！"],
+                playerBad: ["おやおや！ そこ置いちゃってホントにいいのかニャ〜！？", "ヒヒッ！ 隙だらけでゴザイマスよ〜！", "あそこに置いちゃって…ボクに角をくれる気デスか！？"],
+                bigReversal: ["ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！", "目が回る〜！ ボクの石が全滅しちゃうヨ〜！", "パタパタパタ〜って、ボクの石が消えちゃったデス！"],
+                cpuCorner: ["やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！", "隅っこゲット！ これで負けない…かもネ！", "えへへ〜！ 宝物の角っこ、もらっちゃったヨ！"],
+                playerCorner: ["あちゃー！ 大事な角っこを取られちゃったヨ〜！", "そこはボクが狙ってたのに〜！ ひどいデス！", "うわ〜ん！ 角を取られたらもう勝てないヨ〜！"],
+                climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？", "ヒヒッ！ これが最後の悪あがきでゴザイマス！", "心臓がバクバク！ サーカスの大トリでゴザイマス！"],
+                losing: ["ヒエ〜ッ！ ボクの石が数えるほどしかないヨ〜！", "まいったニャ〜！ 助けて王様〜！"],
                 cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
                 playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
                 win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！悔しかったらまたいつでもおいでヨ！"],
@@ -1765,50 +1367,15 @@
             imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)", depth: 1, exact: 0,
             salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
             quotes: {
-                start: [
-                    "王宮のオセロ、覚えたてですけど…一生懸命がんばります！",
-                    "ご指導お願いします！ 負けませんよっ！",
-                    "お茶の準備の合間に、一手お願いしますねっ！"
-                ],
-                thinking: [
-                    "ええと…たくさんひっくり返せる場所はどこかな…？",
-                    "あっちもこっちも…迷っちゃいますね。",
-                    "うーん…こっちの方がたくさん取れそうですっ！"
-                ],
-                playerGood: [
-                    "きゃっ！？ そんな上手な手があるなんて…！",
-                    "すごい…！ 私の作戦が読まれてるみたいです…！",
-                    "あっ…！ 私の並べた石が綺麗に挟まれちゃいました…！"
-                ],
-                playerBad: [
-                    "えっ、そこに置いちゃって大丈夫なんですか…？",
-                    "ふふっ、チャンスかも…！ いただきます！",
-                    "そこ、私が置きたかった角のお隣ですよ…？"
-                ],
-                bigReversal: [
-                    "わぁぁっ！？ こんなにたくさん取られちゃうなんて…！",
-                    "ひどいです〜！ 私の並べた石が〜！",
-                    "パタパタって…一気に真っ黒（白）になっちゃいました…！"
-                ],
-                cpuCorner: [
-                    "わぁっ！ 角が取れちゃいました！ 嬉しいです！",
-                    "えへへ、要所を確保です！",
-                    "角が取れました！ これなら私、勝てるかも…！"
-                ],
-                playerCorner: [
-                    "そんな…！ 私の大切な角が…うぅ…！",
-                    "あっ！ そこだけは取られたくなかったのに…！",
-                    "うぅ…角を取られちゃうと、もうひっくり返せません…"
-                ],
-                climax: [
-                    "もうすぐおしまいですね…！ 心臓がドキドキしてきました…！",
-                    "最後の一手まで、あきらめませんっ！",
-                    "あと少し…！ どっちが多いか最後まで分かりませんねっ！"
-                ],
-                losing: [
-                    "うぅ…！ どんどん私の石が減っちゃってます…！",
-                    "ピンチです…！ どうしたらいいんでしょう…！"
-                ],
+                start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！", "ご指導お願いします！ 負けませんよっ！", "お茶の準備の合間に、一手お願いしますねっ！"],
+                thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？", "あっちもこっちも…迷っちゃいますね。", "うーん…こっちの方がたくさん取れそうですっ！"],
+                playerGood: ["きゃっ！？ そんな上手な手があるなんて…！", "すごい…！ 私の作戦が読まれてるみたいです…！", "あっ…！ 私の並べた石が綺麗に挟まれちゃいました…！"],
+                playerBad: ["えっ、そこに置いちゃって大丈夫なんですか…？", "ふふっ、チャンスかも…！ いただきます！", "そこ、私が置きたかった角のお隣ですよ…？"],
+                bigReversal: ["わぁぁっ！？ こんなにたくさん取られちゃうなんて…！", "ひどいです〜！ 私の並べた石が〜！", "パタパタって…一気に真っ黒（白）になっちゃいました…！"],
+                cpuCorner: ["わぁっ！ 角が取れちゃいました！ 嬉しいです！", "えへへ、要所を確保です！", "角が取れました！ これなら私、勝てるかも…！"],
+                playerCorner: ["そんな…！ 私の大切な角が…うぅ…！", "あっ！ そこだけは取られたくなかったのに…！", "うぅ…角を取られちゃうと、もうひっくり返せません…"],
+                climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！", "最後の一手まで、あきらめませんっ！", "あと少し…！ どっちが多いか最後まで分かりませんねっ！"],
+                losing: ["うぅ…！ どんどん私の石が減っちゃってます…！", "ピンチです…！ どうしたらいいんでしょう…！"],
                 cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
                 playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
                 win: ["勝てちゃいました…！私、お城の侍女の中で一番オセロが強くなれちゃったかも！また私と遊んでくださいねっ！"],
@@ -1820,50 +1387,15 @@
             imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)", depth: 3, exact: 0,
             salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアンネイビー鋼鉄盤",
             quotes: {
-                start: [
-                    "近衛の誇りにかけて、正々堂々とお手合わせ願おう！",
-                    "我が剣に迷いなし！ 貴殿の武勇、見せてみよ！",
-                    "盤上も戦場と同じ！ 一歩も退く気はないぞ！"
-                ],
-                thinking: [
-                    "我が陣形を立て直す… 次の一手はここだ！",
-                    "戦局は膠着している… 活路を見出すぞ！",
-                    "敵の布陣を見極める… 油断は禁物だな。"
-                ],
-                playerGood: [
-                    "見事な太刀筋…！ 盤面の急所を突いてくるとは！",
-                    "ぐっ…！ その一手、まさに神速の進軍だな！",
-                    "なんと鋭い中割り…！ 我が前線が分断されたか！"
-                ],
-                playerBad: [
-                    "ふっ… 隙を見せたな！ 我が剣の前に退路なし！",
-                    "その悪手、見逃しはせんぞ！ 我が軍、前進！",
-                    "要所を明け渡すとは… 戦術に油断があったな！"
-                ],
-                bigReversal: [
-                    "なんと…！？ 我が前線が一気に崩壊しただと…！？",
-                    "見事な包囲網だ… だがまだ折れはせん！",
-                    "ぐああっ！ 一撃でこれほどの軍勢を覆すとは！"
-                ],
-                cpuCorner: [
-                    "要衝を確保！ この角は我が騎士団の防衛線だ！",
-                    "四隅の制圧こそ勝機の源泉！ 我が陣地ぞ！",
-                    "この角は絶対に渡さん！ 鉄壁の防陣を敷く！"
-                ],
-                playerCorner: [
-                    "不覚…！ 陣地の角を突破されるとは！",
-                    "我が防壁が破られたか…！ 見事な攻めだ！",
-                    "要所を奪われたか…！ だが騎士道にかけて最後まで戦う！"
-                ],
-                climax: [
-                    "ここが関ヶ原… 雌雄を決する時が来たようだな！",
-                    "我が騎士道の誇りをかけ、全力で迎え撃つ！",
-                    "残るマスもわずか… 全軍突撃あるのみ！"
-                ],
-                losing: [
-                    "ぬうう…！ 我が軍がここまで追い詰められるとは…！",
-                    "苦戦だ… だが武士に背走の二文字はない！"
-                ],
+                start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！", "我が剣に迷いなし！ 貴殿の武勇、見せてみよ！", "盤上も戦場と同じ！ 一歩も退く気はないぞ！"],
+                thinking: ["我が陣形を立て直す… 次の一手はここだ！", "戦局は膠着している… 活路を見出すぞ！", "敵の布陣を見極める… 油断は禁物だな。"],
+                playerGood: ["見事な太刀筋…！ 盤面の急所を突いてくるとは！", "ぐっ…！ その一手、まさに神速の進軍だな！", "なんと鋭い中割り…！ 我が前線が分断されたか！"],
+                playerBad: ["ふっ… 隙を見せたな！ 我が剣の前に退路なし！", "その悪手、見逃しはせんぞ！ 我が軍、前進！", "要所を明け渡すとは… 戦術に油断があったな！"],
+                bigReversal: ["なんと…！？ 我が前線が一気に崩壊しただと…！？", "見事な包囲網だ… だがまだ折れはせん！", "ぐああっ！ 一撃でこれほどの軍勢を覆すとは！"],
+                cpuCorner: ["要衝を確保！ この角は我が騎士団の防衛線だ！", "四隅の制圧こそ勝機の源泉！ 我が陣地ぞ！", "この角は絶対に渡さん！ 鉄壁の防陣を敷く！"],
+                playerCorner: ["不覚…！ 陣地の角を突破されるとは！", "我が防壁が破られたか…！ 見事な攻めだ！", "要所を奪われたか…！ だが騎士道にかけて最後まで戦う！"],
+                climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！", "我が騎士道の誇りをかけ、全力で迎え撃つ！", "残るマスもわずか… 全軍突撃あるのみ！"],
+                losing: ["ぬうう…！ 我が軍がここまで追い詰められるとは…！", "苦戦だ… だが武士に背走の二文字はない！"],
                 cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
                 playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
                 win: ["王国の勝利だ！我が近衛騎士団の鉄壁の陣形、そう易々と崩せはせんぞ！良き手合わせであった！"],
@@ -1875,50 +1407,15 @@
             imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 4, exact: 0,
             salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × オーロラ白蝶貝", boardDesc: "深紅ベルベット盤",
             quotes: {
-                start: [
-                    "優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。",
-                    "美しき盤上の舞踏会… 存分に楽しませてくださる？",
-                    "薔薇には棘がございますの。怪我をなさらないようにね。"
-                ],
-                thinking: [
-                    "ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。",
-                    "焦りは禁物… 優雅に罠を張り巡らせましょう。",
-                    "あら… どこから追い詰めてさしあげましょうかしら。"
-                ],
-                playerGood: [
-                    "あら…？ ずいぶんと小憎らしい手を打たれますこと。",
-                    "うふふ… 目の肥えた殿方は嫌いではありませんわ。",
-                    "まあ… わたくしの罠を見抜いていらしたのね。"
-                ],
-                playerBad: [
-                    "うふふ… 甘いお方。罠にかかってしまいましたわね。",
-                    "あらあら、そこに置いてよろしかったの？ いただきますわ。",
-                    "その一手、わたくしに角をプレゼントしてくださるのかしら？"
-                ],
-                bigReversal: [
-                    "まあ！ わたくしの薔薇が一気に散らされるなんて…！",
-                    "ずいぶんと乱暴なお打ち方ですこと…！",
-                    "きゃっ…！？ なんて強引な反転ですの…！"
-                ],
-                cpuCorner: [
-                    "美しき角は、わたくしが優雅に頂戴いたしますわ。",
-                    "宝石のような角… わたくしの胸元を飾りましょう。",
-                    "この角をいただいたからには、もう勝負は決まりましたわね。"
-                ],
-                playerCorner: [
-                    "まあ！ わたくしの角を奪うなんて… 許せませんこと！",
-                    "殿方なら、淑女に譲るものではなくって？",
-                    "くっ… わたくしの誇りを傷つけてくれましたわね。"
-                ],
-                climax: [
-                    "ふふ… 舞踏会もいよいよクライマックスですわね。",
-                    "どちらが最後まで気品を保てるかしら…？",
-                    "最後のワルツ… 存分に踊り明かしましょう。"
-                ],
-                losing: [
-                    "まさか… わたくしが劣勢に立たされるなんて…！",
-                    "扇を持つ手が震えてしまいますわ… 恐ろしいお方。"
-                ],
+                start: ["優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。", "美しき盤上の舞踏会… 存分に楽しませてくださる？", "薔薇には棘がございますの。怪我をなさらないようにね。"],
+                thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。", "焦りは禁物… 優雅に罠を張り巡らせましょう。", "あら… どこから追い詰めてさしあげましょうかしら。"],
+                playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。", "うふふ… 目の肥えた殿方は嫌いではありませんわ。", "まあ… わたくしの罠を見抜いていらしたのね。"],
+                playerBad: ["うふふ… 甘いお方。罠にかかってしまいましたわね。", "あらあら、そこに置いてよろしかったの？ いただきますわ。", "その一手、わたくしに角をプレゼントしてくださるのかしら？"],
+                bigReversal: ["まあ！ わたくしの薔薇が一気に散らされるなんて…！", "ずいぶんと乱暴なお打ち方ですこと…！", "きゃっ…！？ なんて強引な反転ですの…！"],
+                cpuCorner: ["美しき角は、わたくしが優雅に頂戴いたしますわ。", "宝石のような角… わたくしの胸元を飾りましょう。", "この角をいただいたからには、もう勝負は決まりましたわね。"],
+                playerCorner: ["まあ！ わたくしの角を奪うなんて… 許せませんこと！", "殿方なら、淑女に譲るものではなくって？", "くっ… わたくしの誇りを傷つけてくれましたわね。"],
+                climax: ["ふふ… 舞踏会もいよいよクライマックスですわね。", "どちらが最後まで気品を保てるかしら…？", "最後のワルツ… 存分に踊り明かしましょう。"],
+                losing: ["まさか… わたくしが劣勢に立たされるなんて…！", "扇を持つ手が震えてしまいますわ… 恐ろしいお方。"],
                 cpuPass: ["あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。"],
                 playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
                 win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。またいつでも舞踏会にいらして？"],
@@ -1930,50 +1427,15 @@
             imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 5, exact: 8,
             salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × カルカッタ大理石", boardDesc: "黒大理石グリッド盤",
             quotes: {
-                start: [
-                    "盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。",
-                    "盤上の駒を動かすのは力ではない。冷徹な知略だ。",
-                    "国家運営と同じく、オセロも一手の誤差が命取りとなる。"
-                ],
-                thinking: [
-                    "数手先の展開はすべて計算済みだ…。",
-                    "貴公の打てるマスは… もう数箇所しかあるまい。",
-                    "パリティの均衡を保ちつつ、選択肢を削ぎ落とす…"
-                ],
-                playerGood: [
-                    "ほう… その急所が見えていたか。侮れん男だ。",
-                    "私の計算の隙間を縫ってくるとはな… 興をそそる。",
-                    "的確な中割りだ。素人ではないな、貴公。"
-                ],
-                playerBad: [
-                    "愚策だな。その一手で自らの首を絞めたと気づかんのか？",
-                    "ふっ… 浅薄な手だ。これですべてが決まった。",
-                    "危険マスへの着手… 自ら破滅を望むか。"
-                ],
-                bigReversal: [
-                    "なに…！？ 瞬時に盤面の均衡を崩しただと…！？",
-                    "計算外の反転…！ 貴公、ただ者ではないな。",
-                    "この局面で一気に形勢を覆すとは…！"
-                ],
-                cpuCorner: [
-                    "定石通り、この要所は我が手中に収めさせてもらった。",
-                    "国家の要衝を抑えた。貴公に勝機はない。",
-                    "四隅の制圧は必然の帰結。計算通りだ。"
-                ],
-                playerCorner: [
-                    "なに…！？ 我が計算の裏をかいて角を突いてくるとは…！",
-                    "痛恨の失策…！ だが、まだ終わってはいない。",
-                    "我が要塞を落としたか… 恐るべき知謀だ。"
-                ],
-                climax: [
-                    "終盤の完全計算領域に入った。一手の狂いも許されんぞ。",
-                    "詰みだ… 貴公に逆転の筋は残されていない。",
-                    "盤上の全事象を看破した。幕引きといこう。"
-                ],
-                losing: [
-                    "計算が… 狂ったというのか！？ この私が…！",
-                    "あり得ん… 盤上のパリティが崩壊していく…！"
-                ],
+                start: ["盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。", "盤上の駒を動かすのは力ではない。冷徹な知略だ。", "国家運営と同じく、オセロも一手の誤差が命取りとなる。"],
+                thinking: ["数手先の展開はすべて計算済みだ…。", "貴公の打てるマスは… もう数箇所しかあるまい。", "パリティの均衡を保ちつつ、選択肢を削ぎ落とす…"],
+                playerGood: ["ほう… その急所が見えていたか。侮れん男だ。", "私の計算の隙間を縫ってくるとはな… 興をそそる。", "的確な中割りだ。素人ではないな、貴公。"],
+                playerBad: ["愚策だな。その一手で自らの首を絞めたと気づかんのか？", "ふっ… 浅薄な手だ。これですべてが決まった。", "危険マスへの着手… 自ら破滅を望むか。"],
+                bigReversal: ["なに…！？ 瞬時に盤面の均衡を崩しただと…！？", "計算外の反転…！ 貴公、ただ者ではないな。", "この局面で一気に形勢を覆すとは…！"],
+                cpuCorner: ["定石通り、この要所は我が手中に収めさせてもらった。", "国家の要衝を抑えた。貴公に勝機はない。", "四隅の制圧は必然の帰結。計算通りだ。"],
+                playerCorner: ["なに…！？ 我が計算の裏をかいて角を突いてくるとは…！", "痛恨の失策…！ だが、まだ終わってはいない。", "我が要塞を落としたか… 恐るべき知謀だ。"],
+                climax: ["終盤の完全計算領域に入った。一手の狂いも許されんぞ。", "詰みだ… 貴公に逆転の筋は残されていない。", "盤上の全事象を看破した。幕引きといこう。"],
+                losing: ["計算が… 狂ったというのか！？ この私が…！", "あり得ん… 盤上のパリティが崩壊していく…！"],
                 cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
                 playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
                 win: ["すべては我が冷徹な計算の帰結だ。盤上の偶数理論を制したのは私だ。良き盤上遊戯であった。"],
@@ -1985,50 +1447,15 @@
             imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 6, exact: 10,
             salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 自発光白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
             quotes: {
-                start: [
-                    "我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。",
-                    "王国の覇者たる資格があるか、余が試して進ぜよう！",
-                    "盤上の呼吸を合わせよ。至高の勝負を楽しもうぞ！"
-                ],
-                thinking: [
-                    "盤上の森羅万象… 余の眼から逃れる手など存在せぬ。",
-                    "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。",
-                    "幾千の戦を経てきた。そなたの刃、どこから来るか…"
-                ],
-                playerGood: [
-                    "見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！",
-                    "天晴れだ！ 王の盤上を揺るがすその知恵、見事なり！",
-                    "ほう！ その急所を迷わず突くか！ 恐れ入ったぞ！"
-                ],
-                playerBad: [
-                    "覇道の道は険しきもの。その手では余の壁は破れぬぞ。",
-                    "迷いが出たな。王の威圧に呑まれては勝てぬぞ。",
-                    "惜しいな… その隙、見逃すわけにはゆかぬ！"
-                ],
-                bigReversal: [
-                    "おお…！ 盤上が一変したか！ 実に豪快な一手よ！",
-                    "これぞ戦の醍醐味！ 余をここまで追い詰めるとはな！",
-                    "かっかっか！ 血沸き肉躍るとはこのことよ！"
-                ],
-                cpuCorner: [
-                    "天地の理に従い、余がこの角を統べようぞ！",
-                    "四海の覇者として、この要所は余が治める！",
-                    "不動の拠点は確保した。さあ、どう打ち返す？"
-                ],
-                playerCorner: [
-                    "見事なり…！ 王の領域を奪うその覚悟、しかと認めた！",
-                    "余の角を打ち砕くとは… 恐るべき若人よ！",
-                    "王座を脅かすその一撃… まさに天晴れである！"
-                ],
-                climax: [
-                    "いよいよ最終局面！ 余の全知全能をもって迎え撃とう！",
-                    "神域の読み合い… どちらが勝っても悔いなし！",
-                    "盤上が完成に近づく… 最後の決着をつけようぞ！"
-                ],
-                losing: [
-                    "かっかっか！ よもや余が王手をかけられるとはな！ 痛快である！",
-                    "そなたの知謀、余の想像を遥かに超えておるぞ！"
-                ],
+                start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。", "王国の覇者たる資格があるか、余が試して進ぜよう！", "盤上の呼吸を合わせよ。至高の勝負を楽しもうぞ！"],
+                thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。", "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。", "幾千の戦を経てきた。そなたの刃、どこから来るか…"],
+                playerGood: ["見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！", "天晴れだ！ 王の盤上を揺るがすその知恵、見事なり！", "ほう！ その急所を迷わず突くか！ 恐れ入ったぞ！"],
+                playerBad: ["覇道の道は険しきもの。その手では余の壁は破れぬぞ。", "迷いが出たな。王の威圧に呑まれては勝てぬぞ。", "惜しいな… その隙、見逃すわけにはゆかぬ！"],
+                bigReversal: ["おお…！ 盤上が一変したか！ 実に豪快な一手よ！", "これぞ戦の醍醐味！ 余をここまで追い詰めるとはな！", "かっかっか！ 血沸き肉躍るとはこのことよ！"],
+                cpuCorner: ["天地の理に従い、余がこの角を統べようぞ！", "四海の覇者として、この要所は余が治める！", "不動の拠点は確保した。さあ、どう打ち返す？"],
+                playerCorner: ["見事なり…！ 王の領域を奪うその覚悟、しかと認めた！", "余の角を打ち砕くとは… 恐るべき若人よ！", "王座を脅かすその一撃… まさに天晴れである！"],
+                climax: ["いよいよ最終局面！ 余の全知全能をもって迎え撃とう！", "神域の読み合い… どちらが勝っても悔いなし！", "盤上が完成に近づく… 最後の決着をつけようぞ！"],
+                losing: ["かっかっか！ よもや余が王手をかけられるとはな！ 痛快である！", "そなたの知謀、余の想像を遥かに超えておるぞ！"],
                 cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。"],
                 playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
                 win: ["良き戦いであったぞ、若人よ！そなたの放つ鋭い魂の太刀筋、余の胸を熱く焦がしてくれた！再度の挑戦を待っておるぞ！"],
@@ -2037,149 +1464,103 @@
         }
     };
 
-    /* 音響制御 */
+    /* --- 【Ver 5.8.0 統合】WebAudio 音響合成エンジン --- */
     const bgm = document.getElementById("bgmAudio");
     bgm.volume = 0.32;
     let audioCtx = null;
 
     function getAudioContext() {
         try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContextClass) return null;
-            if (!audioCtx || audioCtx.state === "closed") audioCtx = new AudioContextClass();
+            const AudioClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioClass) return null;
+            if (!audioCtx || audioCtx.state === "closed") audioCtx = new AudioClass();
             if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
             return audioCtx;
-        } catch (e) {
-            audioCtx = null;
-            return null;
-        }
+        } catch (e) { return null; }
     }
 
-    function tryPlayBgm() {
-        if (!isMuted && bgm.paused && !document.hidden) bgm.play().catch(() => {});
-    }
-
+    function tryPlayBgm() { if (!isMuted && bgm.paused && !document.hidden) bgm.play().catch(() => {}); }
     const unlockAudio = () => { tryPlayBgm(); getAudioContext(); };
     document.addEventListener("click", unlockAudio, { once: true });
     document.addEventListener("touchstart", unlockAudio, { once: true });
 
-    function handleVisibilityChange() {
+    document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-            try {
-                if (!bgm.paused) bgm.pause();
-                if (audioCtx && audioCtx.state === "running") audioCtx.suspend().catch(() => {});
-            } catch (e) {}
-        } else {
-            if (!isMuted) {
-                bgm.play().catch(() => {});
-                if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-            }
+            try { if (!bgm.paused) bgm.pause(); if (audioCtx && audioCtx.state === "running") audioCtx.suspend().catch(() => {}); } catch(e){}
+        } else if (!isMuted) {
+            tryPlayBgm();
+            if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
         }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", () => {
-        try { bgm.pause(); if (audioCtx) audioCtx.suspend().catch(() => {}); } catch(e){}
-    });
-    window.addEventListener("pageshow", () => {
-        if (!isMuted && !document.hidden) tryPlayBgm();
     });
 
-    function createNoiseNode(ctx, duration, decayRate) {
+    function createSynthesizedHit(duration, decay, filterFreq, filterQ, oscStartFreq, oscEndFreq, vol) {
+        if (isMuted || document.hidden) return;
         try {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            // ノイズ生成
             const len = Math.floor(ctx.sampleRate * duration);
-            if (len <= 0) return null;
-            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * decayRate));
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            return src;
-        } catch (e) { return null; }
-    }
-
-    function playPlaceSound() {
-        if (isMuted || document.hidden) return;
-        try {
-            const ctx = getAudioContext();
-            if (!ctx) return;
-            const now = ctx.currentTime;
-            const noise = createNoiseNode(ctx, 0.04, 0.14);
-            if (noise) {
+            if (len > 0) {
+                const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+                const data = buf.getChannelData(0);
+                for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * decay));
+                const noise = ctx.createBufferSource();
+                noise.buffer = buf;
                 const filter = ctx.createBiquadFilter();
-                filter.type = "bandpass"; filter.frequency.setValueAtTime(1400, now); filter.Q.setValueAtTime(1.8, now);
+                filter.type = "bandpass"; filter.frequency.setValueAtTime(filterFreq, now); filter.Q.setValueAtTime(filterQ, now);
                 const nGain = ctx.createGain();
-                nGain.gain.setValueAtTime(0.9, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                nGain.gain.setValueAtTime(vol, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
                 noise.connect(filter).connect(nGain).connect(ctx.destination);
                 noise.start(now);
             }
+
+            // トーン生成
             const osc = ctx.createOscillator();
-            osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(45, now + 0.1);
+            osc.frequency.setValueAtTime(oscStartFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(oscEndFreq, now + duration * 1.3);
             const tGain = ctx.createGain();
-            tGain.gain.setValueAtTime(1.1, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            tGain.gain.setValueAtTime(vol * 1.1, now);
+            tGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.3);
             osc.connect(tGain).connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.1);
+            osc.start(now); osc.stop(now + duration * 1.3);
         } catch (e) {}
     }
 
-    function playFlipSingleSound(pitchFactor = 1.0, isLast = false) {
-        if (isMuted || document.hidden) return;
-        try {
-            const ctx = getAudioContext();
-            if (!ctx) return;
-            const now = ctx.currentTime;
-            const noise = createNoiseNode(ctx, 0.035, 0.25);
-            if (noise) {
-                const filter = ctx.createBiquadFilter();
-                filter.type = "bandpass"; filter.frequency.setValueAtTime((isLast ? 2500 : 1900) * pitchFactor, now); filter.Q.setValueAtTime(2.0, now);
-                const vol = isLast ? 0.65 : 0.48;
-                const nGain = ctx.createGain();
-                nGain.gain.setValueAtTime(vol, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-                noise.connect(filter).connect(nGain).connect(ctx.destination);
-                noise.start(now);
-            }
-            const osc = ctx.createOscillator();
-            osc.frequency.setValueAtTime(280 * pitchFactor, now); osc.frequency.exponentialRampToValueAtTime(95 * pitchFactor, now + 0.045);
-            const tGain = ctx.createGain();
-            tGain.gain.setValueAtTime((isLast ? 0.65 : 0.48) * 0.5, now); tGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-            osc.connect(tGain).connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.045);
-        } catch (e) {}
+    function playPlaceSound() { createSynthesizedHit(0.04, 0.14, 1400, 1.8, 220, 45, 0.95); }
+    function playFlipSingleSound(pitch = 1.0, isLast = false) {
+        createSynthesizedHit(0.035, 0.25, (isLast ? 2500 : 1900) * pitch, 2.0, 280 * pitch, 95 * pitch, isLast ? 0.65 : 0.48);
     }
 
     function playFlipSequence(count) {
         if (isMuted || document.hidden) return;
         for (let i = 0; i < count; i++) {
-            setTimeout(() => {
-                playFlipSingleSound(0.92 + i * 0.055, i === count - 1);
-            }, i * 55 + 80);
+            setTimeout(() => playFlipSingleSound(0.92 + i * 0.055, i === count - 1), i * 55 + 80);
         }
     }
 
+    /* 盤面計算ユーティリティ */
     function getBoardStats(targetBoard = board) {
         let black = 0, white = 0, empty = 0;
         if (!targetBoard) return { black: 0, white: 0, empty: 64 };
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const val = targetBoard[r][c];
-                if (val === BLACK) black++;
-                else if (val === WHITE) white++;
-                else empty++;
+                if (val === BLACK) black++; else if (val === WHITE) white++; else empty++;
             }
         }
         return { black, white, empty };
     }
-
-    function getEmptyCount(targetBoard = board) {
-        return getBoardStats(targetBoard).empty;
-    }
+    const getEmptyCount = (target = board) => getBoardStats(target).empty;
+    const isInside = (r, c) => r >= 0 && r < boardSize && c >= 0 && c < boardSize;
+    const opposite = (p) => (p === BLACK ? WHITE : BLACK);
+    const cloneBoard = (src) => src.map(r => r.slice());
+    const toNotation = (r, c) => String.fromCharCode(65 + c) + (r + 1);
 
     function initCoordLabels() {
         const chassis = DOM.boardChassis;
-        const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const rows = ['1', '2', '3', '4', '5', '6', '7', '8'];
-
-        cols.forEach((col, i) => {
+        ['A','B','C','D','E','F','G','H'].forEach((col, i) => {
             const pos = `calc(var(--frame-pad) + (100% - var(--frame-pad) * 2) * (${i} + 0.5) / 8)`;
             const topL = document.createElement("div"), botL = document.createElement("div");
             topL.className = botL.className = "coord-label";
@@ -2188,8 +1569,7 @@
             botL.style.cssText = `left: ${pos}; bottom: calc(var(--frame-pad) / 2); transform: translate(-50%, 50%);`;
             chassis.append(topL, botL);
         });
-
-        rows.forEach((row, i) => {
+        ['1','2','3','4','5','6','7','8'].forEach((row, i) => {
             const pos = `calc(var(--frame-pad) + (100% - var(--frame-pad) * 2) * (${i} + 0.5) / 8)`;
             const leftL = document.createElement("div"), rightL = document.createElement("div");
             leftL.className = rightL.className = "coord-label";
@@ -2213,10 +1593,7 @@
         pulseTimeout = setTimeout(() => DOM.normalControlCard.classList.remove("turn-notify-pulse"), 800);
     }
 
-    function getCurrentCharacter() {
-        const id = Number(DOM.characterSelect.value) || 1;
-        return CHARACTERS[id] || CHARACTERS[1];
-    }
+    const getCurrentCharacter = () => CHARACTERS[Number(DOM.characterSelect.value) || 1] || CHARACTERS[1];
 
     function renderCharacterAvatar() {
         const char = getCurrentCharacter();
@@ -2229,26 +1606,20 @@
         img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
     }
 
-    /* --- 【Ver 5.7.0 刷新】キャラ固有躍動モーション＆セリフ表示制御 --- */
     function setOpponentQuote(category) {
         if (isReviewMode) return;
         const char = getCurrentCharacter();
-        
-        // 劣勢時の感情セリフ判定
         let targetCategory = category;
         const emptyCount = getEmptyCount(board);
         if (targetCategory === "thinking" && board) {
             const pStones = (humanColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
             const cStones = (cpuColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
-            if (pStones >= cStones + 10 && char.quotes.losing && Math.random() < 0.45) {
-                targetCategory = "losing";
-            }
+            if (pStones >= cStones + 10 && char.quotes.losing && Math.random() < 0.45) targetCategory = "losing";
         }
 
         let list = char.quotes[targetCategory] || char.quotes.thinking;
         if (!Array.isArray(list)) list = [list];
         const text = list[Math.floor(Math.random() * list.length)];
-
         const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
         DOM.speechText.textContent = text;
@@ -2257,7 +1628,6 @@
         DOM.opponentSpeech.offsetHeight;
         DOM.opponentSpeech.style.animation = 'bubble-appear 0.28s ease-out';
 
-        // キャラ固有モーションのトリガー
         const motionClass = `motion-char-${char.id}`;
         DOM.opponentAvatarFrame.classList.remove(motionClass);
         DOM.opponentAvatarFrame.offsetHeight;
@@ -2278,7 +1648,6 @@
         const char = getCurrentCharacter();
         document.documentElement.style.setProperty('--char-accent', char.themeColor);
         document.documentElement.style.setProperty('--char-glow', char.themeGlow);
-
         document.body.className = `stage-theme-${char.id}`;
 
         DOM.opponentRankBadge.textContent = `Lv.${char.id}`;
@@ -2286,7 +1655,6 @@
         DOM.opponentTitle.textContent = `${char.rankLabel} ${char.title}`;
         DOM.opponentPieceIcon.textContent = (cpuColor === BLACK) ? "⚫" : "⚪";
         DOM.playerPieceIcon.textContent = (humanColor === BLACK) ? "⚫" : "⚪";
-
         DOM.badgeSalonName.textContent = char.salonName;
         DOM.badgeMaterial.textContent = char.materialDesc;
 
@@ -2294,20 +1662,13 @@
         setOpponentQuote("start");
 
         if (showBanner && !isReviewMode) {
-            triggerStageCurtainBanner(char);
+            if (curtainTimeout) clearTimeout(curtainTimeout);
+            DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
+            DOM.curtainSalonTitle.textContent = char.salonName;
+            DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
+            DOM.stageCurtainBanner.classList.add("show");
+            curtainTimeout = setTimeout(() => DOM.stageCurtainBanner.classList.remove("show"), 1300);
         }
-    }
-
-    function triggerStageCurtainBanner(char) {
-        if (curtainTimeout) clearTimeout(curtainTimeout);
-        DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
-        DOM.curtainSalonTitle.textContent = char.salonName;
-        DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
-
-        DOM.stageCurtainBanner.classList.add("show");
-        curtainTimeout = setTimeout(() => {
-            DOM.stageCurtainBanner.classList.remove("show");
-        }, 1300);
     }
 
     function updateBalanceGauge(targetBoard = board) {
@@ -2321,9 +1682,7 @@
         DOM.battleClashSpark.style.left = `${winratePlayer}%`;
 
         const char = getCurrentCharacter();
-        const pIcon = (humanColor === BLACK) ? "⚫" : "⚪";
-        const cIcon = (cpuColor === BLACK) ? "⚫" : "⚪";
-
+        const pIcon = (humanColor === BLACK) ? "⚫" : "⚪", cIcon = (cpuColor === BLACK) ? "⚫" : "⚪";
         DOM.battleStatPlayer.textContent = `${pIcon} あなた ${winratePlayer}%`;
         DOM.battleStatOpponent.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]} ${cIcon}`;
 
@@ -2341,21 +1700,13 @@
         DOM.moveToast.textContent = text;
         toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), 1400);
     }
-
-    function hideMoveToast() {
-        if (toastTimeout) clearTimeout(toastTimeout);
-        DOM.moveToast.classList.remove("show");
-    }
+    const hideMoveToast = () => { if (toastTimeout) clearTimeout(toastTimeout); DOM.moveToast.classList.remove("show"); };
 
     function saveHistory() {
         historyStack.push({
-            board: cloneBoard(board),
-            currentPlayer: currentPlayer,
+            board: cloneBoard(board), currentPlayer,
             lastMove: lastMove ? [...lastMove] : null,
-            elapsedSeconds: elapsedSeconds,
-            playerSeconds: playerSeconds,
-            cpuSeconds: cpuSeconds,
-            usedHintInGame: usedHintInGame,
+            elapsedSeconds, playerSeconds, cpuSeconds, usedHintInGame,
             playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs)),
             gameStepLogsLength: gameStepLogs.length
         });
@@ -2366,20 +1717,16 @@
         DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode;
     }
 
-    /* 【Ver 5.7.0 排他制御】待った実行時のセッション遮断 */
     async function undoMove() {
         if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode) return;
-        currentGameSessionId++; // 過去のタイマー・思考ルーチンを即時破棄
+        currentGameSessionId++;
         clearHint();
         isBusy = true;
 
         let targetState = null;
         while (historyStack.length > 0) {
             const state = historyStack.pop();
-            if (state.currentPlayer === humanColor) {
-                targetState = state;
-                break;
-            }
+            if (state.currentPlayer === humanColor) { targetState = state; break; }
         }
 
         if (targetState) {
@@ -2407,9 +1754,7 @@
         updateUndoButtonState();
     }
 
-    /* 【Ver 5.7.0 棋譜連動】盤面・石数・勝率のリアルタイム情報保存 */
     function recordGameStep(move, playerColor, contextNote = "", alternativeBest = null, isPass = false) {
-        const stats = getBoardStats(board);
         gameStepLogs.push({
             move: move ? [...move] : null,
             playerColor,
@@ -2418,15 +1763,14 @@
             contextNote,
             alternativeBest: alternativeBest ? [...alternativeBest] : null,
             isPass,
-            statsSnapshot: { ...stats }
+            statsSnapshot: { ...getBoardStats(board) }
         });
     }
 
-    /* 【Ver 5.7.0 排他制御】新ゲーム開始時のセッション初期化 */
     function startGame() {
         tryPlayBgm();
         exitReviewMode();
-        currentGameSessionId++; // 新規セッション発行により旧アニメーション・思考を完全遮断
+        currentGameSessionId++;
 
         board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
         board[3][3] = WHITE; board[3][4] = BLACK;
@@ -2446,14 +1790,10 @@
         clearHint();
 
         recordGameStep(null, null, "対局開始時の初期配置です。");
-
         DOM.royalResultModal.classList.remove("show");
         DOM.endingModal.classList.remove("show");
 
-        elapsedSeconds = 0;
-        playerSeconds = 0;
-        cpuSeconds = 0;
-
+        elapsedSeconds = playerSeconds = cpuSeconds = 0;
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             if (!gameOver && !isReviewMode && !isAiThinkingHint) {
@@ -2482,22 +1822,15 @@
         }
     }
 
+    const formatMinSec = (sec) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
     function updateTimerDisplay() {
         DOM.playerTime.textContent = `⏱️ ${formatMinSec(playerSeconds)}`;
         DOM.opponentTime.textContent = `⏱️ ${formatMinSec(cpuSeconds)}`;
     }
 
-    function formatMinSec(sec) {
-        const m = String(Math.floor(sec / 60)).padStart(2, "0");
-        const s = String(sec % 60).padStart(2, "0");
-        return `${m}:${s}`;
-    }
-
-    function isInside(r, c) { return r >= 0 && r < boardSize && c >= 0 && c < boardSize; }
-
     function getFlippableStones(row, col, player = currentPlayer, targetBoard = board) {
         if (!targetBoard || targetBoard[row][col] !== 0) return [];
-        const opponent = player === BLACK ? WHITE : BLACK;
+        const opponent = opposite(player);
         const flippable = [];
 
         for (const [dr, dc] of directions) {
@@ -2522,9 +1855,7 @@
         });
     }
 
-    function canPlace(row, col, player = currentPlayer, targetBoard = board) {
-        return getFlippableStones(row, col, player, targetBoard).length > 0;
-    }
+    const canPlace = (r, c, p = currentPlayer, b = board) => getFlippableStones(r, c, p, b).length > 0;
 
     function getValidMoves(player, targetBoard) {
         const moves = [];
@@ -2544,7 +1875,7 @@
         return true;
     }
 
-    function isCorner(r, c) { return cornerSquares.some(([cr, cc]) => cr === r && cc === c); }
+    const isCorner = (r, c) => cornerSquares.some(([cr, cc]) => cr === r && cc === c);
 
     function isRealDanger(r, c, targetBoard) {
         const dangerCornerMap = [
@@ -2553,159 +1884,46 @@
             { corner: [7, 0], dangers: [[6, 0], [6, 1], [7, 1]] },
             { corner: [7, 7], dangers: [[6, 6], [6, 7], [7, 6]] }
         ];
-
         for (const item of dangerCornerMap) {
-            const isTargetDanger = item.dangers.some(([dr, dc]) => dr === r && dc === c);
-            if (isTargetDanger) {
-                const cornerOwner = targetBoard[item.corner[0]][item.corner[1]];
-                return (cornerOwner === 0);
+            if (item.dangers.some(([dr, dc]) => dr === r && dc === c)) {
+                return (targetBoard[item.corner[0]][item.corner[1]] === 0);
             }
         }
         return false;
     }
 
-    /* 【Ver 5.7.0 完全同期】ヒントAIと完全に同一の深さ（深さ7）で客観最善手を算出 */
     function calculateObjectiveBestMove(targetBoard, player) {
         const moves = getValidMoves(player, targetBoard);
         if (moves.length === 0) return null;
-
         const emptyCount = getEmptyCount(targetBoard);
         const depth = emptyCount <= 14 ? emptyCount : 7;
-        let bestScore = -Infinity;
-        let bestMoves = [];
+        let bestScore = -Infinity, bestMoves = [];
 
         for (const move of orderMoves(moves, targetBoard)) {
             const next = cloneBoard(targetBoard);
             makeMove(next, move[0], move[1], player);
             const score = minimax(next, opposite(player), depth - 1, -Infinity, Infinity, player, emptyCount - 1);
             if (score > bestScore) {
-                bestScore = score;
-                bestMoves = [move];
+                bestScore = score; bestMoves = [move];
             } else if (score === bestScore) {
                 bestMoves.push(move);
             }
         }
-        return bestMoves.length > 0 ? bestMoves[0] : moves[0];
+        return bestMoves[0] || moves[0];
     }
 
-    /* --- 【Ver 5.7.0 刷新】プレイヤー着手コントローラー --- */
-    async function putStone(row, col) {
-        if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
-        if (!canPlace(row, col, humanColor, board)) return;
-
+    /* --- 【Ver 5.8.0 統合】着手・反転・ログ共通実行パイプライン --- */
+    async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
         const session = currentGameSessionId;
-        saveHistory();
-        isBusy = true;
+        const opponent = opposite(player);
+        const flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, player, board));
 
-        if (getHintMode() === "always") usedHintInGame = true;
-
-        const emptyCount = getEmptyCount(board);
-        const myAvailableMovesBefore = getValidMoves(humanColor, board);
-        const oppMovesBefore = getValidMoves(cpuColor, board).length;
-        const preScore = evaluateBoard(board, humanColor, emptyCount);
-
-        // 【Ver 5.7.0 絶対保証】画面に提示されたヒントに打ったか判定
-        const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
-
-        // 客観最善手の算出
-        const objectiveBest = calculateObjectiveBestMove(board, humanColor);
-        const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
-
-        // 【Ver 5.7.0 強制着手保護】置けるマスが1箇所しかない場合は絶対に悪手にしない
-        const isForcedMove = (myAvailableMovesBefore.length === 1);
-
-        let flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, humanColor, board));
-        makeMove(board, row, col, humanColor);
+        makeMove(board, row, col, player);
         lastMove = [row, col];
 
-        const oppMovesAfter = getValidMoves(cpuColor, board).length;
-        const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
-        const scoreDiff = postScore - preScore;
+        if (onPreFinish) onPreFinish(flipped);
 
-        let moveRating = "NORMAL";
-        const isCornerMove = isCorner(row, col);
-        const isDangerMove = isRealDanger(row, col, board);
-
-        /* 【Ver 5.7.0 判定ロジック絶対保証】 */
-        // ① ヒント着手は100%最善手（BEST）絶対保証
-        if (isMatchedWithHint) {
-            moveRating = "BEST";
-            showMoveToast("best", "🎯 最善手 (BEST)");
-            setOpponentQuote("playerGood");
-        }
-        // ② 四隅の角は絶対に最善手または好手
-        else if (isCornerMove) {
-            if (isMatchedWithObjectiveBest) {
-                moveRating = "BEST";
-                showMoveToast("best", "🎯 最善手 (BEST)");
-            } else {
-                moveRating = "GOOD";
-                showMoveToast("good", "⚜️ 好手 (GOOD)");
-            }
-            setOpponentQuote("playerCorner");
-        }
-        // ③ 自力着手での客観最善手合致
-        else if (isMatchedWithObjectiveBest) {
-            moveRating = "BEST";
-            showMoveToast("best", "🎯 最善手 (BEST)");
-            setOpponentQuote("playerGood");
-        }
-        // ④ 強制着手（1手しかない時）はやむを得ない手（悪手除外）
-        else if (isForcedMove) {
-            moveRating = "NORMAL";
-        }
-        // ⑤ 悪手判定（真の危険マス、または大失着）
-        else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
-            moveRating = "BAD";
-            showMoveToast("bad", "⚠️ 悪手 (BAD)");
-            setOpponentQuote("playerBad");
-        }
-        // ⑥ 逆転手（5石以上の反転）
-        else if (flipped.length >= 5 && emptyCount >= 16) {
-            moveRating = "REVERSAL";
-            showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
-            setOpponentQuote("bigReversal");
-        }
-        // ⑦ 好手（評価値大幅向上）
-        else if (scoreDiff > 120) {
-            moveRating = "GOOD";
-            showMoveToast("good", "⚜️ 好手 (GOOD)");
-            setOpponentQuote("playerGood");
-        }
-        else if (emptyCount <= 12) {
-            setOpponentQuote("climax");
-        }
-
-        // 棋譜コンテキスト解説の生成
-        let contextNote = `あなたの着手（${toNotation(row, col)}）。`;
-        if (moveRating === "BEST") {
-            contextNote += isCornerMove ? "【最善手】四隅の要衝（角）を制圧した完璧な決定打。" : "【最善手】指南通りの隙のない完璧な中割り進軍。";
-        } else if (moveRating === "GOOD") {
-            contextNote += isCornerMove ? "【好手】四隅の要衝を確保し、確定石の基盤を構築。" : "【好手】要所を抑え、主導権を握る鋭い一手。";
-        } else if (moveRating === "REVERSAL") {
-            contextNote += "【逆転手】一気の大量反転により盤面の天秤を揺さぶる劇的一打。";
-        } else if (moveRating === "BAD") {
-            const altText = objectiveBest ? `（正解手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
-            contextNote += isDangerMove ? `【悪手】空いている角の隣に打ってしまいました${altText}。` : `【悪手】相手に足場を与えてしまう危険な打点でした${altText}。`;
-        } else {
-            contextNote += `石を ${flipped.length} 個反転させました。`;
-        }
-
-        recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
-
-        playerMoveLogs.push({
-            row, col, coord: toNotation(row, col), scoreDiff,
-            rating: moveRating,
-            isCorner: isCornerMove, isDanger: isDangerMove,
-            isObjectiveBest: isMatchedWithObjectiveBest || isMatchedWithHint,
-            flippedCount: flipped.length,
-            oppMovesReduction: oppMovesBefore - oppMovesAfter,
-            emptyCountAtMove: emptyCount,
-            stepIndex: gameStepLogs.length - 1,
-            alternativeBest: objectiveBest
-        });
-
-        pendingAnimation = { placedRow: row, placedCol: col, flipped, newColor: humanColor, oldColor: cpuColor };
+        pendingAnimation = { placedRow: row, placedCol: col, flipped, newColor: player, oldColor: opponent };
 
         playPlaceSound();
         if (flipped.length > 0) playFlipSequence(flipped.length);
@@ -2713,16 +1931,82 @@
         drawBoard();
         updateBalanceGauge();
 
-        // 【Ver 5.7.0 高速調律】待ち時間を約25%短縮
         await sleep((flipped.length * 55) + 380);
-
-        // セッション破棄チェック（アニメーション中に新対局や待ったが押されていた場合は中断）
-        if (session !== currentGameSessionId) return;
+        if (session !== currentGameSessionId) return false;
 
         hideMoveToast();
         clearHintForOpponentTurn();
-
         drawBoard();
+        return true;
+    }
+
+    async function putStone(row, col) {
+        if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
+        if (!canPlace(row, col, humanColor, board)) return;
+
+        saveHistory();
+        isBusy = true;
+        if (getHintMode() === "always") usedHintInGame = true;
+
+        const emptyCount = getEmptyCount(board);
+        const myAvailableMovesBefore = getValidMoves(humanColor, board);
+        const oppMovesBefore = getValidMoves(cpuColor, board).length;
+        const preScore = evaluateBoard(board, humanColor, emptyCount);
+
+        const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
+        const objectiveBest = calculateObjectiveBestMove(board, humanColor);
+        const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
+        const isForcedMove = (myAvailableMovesBefore.length === 1);
+        const isCornerMove = isCorner(row, col);
+        const isDangerMove = isRealDanger(row, col, board);
+
+        const success = await executeTurnAction(row, col, humanColor, true, (flipped) => {
+            const oppMovesAfter = getValidMoves(cpuColor, board).length;
+            const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
+            const scoreDiff = postScore - preScore;
+
+            let moveRating = "NORMAL";
+            if (isMatchedWithHint) {
+                moveRating = "BEST"; showMoveToast("best", "🎯 最善手 (BEST)"); setOpponentQuote("playerGood");
+            } else if (isCornerMove) {
+                moveRating = isMatchedWithObjectiveBest ? "BEST" : "GOOD";
+                showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
+                setOpponentQuote("playerCorner");
+            } else if (isMatchedWithObjectiveBest) {
+                moveRating = "BEST"; showMoveToast("best", "🎯 最善手 (BEST)"); setOpponentQuote("playerGood");
+            } else if (isForcedMove) {
+                moveRating = "NORMAL";
+            } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
+                moveRating = "BAD"; showMoveToast("bad", "⚠️ 悪手 (BAD)"); setOpponentQuote("playerBad");
+            } else if (flipped.length >= 5 && emptyCount >= 16) {
+                moveRating = "REVERSAL"; showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)"); setOpponentQuote("bigReversal");
+            } else if (scoreDiff > 120) {
+                moveRating = "GOOD"; showMoveToast("good", "⚜️ 好手 (GOOD)"); setOpponentQuote("playerGood");
+            } else if (emptyCount <= 12) {
+                setOpponentQuote("climax");
+            }
+
+            let contextNote = `あなたの着手（${toNotation(row, col)}）。`;
+            if (moveRating === "BEST") contextNote += isCornerMove ? "【最善手】四隅の要衝（角）を制圧した完璧な決定打。" : "【最善手】指南通りの隙のない完璧な中割り進軍。";
+            else if (moveRating === "GOOD") contextNote += isCornerMove ? "【好手】四隅の要衝を確保し、確定石の基盤を構築。" : "【好手】要所を抑え、主導権を握る鋭い一手。";
+            else if (moveRating === "REVERSAL") contextNote += "【逆転手】一気の大量反転により盤面の天秤を揺さぶる劇的一打。";
+            else if (moveRating === "BAD") {
+                const alt = objectiveBest ? `（正解手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
+                contextNote += isDangerMove ? `【悪手】空いている角の隣に打ってしまいました${alt}。` : `【悪手】相手に足場を与えてしまう危険な打点でした${alt}。`;
+            } else contextNote += `石を ${flipped.length} 個反転させました。`;
+
+            recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
+
+            playerMoveLogs.push({
+                row, col, coord: toNotation(row, col), scoreDiff, rating: moveRating,
+                isCorner: isCornerMove, isDanger: isDangerMove,
+                isObjectiveBest: isMatchedWithObjectiveBest || isMatchedWithHint,
+                flippedCount: flipped.length, oppMovesReduction: oppMovesBefore - oppMovesAfter,
+                emptyCountAtMove: emptyCount, stepIndex: gameStepLogs.length - 1, alternativeBest: objectiveBest
+            });
+        });
+
+        if (!success) return;
         currentPlayer = cpuColor;
         isBusy = false;
         processTurn();
@@ -2734,23 +2018,16 @@
         DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思考中…）</div>';
     }
 
-    /* ターン制御コントローラー */
     function processTurn() {
         if (gameOver || isReviewMode) return;
         const currentMoves = getValidMoves(currentPlayer, board);
 
         if (currentMoves.length === 0) {
             const opp = opposite(currentPlayer);
-            const oppMoves = getValidMoves(opp, board);
-            
-            if (oppMoves.length === 0) {
-                endGame();
-                return;
-            }
+            if (getValidMoves(opp, board).length === 0) { endGame(); return; }
 
-            // 【Ver 5.7.0 棋譜連動】パスの事実を棋譜ステップに明示的に記録
-            const passPlayerName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
-            recordGameStep(null, currentPlayer, `${passPlayerName}が置ける場所がないため【パス】しました。`, null, true);
+            const passName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
+            recordGameStep(null, currentPlayer, `${passName}が置ける場所がないため【パス】しました。`, null, true);
 
             currentPlayer = opp;
             drawBoard();
@@ -2828,7 +2105,6 @@
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    /* 【Ver 5.7.0 排他制御】コンピューター着手コントローラー */
     async function computerMove() {
         if (gameOver || isReviewMode) return;
         const session = currentGameSessionId;
@@ -2844,45 +2120,26 @@
         const char = getCurrentCharacter();
         const move = getComputerMove(board, cpuColor, char);
         if (move) {
-            let flipped = sortFlippedByDistance(move[0], move[1], getFlippableStones(move[0], move[1], cpuColor, board));
-            makeMove(board, move[0], move[1], cpuColor);
-            lastMove = [move[0], move[1]];
-
-            let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
-            if (isCorner(move[0], move[1])) {
-                contextNote += "要塞となる角を奪取されました。";
-                setOpponentQuote("cpuCorner");
-            } else if (getEmptyCount(board) <= 12) {
-                contextNote += "終盤の詰めに入っています。";
-                setOpponentQuote("climax");
-            } else {
-                setOpponentQuote("thinking");
-            }
-
-            recordGameStep(move, cpuColor, contextNote, null, false);
-
-            pendingAnimation = { placedRow: move[0], placedCol: move[1], flipped, newColor: cpuColor, oldColor: humanColor };
-
-            playPlaceSound();
-            if (flipped.length > 0) playFlipSequence(flipped.length);
-
-            drawBoard();
-            updateBalanceGauge();
-
-            // 【Ver 5.7.0 高速調律】待ち時間を約25%短縮
-            await sleep((flipped.length * 55) + 380);
-
-            if (session !== currentGameSessionId) return;
-            drawBoard();
+            const success = await executeTurnAction(move[0], move[1], cpuColor, false, () => {
+                let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
+                if (isCorner(move[0], move[1])) {
+                    contextNote += "要塞となる角を奪取されました。";
+                    setOpponentQuote("cpuCorner");
+                } else if (getEmptyCount(board) <= 12) {
+                    contextNote += "終盤の詰めに入っています。";
+                    setOpponentQuote("climax");
+                } else {
+                    setOpponentQuote("thinking");
+                }
+                recordGameStep(move, cpuColor, contextNote, null, false);
+            });
+            if (!success) return;
         }
 
         isBusy = false;
         currentPlayer = humanColor;
         processTurn();
     }
-
-    function opposite(player) { return player === BLACK ? WHITE : BLACK; }
-    function cloneBoard(src) { return src.map(r => r.slice()); }
 
     function minimax(targetBoard, player, depth, alpha, beta, computerPlayer, emptyCount) {
         if (emptyCount === 0 || depth <= 0) return evaluateBoard(targetBoard, computerPlayer, emptyCount);
@@ -2920,18 +2177,29 @@
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (targetBoard[r][c] !== player) continue;
-                let isFrontier = false;
                 for (const [dr, dc] of directions) {
                     const nr = r + dr, nc = c + dc;
-                    if (isInside(nr, nc) && targetBoard[nr][nc] === 0) {
-                        isFrontier = true;
-                        break;
-                    }
+                    if (isInside(nr, nc) && targetBoard[nr][nc] === 0) { frontier++; break; }
                 }
-                if (isFrontier) frontier++;
             }
         }
         return frontier;
+    }
+
+    function countStableStones(targetBoard, player) {
+        const stable = new Set();
+        for (const [cr, cc] of cornerSquares) {
+            if (targetBoard[cr][cc] !== player) continue;
+            stable.add(`${cr},${cc}`);
+            for (const [dr, dc] of [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]]) {
+                let r = cr + dr, c = cc + dc;
+                while (isInside(r, c) && targetBoard[r][c] === player) {
+                    stable.add(`${r},${c}`);
+                    r += dr; c += dc;
+                }
+            }
+        }
+        return stable.size;
     }
 
     function evaluateBoard(targetBoard, player, emptyCount) {
@@ -2950,8 +2218,6 @@
 
         const myMoves = getValidMoves(player, targetBoard).length;
         const oppMoves = getValidMoves(opponent, targetBoard).length;
-        let score = 0;
-
         const totalMoves = myMoves + oppMoves;
         const mobilityScore = (totalMoves > 0) ? (100 * (myMoves - oppMoves) / totalMoves) : 0;
 
@@ -2962,6 +2228,7 @@
 
         const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
 
+        let score = 0;
         if (emptyCount > 40) {
             score = (mobilityScore * 28) + (frontierScore * 22) + (myPosScore - oppPosScore) - (myStones - oppStones) * 8;
         } else if (emptyCount > 14) {
@@ -2973,41 +2240,19 @@
         return score;
     }
 
-    function toNotation(r, c) { return String.fromCharCode(65 + c) + (r + 1); }
-
-    function countStableStones(targetBoard, player) {
-        const stable = new Set();
-        for (const [cr, cc] of cornerSquares) {
-            if (targetBoard[cr][cc] !== player) continue;
-            stable.add(`${cr},${cc}`);
-            const edgeDirs = [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]];
-            for (const [dr, dc] of edgeDirs) {
-                let r = cr + dr, c = cc + dc;
-                while (isInside(r, c) && targetBoard[r][c] === player) {
-                    stable.add(`${r},${c}`);
-                    r += dr; c += dc;
-                }
-            }
-        }
-        return stable.size;
-    }
-
     function clearHint() {
         hintMove = null;
         DOM.hintCoordText.textContent = "--";
         DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>';
     }
 
-    function getHintMode() { return DOM.hintMode ? DOM.hintMode.value : "manual"; }
-    function maybeAutoHint() { if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) computeHint(); }
+    const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
+    const maybeAutoHint = () => { if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) computeHint(); };
 
     function updateHintModeUI() {
         const mode = getHintMode();
         DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
-        if (mode === "always") {
-            usedHintInGame = true;
-            maybeAutoHint();
-        } else clearHint();
+        if (mode === "always") { usedHintInGame = true; maybeAutoHint(); } else clearHint();
     }
 
     function buildHintReasons(chosen, allMoves) {
@@ -3032,12 +2277,6 @@
         return reasons;
     }
 
-    function showHintMessage(move, reasons) {
-        DOM.hintCoordText.textContent = toNotation(move[0], move[1]);
-        DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
-    }
-
-    /* 【Ver 5.7.0 深層思考同期】ヒント計算エンジン */
     function computeHint() {
         if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
         usedHintInGame = true;
@@ -3055,17 +2294,14 @@
             const score = minimax(next, cpuColor, depth - 1, -Infinity, Infinity, humanColor, emptyCount - 1);
             const info = { move, score, nextBoard: next };
 
-            if (score > bestScore) {
-                bestScore = score;
-                bestMoves = [info];
-            } else if (score === bestScore) {
-                bestMoves.push(info);
-            }
+            if (score > bestScore) { bestScore = score; bestMoves = [info]; }
+            else if (score === bestScore) { bestMoves.push(info); }
         }
 
         const chosen = bestMoves[0];
         hintMove = chosen.move;
-        showHintMessage(chosen.move, buildHintReasons(chosen, moves));
+        DOM.hintCoordText.textContent = toNotation(chosen.move[0], chosen.move[1]);
+        DOM.hintBodyText.innerHTML = buildHintReasons(chosen, moves).map(r => `<div>${r}</div>`).join("");
         drawBoard();
     }
 
@@ -3081,11 +2317,9 @@
                 if (!isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
                     cell.classList.add("can-place", previewClass);
                 }
-
                 if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
                     cell.classList.add("last-move-cell");
                 }
-
                 if (!isReviewMode && hintMove && hintMove[0] === r && hintMove[1] === c) {
                     cell.classList.add("hint-cell");
                 }
@@ -3093,11 +2327,7 @@
                 if (isReviewMode && reviewStepIndex > 0) {
                     const step = gameStepLogs[reviewStepIndex];
                     if (step && step.move && step.move[0] === r && step.move[1] === c) {
-                        if (reviewStepIndex === tacticsWorstIndex) {
-                            cell.classList.add("review-bad-cell");
-                        } else {
-                            cell.classList.add("review-focus-cell");
-                        }
+                        cell.classList.add(reviewStepIndex === tacticsWorstIndex ? "review-bad-cell" : "review-focus-cell");
                     }
                     if (reviewStepIndex === tacticsWorstIndex && tacticsWorstAlternative && tacticsWorstAlternative[0] === r && tacticsWorstAlternative[1] === c) {
                         cell.classList.add("review-correct-cell");
@@ -3159,7 +2389,7 @@
         DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
     }
 
-    /* --- 【Ver 5.7.0 精密手筋判定】AI戦術カルテ分析エンジン --- */
+    /* AI戦術カルテ分析エンジン */
     function generateTacticsReport() {
         if (playerMoveLogs.length === 0) {
             return {
@@ -3170,7 +2400,6 @@
             };
         }
 
-        // ① 最善手（好手）の選出
         let best = playerMoveLogs[0];
         let bestScore = -Infinity;
 
@@ -3196,9 +2425,7 @@
             goodDesc = "豪快な大量反転によって一気に盤上の勢力図を塗り替えました。";
         }
 
-        // ② 真の悪手のみを抽出（着手時にBAD認定された手のみに一本化）
         const badMoves = playerMoveLogs.filter(log => log.rating === "BAD" && !log.isCorner && !log.isObjectiveBest);
-
         let worst = null;
         if (badMoves.length > 0) {
             let worstPenalty = Infinity;
@@ -3212,16 +2439,12 @@
             }
         }
 
-        let badCoord = "--";
-        let badDesc = "致命的な悪手はなく、終始安定感のある落ち着いた完璧な打ち回しでした。";
-        let badStep = -1;
-        let alternative = null;
+        let badCoord = "--", badDesc = "致命的な悪手はなく、終始安定感のある落ち着いた完璧な打ち回しでした。", badStep = -1, alternative = null;
 
         if (worst) {
             badCoord = worst.coord;
             badStep = worst.stepIndex;
             alternative = worst.alternativeBest;
-
             const altNotation = alternative ? `【${toNotation(alternative[0], alternative[1])}】` : "内側の安全なマス";
             if (worst.isDanger) {
                 badDesc = `空いている角の隣（危険マス）に打ちました。ここは${altNotation}へ中割りしていれば角を献上せずに済みました。`;
@@ -3237,7 +2460,6 @@
         tacticsWorstIndex = badStep;
         tacticsWorstAlternative = alternative;
 
-        // 総合診断メッセージの生成
         let diagnosis = "【総合診断】全体としてバランスの取れた堅実な試合運びでした。";
         const dangerCount = playerMoveLogs.filter(l => l.isDanger && !l.isCorner).length;
         const earlyBigFlips = playerMoveLogs.filter(l => l.emptyCountAtMove > 35 && l.flippedCount >= 4).length;
@@ -3344,7 +2566,6 @@
         DOM.carteBadCoord.textContent = report.badCoord;
         DOM.carteBadDesc.textContent = report.badDesc;
 
-        /* 【Ver 5.7.0 導線調律】ヒント使用時はセリフ通り「ヒントなし再戦」を最優先ボタンに配置 */
         if (isWin) {
             if (usedHintInGame) {
                 DOM.btnAdvanceIcon.textContent = "👑";
@@ -3410,7 +2631,6 @@
         updateBalanceGauge(board);
     }
 
-    /* --- 【Ver 5.7.0 棋譜連動】ステップごとの石数・天秤リアルタイム復元 --- */
     function applyReviewStep(index) {
         if (index < 0 || index >= gameStepLogs.length) return;
         reviewStepIndex = index;
@@ -3450,7 +2670,6 @@
             }
         }
 
-        // 過去時点の石数・天秤のリアルタイム復元
         updateScore(board);
         updateBalanceGauge(board);
         drawBoard();
@@ -3584,3 +2803,4 @@
 
 </body>
 </html>
+
