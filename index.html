@@ -23,11 +23,15 @@
   [Ver 5.4.0] 2026/09/17 : 宮廷の間＆美術石素材ステージ遷移システムの骨格策定。
   [Ver 5.5.0] 2026/09/18 : 【劇的ビジュアル大改革：盤面フィールド・美術石テクスチャ・サロン空間完全具現化】
   [Ver 5.6.0] 2026/09/19 : 【戦術判定・手番遷移・戦後会見の完全整合性調律】
-    - 【手番表示スタック撲滅】相手着手後に「あなたの番です」が更新されないバグを完全解消。
-    - 【最善手・悪手・正解手の完全客観判定】ヒント未参照でも自力最善手を正しくBEST認定。悪手時には裏で正解手を自動記録し棋譜検証で金枠【💡正解】を必ず表示。
-    - 【角取り絶対正当評価】四隅の角を絶対に悪手判定しないルールを導入。角確保後のX/Cマスを安全確定石と認知し理不尽説教を根絶。悪手なし時は「悪手なし（完璧な知謀）」と堂々称賛。
-    - 【最善手表示の消滅タイミング調律】相手番開始時にトースト・ヒント枠の最善手表示を即座にフェードアウト・初期化。
-    - 【ヒント勝利時の導線調律】セリフ通り「ヒントなしで再戦する」を最優先ボタンに配置。
+  [Ver 5.7.0] 2026/09/20 : 【王宮キャラクター躍動・UI分離・思考判定完全同期・品質総点検エディション】
+    - 【ヘッダーUI完全分離】右上ボタン（全画面・音声）を独立配置し、相手石数バッジとの重なりを100%根絶。
+    - 【AIキャラ躍動モーション＆セリフ大拡充】全6キャラに固有の発話アクションを導入。セリフを3〜5パターンへ増強。
+    - 【ヒント着手100%最善手絶対保証】画面のヒントに従った着手は例外なくBEST認定。悪手判定・カルテ悪手から完全隔離。
+    - 【客観判定AIの完全同期】判定深さをヒントAIと同じ深さ7へ引き上げ、AI内部の判定分裂を根絶。
+    - 【強制着手保護】合法手が1手しかない局面では、危険マスであっても絶対に悪手判定しない安全ガードを追加。
+    - 【非同期排他制御（セッションID）】アニメーション中の新対局・待った連打による割り込みバグを根絶。
+    - 【棋譜検証の完全連動】手を戻した際、その時点の石数・運命の天秤（勝率）を完全再現。パスも正しく記録。
+    - 【打感＆UX調律】反転アニメーションを25%高速化。打てるマスガイドを「呼吸する金輪」に刷新。手番交代パルス導入。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -51,7 +55,7 @@
             --pure-gold-btn: linear-gradient(180deg, #ffffff 0%, #fff1ba 15%, #ffd700 45%, #e5b842 75%, #a67314 100%);
             --gold-border: rgba(212, 167, 72, 0.45);
             --gold-glow: rgba(212, 167, 72, 0.35);
-            --panel-bg: rgba(16, 19, 26, 0.92);
+            --panel-bg: rgba(16, 19, 26, 0.94);
             --amber-accent: #e5b842;
             --amber-glow: rgba(229, 184, 66, 0.4);
             --frame-pad: clamp(5px, 1.4vw, 9px);
@@ -107,7 +111,7 @@
         body.stage-theme-1 .cell { border-color: rgba(60, 35, 15, 0.65) !important; }
         body.stage-theme-1 .black-stone {
             background: repeating-radial-gradient(circle at 35% 30%, #3d281a 0px, #3d281a 3px, #23160e 4px, #150d08 7px) !important;
-            box-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95) !important;
+            box-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95), 0 0 0 1px rgba(212,167,72,0.3) !important;
             border: 1px solid #4a3020 !important;
         }
         body.stage-theme-1 .white-stone {
@@ -136,7 +140,7 @@
         body.stage-theme-2 .cell { border-color: rgba(30, 80, 70, 0.6) !important; }
         body.stage-theme-2 .black-stone {
             background: radial-gradient(circle at 35% 25%, #3c4f52 0%, #192325 35%, #080d0e 80%) !important;
-            box-shadow: inset 2px 2px 4px rgba(180, 255, 240, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 2px 6px rgba(0,0,0,0.8) !important;
+            box-shadow: inset 2px 2px 4px rgba(180, 255, 240, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(80, 140, 130, 0.45) !important;
             border: 1px solid rgba(80, 140, 130, 0.5) !important;
         }
         body.stage-theme-2 .white-stone {
@@ -165,7 +169,7 @@
         body.stage-theme-3 .cell { border-color: rgba(45, 75, 120, 0.6) !important; }
         body.stage-theme-3 .black-stone {
             background: radial-gradient(circle at 30% 25%, #465469 0%, #202a39 45%, #0d121a 90%) !important;
-            box-shadow: inset 1.5px 1.5px 3px rgba(160, 200, 255, 0.45), inset -2.5px -2.5px 5px rgba(0,0,0,0.95) !important;
+            box-shadow: inset 1.5px 1.5px 3px rgba(160, 200, 255, 0.45), inset -2.5px -2.5px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(180, 210, 255, 0.3) !important;
             border: 1.5px solid #485c7d !important;
         }
         body.stage-theme-3 .white-stone {
@@ -196,7 +200,7 @@
         body.stage-theme-4 .cell { border-color: rgba(140, 30, 50, 0.6) !important; }
         body.stage-theme-4 .black-stone {
             background: radial-gradient(circle at 28% 22%, #551624 0%, #20060c 38%, #080103 85%) !important;
-            box-shadow: inset 2px 2px 4px rgba(255, 160, 190, 0.65), inset -2.5px -2.5px 6px rgba(0,0,0,0.98), 0 0 10px rgba(255, 50, 90, 0.25) !important;
+            box-shadow: inset 2px 2px 4px rgba(255, 160, 190, 0.65), inset -2.5px -2.5px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 100, 140, 0.4) !important;
             border: 1px solid rgba(220, 70, 100, 0.6) !important;
         }
         body.stage-theme-4 .white-stone {
@@ -227,7 +231,7 @@
         body.stage-theme-5 .cell { border-color: rgba(90, 50, 130, 0.6) !important; }
         body.stage-theme-5 .black-stone {
             background: radial-gradient(circle at 28% 22%, #492868 0%, #1a0b29 40%, #06010b 90%) !important;
-            box-shadow: inset 2px 2px 4.5px rgba(220, 170, 255, 0.7), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 10px rgba(170, 80, 255, 0.3) !important;
+            box-shadow: inset 2px 2px 4.5px rgba(220, 170, 255, 0.7), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(200, 140, 255, 0.45) !important;
             border: 1.5px solid rgba(180, 110, 255, 0.5) !important;
         }
         body.stage-theme-5 .white-stone {
@@ -258,7 +262,7 @@
         body.stage-theme-6 .cell { border-color: rgba(255, 215, 0, 0.55) !important; }
         body.stage-theme-6 .black-stone {
             background: radial-gradient(circle at 30% 22%, #5e4a1f 0%, #291e0a 35%, #0d0903 85%) !important;
-            box-shadow: inset 2px 2px 4px rgba(255, 235, 160, 0.85), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 14px rgba(255, 215, 0, 0.5) !important;
+            box-shadow: inset 2px 2px 4px rgba(255, 235, 160, 0.85), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 215, 0, 0.7) !important;
             border: 1.5px solid #ffd700 !important;
         }
         body.stage-theme-6 .black-stone::after {
@@ -291,21 +295,25 @@
         .banner-salon-title { font-size: 14px; font-weight: 800; color: #ffffff; letter-spacing: 0.08em; margin-bottom: 3px; }
         .banner-relic-sub { font-size: 9.5px; color: #ecd08c; font-weight: 600; }
 
-        /* --- ヘッダー --- */
+        /* --- 【Ver 5.7.0 改修】完全独立フレックスヘッダー（ボタンと石数バッジの重なりを完全根絶） --- */
         header {
-            width: 100%; max-width: 1080px; display: flex; flex-direction: column; align-items: center;
-            position: relative; padding-top: clamp(6px, 1.3dvh, 12px); padding-bottom: 0px;
-            z-index: 10; flex-shrink: 0;
+            width: 100%; max-width: 1080px; display: flex; justify-content: space-between; align-items: center;
+            position: relative; padding: clamp(4px, 1dvh, 7px) clamp(8px, 2vw, 16px);
+            margin-bottom: clamp(6px, 1.2dvh, 10px);
+            z-index: 30; flex-shrink: 0;
+        }
+
+        .header-left-space {
+            width: clamp(60px, 14vw, 84px); flex-shrink: 0;
         }
 
         .header-title-wrap {
-            display: flex; align-items: baseline; justify-content: center; gap: 6px; text-align: center;
-            margin-bottom: clamp(8px, 1.6dvh, 14px);
+            display: flex; align-items: baseline; justify-content: center; gap: 6px; text-align: center; flex: 1;
         }
 
         .main-header-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: clamp(13px, 3.6vw, 17px); font-weight: 900; letter-spacing: 0.12em;
+            font-size: clamp(13px, 3.8vw, 17px); font-weight: 900; letter-spacing: 0.12em;
             background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 2px 8px rgba(197, 151, 62, 0.45); white-space: nowrap;
         }
@@ -316,12 +324,13 @@
         }
 
         .header-actions {
-            position: absolute; top: env(safe-area-inset-top, 2px); right: 4px; display: flex; gap: 4px; align-items: center;
+            display: flex; gap: 5px; align-items: center; justify-content: flex-end;
+            width: clamp(60px, 14vw, 84px); flex-shrink: 0;
         }
 
         .header-btn {
             background: linear-gradient(135deg, rgba(34, 38, 50, 0.9) 0%, rgba(18, 20, 28, 0.9) 100%);
-            border: 1px solid var(--gold-border); border-radius: 14px; padding: 2px 6px;
+            border: 1px solid var(--gold-border); border-radius: 14px; padding: 2.5px 6.5px;
             font-size: 9.5px; font-weight: 700; color: #faebd0; display: flex; align-items: center;
             gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: all 0.2s ease;
         }
@@ -377,12 +386,52 @@
         .avatar-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .avatar-fallback-icon { font-size: 28px; color: #ffd700; }
 
-        .is-talking { animation: talking-bounce 0.65s ease-in-out; }
-        @keyframes talking-bounce {
+        /* --- 【Ver 5.7.0 刷新】キャラクター別・固有躍動モーション --- */
+        /* Lv.1 ピエロ：アクロバット・バウンス（左右に揺れながらコミカルに跳ねる） */
+        .motion-char-1 { animation: clown-bounce 0.7s cubic-bezier(0.28, 0.84, 0.42, 1); }
+        @keyframes clown-bounce {
+            0%, 100% { transform: scale(1) rotate(0deg) translateY(0); }
+            25% { transform: scale(1.06) rotate(-4deg) translateY(-4px); }
+            50% { transform: scale(0.96) rotate(3deg) translateY(2px); }
+            75% { transform: scale(1.03) rotate(-2deg) translateY(-2px); }
+        }
+
+        /* Lv.2 コレット：ひたむきペコリ（前へ一生懸命お辞儀するように頷く） */
+        .motion-char-2 { animation: colette-nod 0.65s ease-in-out; }
+        @keyframes colette-nod {
             0%, 100% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.04) translateY(-3px); }
-            50% { transform: scale(0.98) translateY(1px); }
-            75% { transform: scale(1.02) translateY(-1.5px); }
+            35% { transform: scale(1.04) translateY(-2.5px); }
+            65% { transform: scale(1.02) translateY(3px) rotate(1.5deg); }
+        }
+
+        /* Lv.3 ローラン：騎士の踏み込み（剣を構え直すように前方へ迫り出す） */
+        .motion-char-3 { animation: roland-thrust 0.6s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        @keyframes roland-thrust {
+            0%, 100% { transform: scale(1) translateX(0); }
+            30% { transform: scale(1.08) translateX(3px) translateY(-1px); }
+            70% { transform: scale(1.02) translateX(1px); }
+        }
+
+        /* Lv.4 エリザベート：ロココ・フロート（優雅にふわりと浮遊する） */
+        .motion-char-4 { animation: elisabeth-float 0.8s ease-in-out; }
+        @keyframes elisabeth-float {
+            0%, 100% { transform: scale(1) translateY(0) rotate(0deg); }
+            40% { transform: scale(1.05) translateY(-5px) rotate(-1.5deg); }
+            70% { transform: scale(1.02) translateY(-2px) rotate(0.8deg); }
+        }
+
+        /* Lv.5 ヴォルフガング：冷徹な閃光（ブレずに知的威圧を与える紫の鋭い光彩） */
+        .motion-char-5 { animation: wolfgang-glare 0.65s ease-out; }
+        @keyframes wolfgang-glare {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            40% { transform: scale(1.03); filter: brightness(1.25) drop-shadow(0 0 10px #c084fc); }
+        }
+
+        /* Lv.6 オルレアン：覇王の威光ズーム（玉座から乗り出すように力強く拡大） */
+        .motion-char-6 { animation: orleans-majesty 0.75s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes orleans-majesty {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)); }
+            50% { transform: scale(1.09) translateY(-2px); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.95)) brightness(1.15); }
         }
 
         .opponent-avatar-frame.thinking-aura { animation: oval-aura 1.8s infinite alternate ease-in-out; }
@@ -429,9 +478,9 @@
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
             border: 1px solid rgba(212, 167, 72, 0.38); border-radius: 8px; border-top-left-radius: 2px;
-            padding: 3px 7px; font-size: 10px; line-height: 1.35; color: #f7eed8;
+            padding: 4px 8px; font-size: 11px; line-height: 1.4; color: #f7eed8;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); position: relative; white-space: normal;
-            word-break: break-all; animation: bubble-appear 0.28s ease-out; min-height: 28px;
+            word-break: break-all; animation: bubble-appear 0.28s ease-out; min-height: 30px;
             display: flex; align-items: center; transition: all 0.3s ease;
         }
 
@@ -455,12 +504,12 @@
         /* ゾーン②：盤面ゾーン */
         .board-zone {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            flex-shrink: 0; position: relative; margin: 0; width: 100%; gap: clamp(2px, 0.5dvh, 4px);
+            flex-shrink: 0; position: relative; margin: 0; width: 100%; gap: clamp(3px, 0.6dvh, 6px);
         }
 
         .battle-gauge-container {
-            width: min(calc(100vw - 12px), 38.5dvh); display: flex; flex-direction: column; gap: 2px;
-            padding: 1px 2px; flex-shrink: 0; margin-top: -6px; margin-bottom: 3px;
+            width: min(calc(100vw - 12px), 38.5dvh); display: flex; flex-direction: column; gap: 2.5px;
+            padding: 1px 2px; flex-shrink: 0; margin-top: -2px; margin-bottom: 2px;
         }
 
         .battle-gauge-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; padding: 0 2px; }
@@ -479,16 +528,16 @@
         .battle-center-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.35); z-index: 10; transform: translateX(-50%); }
         .battle-power-player {
             height: 100%; background: linear-gradient(90deg, #ffd700 0%, #ecd08c 70%, #ffffff 100%);
-            transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
+            transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
         }
         .battle-power-opponent {
             height: 100%; flex: 1; background: linear-gradient(90deg, #1b1e28 0%, #2a3142 60%, #4a5568 100%);
-            transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
+            transition: all 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
         }
         .battle-clash-spark {
             position: absolute; top: -2px; width: 5px; height: 13px; background: #ffffff; border-radius: 2px;
             box-shadow: 0 0 8px #ffd700, 0 0 14px #ffffff; transform: translateX(-50%); z-index: 15;
-            transition: left 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+            transition: left 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
         }
 
         .dynasty-board-chassis {
@@ -584,10 +633,17 @@
             to { filter: drop-shadow(0 0 14px #ffffff); }
         }
 
+        /* --- 【Ver 5.7.0 刷新】打てるマスガイド（優美に呼吸する金輪リング） --- */
         .can-place { background-color: rgba(212, 167, 72, 0.08); }
         .can-place::after {
-            content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
-            background: rgba(255, 240, 205, 0.55); box-shadow: 0 0 6px rgba(212, 167, 72, 0.8); pointer-events: none;
+            content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid rgba(255, 230, 160, 0.85); box-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+            pointer-events: none; animation: gentle-guide-pulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes gentle-guide-pulse {
+            0%, 100% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px rgba(255, 230, 160, 1); }
         }
 
         .can-place::before {
@@ -650,7 +706,7 @@
             border: 1.5px solid #ff4d4d; color: #ffd8d8; box-shadow: 0 0 24px rgba(255, 77, 77, 0.75);
         }
 
-        /* 3D反転アニメーション */
+        /* --- 【Ver 5.7.0 調律】3D反転アニメーション（25%高速化・爽快感調律） --- */
         .stone-wrapper {
             position: relative; width: 86%; height: 86%; display: flex; align-items: center; justify-content: center;
         }
@@ -661,7 +717,7 @@
             transition: all 0.6s ease;
         }
 
-        .stone-new { animation: stone-drop-clean 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+        .stone-new { animation: stone-drop-clean 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
         @keyframes stone-drop-clean {
             from { transform: translateY(-16px) scale(0.65); opacity: 0; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.4)); }
             to { transform: translateY(0) scale(1); opacity: 1; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
@@ -670,19 +726,19 @@
         .stone-flip-wrapper {
             position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
             perspective: 1000px;
-            animation: flip-lift-shadow 0.48s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
+            animation: flip-lift-shadow 0.38s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
             z-index: 10;
         }
 
         @keyframes flip-lift-shadow {
             0% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
-            45% { transform: translateY(-10px) scale(1.08); filter: drop-shadow(0 14px 15px rgba(0, 0, 0, 0.35)); }
+            45% { transform: translateY(-9px) scale(1.07); filter: drop-shadow(0 12px 13px rgba(0, 0, 0, 0.35)); }
             100% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
         .stone-flip-cylinder {
             position: relative; width: 100%; height: 100%; border-radius: 50%; transform-style: preserve-3d;
-            animation: flip-spin-3d 0.48s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
+            animation: flip-spin-3d 0.38s cubic-bezier(0.38, 0.04, 0.22, 1) forwards;
         }
 
         @keyframes flip-spin-3d {
@@ -710,12 +766,18 @@
         .royal-card {
             background: var(--panel-bg); border: 1px solid var(--gold-border); border-radius: 12px;
             padding: clamp(4px, 0.9dvh, 6px) 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px); position: relative;
+            backdrop-filter: blur(10px); position: relative; transition: box-shadow 0.4s ease;
         }
 
         .royal-card::before {
             content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2);
             border-radius: 10px; pointer-events: none;
+        }
+
+        /* 手番交代時のジェントル・ゴールドパルス */
+        .royal-card.turn-notify-pulse {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+            border-color: #ffd700 !important;
         }
 
         .player-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
@@ -1089,7 +1151,9 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
+    <!-- 【Ver 5.7.0 改修】完全独立フレックスヘッダー -->
     <header>
+        <div class="header-left-space"></div>
         <div class="header-title-wrap">
             <h1 class="main-header-title">Othello 2026 AI先生</h1>
             <span class="header-subtitle">Royal Dynasty</span>
@@ -1172,7 +1236,7 @@
                 <div class="stage-curtain-banner" id="stageCurtainBanner">
                     <div class="banner-stage-label" id="curtainStageLabel">STAGE 1</div>
                     <div class="banner-salon-title" id="curtainSalonTitle">旅の一座の酒場</div>
-                    <div class="banner-relic-sub" id="curtainRelicSub">盤面：オリーブフェルト / 石：黒檀 × 白木</div>
+                    <div class="banner-relic-sub" id="curtainRelicSub">盤面：オリーブ木目卓 / 石：年輪黒檀 × 白木メイプル</div>
                 </div>
 
                 <!-- オセロ公式仕様盤面（星ドット象嵌） -->
@@ -1347,7 +1411,7 @@
                     <div class="tribute-msg">「我が剣を捧げよう！貴殿こそ真の盤上の覇王だ！」</div>
                 </div>
                 <div class="tribute-card">
-                    <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
+                    <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src={{char: 'images/char4.png'}}" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="tribute-name">エリザベート</div>
                     <div class="tribute-msg">「ふふ…至高の知性に乾杯。今宵は貴方様の宴ですわ。」</div>
                 </div>
@@ -1374,7 +1438,7 @@
         <div class="footer-brand">
             <span>👑 OTHELLO 2026 AI SENSEI</span>
         </div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.6.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 5.7.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1400,7 +1464,7 @@
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">🏛️ 宮廷サロン・盤面・美術石の劇的昇華</div>
-                    <div>対戦相手（階位）に応じて、サロン背景空間だけでなく、<b>盤面フィールドそのもの（オリーブフェルト ➔ ミント磁器 ➔ アイアンネイビー ➔ 深紅ベルベット ➔ 黒大理石 ➔ 金箔エメラルド）</b>とオセロ石のリアル素材が劇的に変化します。</div>
+                    <div>対戦相手（階位）に応じて、サロン背景空間だけでなく、<b>盤面フィールドそのもの（オリーブ木目卓 ➔ ペールミント磁器 ➔ アイアンネイビー鋼鉄 ➔ 深紅ベルベット ➔ 黒大理石 ➔ 金箔エメラルド）</b>とオセロ石のリアル素材が劇的に変化します。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">✨ 公式仕様の4大ガイドドット（星）</div>
@@ -1453,7 +1517,7 @@
                     <div class="manual-char-avatar-mini"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
                     <div class="manual-char-info">
                         <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン <span class="manual-strength-tag">【神域・全国名人】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 金箔玉座の間 / 盤：金箔象嵌エメラルド / 石：金粉隕鉄 × 自発光白玉翡翠</div>
+                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 金箔玉座の間 / 盤：金箔象嵌エメラルド / 石：漆黒隕鉄 × 自発光白玉翡翠</div>
                         <div>神域の完全計算AI。終盤完全読みを誇り、ヒントなしの真剣勝負で打ち破って初めて戴冠式への扉が開かれます。</div>
                     </div>
                 </div>
@@ -1489,8 +1553,12 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 5.7.0</span><span class="chronicle-date">2026/09/20</span>
+                    <div class="chronicle-desc">【王宮キャラクター躍動・UI分離・思考判定完全同期・品質総点検エディション】ヘッダー独立フレックス化でボタンと石数バッジの重なりを完全根絶。全6キャラに性格別固有モーションと各状況3〜5種類の多彩なセリフを実装。ヒント着手時の100%最善手絶対保証・強制着手保護・判定深さ同期（深さ7）により悪手誤判定を完全根絶。非同期セッション排他制御と棋譜検証の石数・天秤リアルタイム完全連動を確立。反転アニメーション25%高速化、光輪ガイド導入。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.6.0</span><span class="chronicle-date">2026/09/19</span>
-                    <div class="chronicle-desc">【戦術判定・手番遷移・戦後会見の完全整合性調律】相手着手後に「あなたの番です」が確実に表示されるよう手番表示バグを解消。自力着手での最善手判定・悪手時の💡正解手自動補完・四隅角の絶対安全評価を導入し、理不尽な的外れ説教を根絶。相手手番開始時の最善手即時消滅、ヒント勝利時の真剣勝負再戦導線を完全調律。</div>
+                    <div class="chronicle-desc">【戦術判定・手番遷移・戦後会見の完全整合性調律】相手着手後に「あなたの番です」が確実に表示されるよう手番表示バグを解消。自力着手での最善手判定・悪手時の💡正解手自動補完・四隅角の絶対安全評価を導入。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.5.0</span><span class="chronicle-date">2026/09/18</span>
@@ -1501,12 +1569,8 @@
                     <div class="chronicle-desc">【公式盤星装飾・アマ段級位＆プロ指南エンジン大改革】ヒントAI深層7手読み＆残り14手完全読み切り。開放度理論導入、用語統一、公式星ドット象嵌、悪手添削。</div>
                 </div>
                 <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 5.2.0</span><span class="chronicle-date">2026/09/15</span>
-                    <div class="chronicle-desc">全面アーキテクチャ再構築、アンバー調律、ゴールドスクロールバー導入。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 5.1.0</span><span class="chronicle-date">2026/09/13</span>
-                    <div class="chronicle-desc">3D物理ロール調律、直近手金枠パルス回帰、Lv.6自力限定エンディング導入。</div>
+                    <span class="chronicle-version">Ver 5.0.0</span><span class="chronicle-date">2026/09/12</span>
+                    <div class="chronicle-desc">相手リアルタイムタイマー、ヒント時の悪手誤判定撲滅、会見主客明確化。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 1.0.0</span><span class="chronicle-date">2026/08/10</span>
@@ -1518,7 +1582,7 @@
 
 <script>
     /* ==========================================================================
-       ROYAL OTHELLO ENGINE (Ver 5.6.0 完全整合性調律版)
+       ROYAL OTHELLO ENGINE (Ver 5.7.0 完全同期・躍動エディション)
     ========================================================================== */
     const boardSize = 8;
     const BLACK = 1;
@@ -1533,6 +1597,9 @@
     let lastMove = null;
     let usedHintInGame = false;
 
+    /* 非同期排他制御セッションID */
+    let currentGameSessionId = 0;
+
     let gameStepLogs = [];
     let reviewStepIndex = 0;
     let isReviewMode = false;
@@ -1543,7 +1610,7 @@
     let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
     let isAiThinkingHint = false;
     let timerInterval = null;
-    let talkingTimeout = null, toastTimeout = null, curtainTimeout = null;
+    let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTimeout = null;
 
     let playerMoveLogs = [];
 
@@ -1636,21 +1703,57 @@
         [ 140, -25,  25,   5,   5,  25, -25, 140]
     ];
 
-    /* キャラクター定義 */
+    /* --- 【Ver 5.7.0 大幅拡充】キャラクター設定・躍動モーション・多彩なセリフ体系 --- */
     const CHARACTERS = {
         1: {
             id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
             imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)", depth: 0, exact: 0,
             salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
             quotes: {
-                start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
-                thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ふむふむ… こっちのマスが光って見えマスネ！"],
-                playerGood: ["ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！", "お見事！ …って、ボクがピンチじゃないデスか！？"],
-                playerBad: ["おやおや！ そこ置いちゃってホントにいいのかニャ〜！？", "ヒヒッ！ 隙だらけでゴザイマスよ〜！"],
-                bigReversal: ["ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！", "目が回る〜！ ボクの石が全滅しちゃうヨ〜！"],
-                cpuCorner: ["やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！", "隅っこゲット！ これで負けない…かもネ！"],
-                playerCorner: ["あちゃー！ 大事な角っこを取られちゃったヨ〜！", "そこはボクが狙ってたのに〜！ ひどいデス！"],
-                climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？", "ヒヒッ！ これが最後の悪あがきでゴザイマス！"],
+                start: [
+                    "ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！",
+                    "サイコロを振るように軽やかに！お相手いたしマス！",
+                    "ボクの曲芸オセロを見せてあげまショウ！"
+                ],
+                thinking: [
+                    "どこに置こうかニャ〜？ 適当に置いちゃおっかナ！",
+                    "ふむふむ… こっちのマスが光って見えマスネ！",
+                    "ぐるぐる回って迷っちゃうデス〜！"
+                ],
+                playerGood: [
+                    "ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！",
+                    "お見事！ …って、ボクがピンチじゃないデスか！？",
+                    "ぎゃ〜！ まるで手品みたいに挟まれたデス！"
+                ],
+                playerBad: [
+                    "おやおや！ そこ置いちゃってホントにいいのかニャ〜！？",
+                    "ヒヒッ！ 隙だらけでゴザイマスよ〜！",
+                    "あそこに置いちゃって…ボクに角をくれる気デスか！？"
+                ],
+                bigReversal: [
+                    "ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！",
+                    "目が回る〜！ ボクの石が全滅しちゃうヨ〜！",
+                    "パタパタパタ〜って、ボクの石が消えちゃったデス！"
+                ],
+                cpuCorner: [
+                    "やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！",
+                    "隅っこゲット！ これで負けない…かもネ！",
+                    "えへへ〜！ 宝物の角っこ、もらっちゃったヨ！"
+                ],
+                playerCorner: [
+                    "あちゃー！ 大事な角っこを取られちゃったヨ〜！",
+                    "そこはボクが狙ってたのに〜！ ひどいデス！",
+                    "うわ〜ん！ 角を取られたらもう勝てないヨ〜！"
+                ],
+                climax: [
+                    "もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？",
+                    "ヒヒッ！ これが最後の悪あがきでゴザイマス！",
+                    "心臓がバクバク！ サーカスの大トリでゴザイマス！"
+                ],
+                losing: [
+                    "ヒエ〜ッ！ ボクの石が数えるほどしかないヨ〜！",
+                    "まいったニャ〜！ 助けて王様〜！"
+                ],
                 cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
                 playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
                 win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！悔しかったらまたいつでもおいでヨ！"],
@@ -1662,14 +1765,50 @@
             imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)", depth: 1, exact: 0,
             salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
             quotes: {
-                start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！", "ご指導お願いします！ 負けませんよっ！"],
-                thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？", "あっちもこっちも…迷っちゃいますね。"],
-                playerGood: ["きゃっ！？ そんな上手な手があるなんて…！", "すごい…！ 私の作戦が読まれてるみたいです…！"],
-                playerBad: ["えっ、そこに置いちゃって大丈夫なんですか…？", "ふふっ、チャンスかも…！ いただきます！"],
-                bigReversal: ["わぁぁっ！？ こんなにたくさん取られちゃうなんて…！", "ひどいです〜！ 私の並べた石が〜！"],
-                cpuCorner: ["わぁっ！ 角が取れちゃいました！ 嬉しいです！", "えへへ、要所を確保です！"],
-                playerCorner: ["そんな…！ 私の大切な角が…うぅ…！", "あっ！ そこだけは取られたくなかったのに…！"],
-                climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！", "最後の一手まで、あきらめませんっ！"],
+                start: [
+                    "王宮のオセロ、覚えたてですけど…一生懸命がんばります！",
+                    "ご指導お願いします！ 負けませんよっ！",
+                    "お茶の準備の合間に、一手お願いしますねっ！"
+                ],
+                thinking: [
+                    "ええと…たくさんひっくり返せる場所はどこかな…？",
+                    "あっちもこっちも…迷っちゃいますね。",
+                    "うーん…こっちの方がたくさん取れそうですっ！"
+                ],
+                playerGood: [
+                    "きゃっ！？ そんな上手な手があるなんて…！",
+                    "すごい…！ 私の作戦が読まれてるみたいです…！",
+                    "あっ…！ 私の並べた石が綺麗に挟まれちゃいました…！"
+                ],
+                playerBad: [
+                    "えっ、そこに置いちゃって大丈夫なんですか…？",
+                    "ふふっ、チャンスかも…！ いただきます！",
+                    "そこ、私が置きたかった角のお隣ですよ…？"
+                ],
+                bigReversal: [
+                    "わぁぁっ！？ こんなにたくさん取られちゃうなんて…！",
+                    "ひどいです〜！ 私の並べた石が〜！",
+                    "パタパタって…一気に真っ黒（白）になっちゃいました…！"
+                ],
+                cpuCorner: [
+                    "わぁっ！ 角が取れちゃいました！ 嬉しいです！",
+                    "えへへ、要所を確保です！",
+                    "角が取れました！ これなら私、勝てるかも…！"
+                ],
+                playerCorner: [
+                    "そんな…！ 私の大切な角が…うぅ…！",
+                    "あっ！ そこだけは取られたくなかったのに…！",
+                    "うぅ…角を取られちゃうと、もうひっくり返せません…"
+                ],
+                climax: [
+                    "もうすぐおしまいですね…！ 心臓がドキドキしてきました…！",
+                    "最後の一手まで、あきらめませんっ！",
+                    "あと少し…！ どっちが多いか最後まで分かりませんねっ！"
+                ],
+                losing: [
+                    "うぅ…！ どんどん私の石が減っちゃってます…！",
+                    "ピンチです…！ どうしたらいいんでしょう…！"
+                ],
                 cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
                 playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
                 win: ["勝てちゃいました…！私、お城の侍女の中で一番オセロが強くなれちゃったかも！また私と遊んでくださいねっ！"],
@@ -1681,14 +1820,50 @@
             imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)", depth: 3, exact: 0,
             salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアンネイビー鋼鉄盤",
             quotes: {
-                start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！", "我が剣に迷いなし！ 貴殿の武勇、見せてみよ！"],
-                thinking: ["我が陣形を立て直す… 次の一手はここだ！", "戦局は膠着している… 活路を見出すぞ！"],
-                playerGood: ["見事な太刀筋…！ 盤面の急所を突いてくるとは！", "ぐっ…！ その一手、まさに神速の進軍だな！"],
-                playerBad: ["ふっ… 隙を見せたな！ 我が剣の前に退路なし！", "その悪手、見逃しはせんぞ！ 我が軍、前進！"],
-                bigReversal: ["なんと…！？ 我が前線が一気に崩壊しただと…！？", "見事な包囲網だ… だがまだ折れはせん！"],
-                cpuCorner: ["要衝を確保！ この角は我が騎士団の防衛線だ！", "四隅の制圧こそ勝機の源泉！ 我が陣地ぞ！"],
-                playerCorner: ["不覚…！ 陣地の角を突破されるとは！", "我が防壁が破られたか…！ 見事な攻めだ！"],
-                climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！", "我が騎士道の誇りをかけ、全力で迎え撃つ！"],
+                start: [
+                    "近衛の誇りにかけて、正々堂々とお手合わせ願おう！",
+                    "我が剣に迷いなし！ 貴殿の武勇、見せてみよ！",
+                    "盤上も戦場と同じ！ 一歩も退く気はないぞ！"
+                ],
+                thinking: [
+                    "我が陣形を立て直す… 次の一手はここだ！",
+                    "戦局は膠着している… 活路を見出すぞ！",
+                    "敵の布陣を見極める… 油断は禁物だな。"
+                ],
+                playerGood: [
+                    "見事な太刀筋…！ 盤面の急所を突いてくるとは！",
+                    "ぐっ…！ その一手、まさに神速の進軍だな！",
+                    "なんと鋭い中割り…！ 我が前線が分断されたか！"
+                ],
+                playerBad: [
+                    "ふっ… 隙を見せたな！ 我が剣の前に退路なし！",
+                    "その悪手、見逃しはせんぞ！ 我が軍、前進！",
+                    "要所を明け渡すとは… 戦術に油断があったな！"
+                ],
+                bigReversal: [
+                    "なんと…！？ 我が前線が一気に崩壊しただと…！？",
+                    "見事な包囲網だ… だがまだ折れはせん！",
+                    "ぐああっ！ 一撃でこれほどの軍勢を覆すとは！"
+                ],
+                cpuCorner: [
+                    "要衝を確保！ この角は我が騎士団の防衛線だ！",
+                    "四隅の制圧こそ勝機の源泉！ 我が陣地ぞ！",
+                    "この角は絶対に渡さん！ 鉄壁の防陣を敷く！"
+                ],
+                playerCorner: [
+                    "不覚…！ 陣地の角を突破されるとは！",
+                    "我が防壁が破られたか…！ 見事な攻めだ！",
+                    "要所を奪われたか…！ だが騎士道にかけて最後まで戦う！"
+                ],
+                climax: [
+                    "ここが関ヶ原… 雌雄を決する時が来たようだな！",
+                    "我が騎士道の誇りをかけ、全力で迎え撃つ！",
+                    "残るマスもわずか… 全軍突撃あるのみ！"
+                ],
+                losing: [
+                    "ぬうう…！ 我が軍がここまで追い詰められるとは…！",
+                    "苦戦だ… だが武士に背走の二文字はない！"
+                ],
                 cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
                 playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
                 win: ["王国の勝利だ！我が近衛騎士団の鉄壁の陣形、そう易々と崩せはせんぞ！良き手合わせであった！"],
@@ -1700,14 +1875,50 @@
             imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 4, exact: 0,
             salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × オーロラ白蝶貝", boardDesc: "深紅ベルベット盤",
             quotes: {
-                start: ["優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。", "美しき盤上の舞踏会… 存分に楽しませてくださる？"],
-                thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。", "焦りは禁物… 優雅に罠を張り巡らせましょう。"],
-                playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。", "うふふ… 目の肥えた殿方は嫌いではありませんわ。"],
-                playerBad: ["うふふ… 甘いお方。罠にかかってしまいましたわね。", "あらあら、そこに置いてよろしかったの？ いただきますわ。"],
-                bigReversal: ["まあ！ わたくしの薔薇が一気に散らされるなんて…！", "ずいぶんと乱暴なお打ち方ですこと…！"],
-                cpuCorner: ["美しき角は、わたくしが優雅に頂戴いたしますわ。", "宝石のような角… わたくしの胸元を飾りましょう。"],
-                playerCorner: ["まあ！ わたくしの角を奪うなんて… 許せませんこと！", "殿方なら、淑女に譲るものではなくって？"],
-                climax: ["ふふ… 舞踏会もいよいよクライマックスですわね。", "どちらが最後まで気品を保てるかしら…？"],
+                start: [
+                    "優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。",
+                    "美しき盤上の舞踏会… 存分に楽しませてくださる？",
+                    "薔薇には棘がございますの。怪我をなさらないようにね。"
+                ],
+                thinking: [
+                    "ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。",
+                    "焦りは禁物… 優雅に罠を張り巡らせましょう。",
+                    "あら… どこから追い詰めてさしあげましょうかしら。"
+                ],
+                playerGood: [
+                    "あら…？ ずいぶんと小憎らしい手を打たれますこと。",
+                    "うふふ… 目の肥えた殿方は嫌いではありませんわ。",
+                    "まあ… わたくしの罠を見抜いていらしたのね。"
+                ],
+                playerBad: [
+                    "うふふ… 甘いお方。罠にかかってしまいましたわね。",
+                    "あらあら、そこに置いてよろしかったの？ いただきますわ。",
+                    "その一手、わたくしに角をプレゼントしてくださるのかしら？"
+                ],
+                bigReversal: [
+                    "まあ！ わたくしの薔薇が一気に散らされるなんて…！",
+                    "ずいぶんと乱暴なお打ち方ですこと…！",
+                    "きゃっ…！？ なんて強引な反転ですの…！"
+                ],
+                cpuCorner: [
+                    "美しき角は、わたくしが優雅に頂戴いたしますわ。",
+                    "宝石のような角… わたくしの胸元を飾りましょう。",
+                    "この角をいただいたからには、もう勝負は決まりましたわね。"
+                ],
+                playerCorner: [
+                    "まあ！ わたくしの角を奪うなんて… 許せませんこと！",
+                    "殿方なら、淑女に譲るものではなくって？",
+                    "くっ… わたくしの誇りを傷つけてくれましたわね。"
+                ],
+                climax: [
+                    "ふふ… 舞踏会もいよいよクライマックスですわね。",
+                    "どちらが最後まで気品を保てるかしら…？",
+                    "最後のワルツ… 存分に踊り明かしましょう。"
+                ],
+                losing: [
+                    "まさか… わたくしが劣勢に立たされるなんて…！",
+                    "扇を持つ手が震えてしまいますわ… 恐ろしいお方。"
+                ],
                 cpuPass: ["あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。"],
                 playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
                 win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。またいつでも舞踏会にいらして？"],
@@ -1719,14 +1930,50 @@
             imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 5, exact: 8,
             salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × カルカッタ大理石", boardDesc: "黒大理石グリッド盤",
             quotes: {
-                start: ["盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。", "盤上の駒を動かすのは力ではない。冷徹な知略だ。"],
-                thinking: ["数手先の展開はすべて計算済みだ…。", "貴公の打てるマスは… もう数箇所しかあるまい。"],
-                playerGood: ["ほう… その急所が見えていたか。侮れん男だ。", "私の計算の隙間を縫ってくるとはな… 興をそそる。"],
-                playerBad: ["愚策だな。その一手で自らの首を絞めたと気づかんのか？", "ふっ… 浅薄な手だ。これですべてが決まった。"],
-                bigReversal: ["なに…！？ 瞬時に盤面の均衡を崩しただと…！？", "計算外の反転…！ 貴公、ただ者ではないな。"],
-                cpuCorner: ["定石通り、この要所は我が手中に収めさせてもらった。", "国家の要衝を抑えた。貴公に勝機はない。"],
-                playerCorner: ["なに…！？ 我が計算の裏をかいて角を突いてくるとは…！", "痛恨の失策…！ だが、まだ終わってはいない。"],
-                climax: ["終盤の完全計算領域に入った。一手の狂いも許されんぞ。", "詰みだ… 貴公に逆転の筋は残されていない。"],
+                start: [
+                    "盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。",
+                    "盤上の駒を動かすのは力ではない。冷徹な知略だ。",
+                    "国家運営と同じく、オセロも一手の誤差が命取りとなる。"
+                ],
+                thinking: [
+                    "数手先の展開はすべて計算済みだ…。",
+                    "貴公の打てるマスは… もう数箇所しかあるまい。",
+                    "パリティの均衡を保ちつつ、選択肢を削ぎ落とす…"
+                ],
+                playerGood: [
+                    "ほう… その急所が見えていたか。侮れん男だ。",
+                    "私の計算の隙間を縫ってくるとはな… 興をそそる。",
+                    "的確な中割りだ。素人ではないな、貴公。"
+                ],
+                playerBad: [
+                    "愚策だな。その一手で自らの首を絞めたと気づかんのか？",
+                    "ふっ… 浅薄な手だ。これですべてが決まった。",
+                    "危険マスへの着手… 自ら破滅を望むか。"
+                ],
+                bigReversal: [
+                    "なに…！？ 瞬時に盤面の均衡を崩しただと…！？",
+                    "計算外の反転…！ 貴公、ただ者ではないな。",
+                    "この局面で一気に形勢を覆すとは…！"
+                ],
+                cpuCorner: [
+                    "定石通り、この要所は我が手中に収めさせてもらった。",
+                    "国家の要衝を抑えた。貴公に勝機はない。",
+                    "四隅の制圧は必然の帰結。計算通りだ。"
+                ],
+                playerCorner: [
+                    "なに…！？ 我が計算の裏をかいて角を突いてくるとは…！",
+                    "痛恨の失策…！ だが、まだ終わってはいない。",
+                    "我が要塞を落としたか… 恐るべき知謀だ。"
+                ],
+                climax: [
+                    "終盤の完全計算領域に入った。一手の狂いも許されんぞ。",
+                    "詰みだ… 貴公に逆転の筋は残されていない。",
+                    "盤上の全事象を看破した。幕引きといこう。"
+                ],
+                losing: [
+                    "計算が… 狂ったというのか！？ この私が…！",
+                    "あり得ん… 盤上のパリティが崩壊していく…！"
+                ],
                 cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
                 playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
                 win: ["すべては我が冷徹な計算の帰結だ。盤上の偶数理論を制したのは私だ。良き盤上遊戯であった。"],
@@ -1738,14 +1985,50 @@
             imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 6, exact: 10,
             salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 自発光白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
             quotes: {
-                start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。", "王国の覇者たる資格があるか、余が試して進ぜよう！"],
-                thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。", "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。"],
-                playerGood: ["見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！", "天晴れだ！ 王の盤上を揺るがすその知恵、見事なり！"],
-                playerBad: ["覇道の道は険しきもの。その手では余の壁は破れぬぞ。", "迷いが出たな。王の威圧に呑まれては勝てぬぞ。"],
-                bigReversal: ["おお…！ 盤上が一変したか！ 実に豪快な一手よ！", "これぞ戦の醍醐味！ 余をここまで追い詰めるとはな！"],
-                cpuCorner: ["天地の理に従い、余がこの角を統べようぞ！", "四海の覇者として、この要所は余が治める！"],
-                playerCorner: ["見事なり…！ 王の領域を奪うその覚悟、しかと認めた！", "余の角を打ち砕くとは… 恐るべき若人よ！"],
-                climax: ["いよいよ最終局面！ 余の全知全能をもって迎え撃とう！", "神域の読み合い… どちらが勝っても悔いなし！"],
+                start: [
+                    "我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。",
+                    "王国の覇者たる資格があるか、余が試して進ぜよう！",
+                    "盤上の呼吸を合わせよ。至高の勝負を楽しもうぞ！"
+                ],
+                thinking: [
+                    "盤上の森羅万象… 余の眼から逃れる手など存在せぬ。",
+                    "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。",
+                    "幾千の戦を経てきた。そなたの刃、どこから来るか…"
+                ],
+                playerGood: [
+                    "見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！",
+                    "天晴れだ！ 王の盤上を揺るがすその知恵、見事なり！",
+                    "ほう！ その急所を迷わず突くか！ 恐れ入ったぞ！"
+                ],
+                playerBad: [
+                    "覇道の道は険しきもの。その手では余の壁は破れぬぞ。",
+                    "迷いが出たな。王の威圧に呑まれては勝てぬぞ。",
+                    "惜しいな… その隙、見逃すわけにはゆかぬ！"
+                ],
+                bigReversal: [
+                    "おお…！ 盤上が一変したか！ 実に豪快な一手よ！",
+                    "これぞ戦の醍醐味！ 余をここまで追い詰めるとはな！",
+                    "かっかっか！ 血沸き肉躍るとはこのことよ！"
+                ],
+                cpuCorner: [
+                    "天地の理に従い、余がこの角を統べようぞ！",
+                    "四海の覇者として、この要所は余が治める！",
+                    "不動の拠点は確保した。さあ、どう打ち返す？"
+                ],
+                playerCorner: [
+                    "見事なり…！ 王の領域を奪うその覚悟、しかと認めた！",
+                    "余の角を打ち砕くとは… 恐るべき若人よ！",
+                    "王座を脅かすその一撃… まさに天晴れである！"
+                ],
+                climax: [
+                    "いよいよ最終局面！ 余の全知全能をもって迎え撃とう！",
+                    "神域の読み合い… どちらが勝っても悔いなし！",
+                    "盤上が完成に近づく… 最後の決着をつけようぞ！"
+                ],
+                losing: [
+                    "かっかっか！ よもや余が王手をかけられるとはな！ 痛快である！",
+                    "そなたの知謀、余の想像を遥かに超えておるぞ！"
+                ],
                 cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。"],
                 playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
                 win: ["良き戦いであったぞ、若人よ！そなたの放つ鋭い魂の太刀筋、余の胸を熱く焦がしてくれた！再度の挑戦を待っておるぞ！"],
@@ -1869,7 +2152,7 @@
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 playFlipSingleSound(0.92 + i * 0.055, i === count - 1);
-            }, i * 75 + 100);
+            }, i * 55 + 80);
         }
     }
 
@@ -1922,6 +2205,14 @@
         DOM.status.textContent = text;
     }
 
+    function triggerTurnPulse() {
+        DOM.normalControlCard.classList.remove("turn-notify-pulse");
+        DOM.normalControlCard.offsetHeight;
+        DOM.normalControlCard.classList.add("turn-notify-pulse");
+        if (pulseTimeout) clearTimeout(pulseTimeout);
+        pulseTimeout = setTimeout(() => DOM.normalControlCard.classList.remove("turn-notify-pulse"), 800);
+    }
+
     function getCurrentCharacter() {
         const id = Number(DOM.characterSelect.value) || 1;
         return CHARACTERS[id] || CHARACTERS[1];
@@ -1938,15 +2229,27 @@
         img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
     }
 
+    /* --- 【Ver 5.7.0 刷新】キャラ固有躍動モーション＆セリフ表示制御 --- */
     function setOpponentQuote(category) {
         if (isReviewMode) return;
         const char = getCurrentCharacter();
-        let list = char.quotes[category] || char.quotes.thinking;
+        
+        // 劣勢時の感情セリフ判定
+        let targetCategory = category;
+        const emptyCount = getEmptyCount(board);
+        if (targetCategory === "thinking" && board) {
+            const pStones = (humanColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
+            const cStones = (cpuColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
+            if (pStones >= cStones + 10 && char.quotes.losing && Math.random() < 0.45) {
+                targetCategory = "losing";
+            }
+        }
+
+        let list = char.quotes[targetCategory] || char.quotes.thinking;
         if (!Array.isArray(list)) list = [list];
         const text = list[Math.floor(Math.random() * list.length)];
 
-        const emptyCount = getEmptyCount(board);
-        const isClimax = (emptyCount <= 12) || category === "climax" || category === "win" || category === "lose";
+        const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
         DOM.speechText.textContent = text;
         DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
@@ -1954,12 +2257,21 @@
         DOM.opponentSpeech.offsetHeight;
         DOM.opponentSpeech.style.animation = 'bubble-appear 0.28s ease-out';
 
+        // キャラ固有モーションのトリガー
+        const motionClass = `motion-char-${char.id}`;
+        DOM.opponentAvatarFrame.classList.remove(motionClass);
+        DOM.opponentAvatarFrame.offsetHeight;
+        DOM.opponentAvatarFrame.classList.add(motionClass);
+
         DOM.opponentAvatarWrap.classList.remove("is-talking");
         DOM.opponentAvatarWrap.offsetHeight;
         DOM.opponentAvatarWrap.classList.add("is-talking");
 
         if (talkingTimeout) clearTimeout(talkingTimeout);
-        talkingTimeout = setTimeout(() => DOM.opponentAvatarWrap.classList.remove("is-talking"), 700);
+        talkingTimeout = setTimeout(() => {
+            DOM.opponentAvatarWrap.classList.remove("is-talking");
+            DOM.opponentAvatarFrame.classList.remove(motionClass);
+        }, 750);
     }
 
     function updateOpponentStageUI(showBanner = true) {
@@ -1998,10 +2310,10 @@
         }, 1300);
     }
 
-    function updateBalanceGauge() {
-        if (!board) return;
-        const emptyCount = getEmptyCount(board);
-        const evalScore = evaluateBoard(board, humanColor, emptyCount);
+    function updateBalanceGauge(targetBoard = board) {
+        if (!targetBoard) return;
+        const emptyCount = getEmptyCount(targetBoard);
+        const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
         const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 220))) * 100)));
         const winrateOpponent = 100 - winratePlayer;
 
@@ -2027,7 +2339,7 @@
         if (toastTimeout) clearTimeout(toastTimeout);
         DOM.moveToast.className = `move-toast toast-${type} show`;
         DOM.moveToast.textContent = text;
-        toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), 1500);
+        toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), 1400);
     }
 
     function hideMoveToast() {
@@ -2054,8 +2366,10 @@
         DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode;
     }
 
+    /* 【Ver 5.7.0 排他制御】待った実行時のセッション遮断 */
     async function undoMove() {
         if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode) return;
+        currentGameSessionId++; // 過去のタイマー・思考ルーチンを即時破棄
         clearHint();
         isBusy = true;
 
@@ -2081,6 +2395,7 @@
             pendingAnimation = null;
 
             setStatus("human-turn", "時を戻しました。あなたの番です…");
+            triggerTurnPulse();
             setOpponentQuote("thinking");
             updateTimerDisplay();
             drawBoard();
@@ -2092,20 +2407,26 @@
         updateUndoButtonState();
     }
 
-    function recordGameStep(move, playerColor, contextNote = "", alternativeBest = null) {
+    /* 【Ver 5.7.0 棋譜連動】盤面・石数・勝率のリアルタイム情報保存 */
+    function recordGameStep(move, playerColor, contextNote = "", alternativeBest = null, isPass = false) {
+        const stats = getBoardStats(board);
         gameStepLogs.push({
             move: move ? [...move] : null,
             playerColor,
             board: cloneBoard(board),
             turnIndex: gameStepLogs.length + 1,
             contextNote,
-            alternativeBest: alternativeBest ? [...alternativeBest] : null
+            alternativeBest: alternativeBest ? [...alternativeBest] : null,
+            isPass,
+            statsSnapshot: { ...stats }
         });
     }
 
+    /* 【Ver 5.7.0 排他制御】新ゲーム開始時のセッション初期化 */
     function startGame() {
         tryPlayBgm();
         exitReviewMode();
+        currentGameSessionId++; // 新規セッション発行により旧アニメーション・思考を完全遮断
 
         board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
         board[3][3] = WHITE; board[3][4] = BLACK;
@@ -2151,6 +2472,7 @@
 
         if (humanColor === BLACK) {
             setStatus("human-turn", "あなたの番です…");
+            triggerTurnPulse();
             DOM.opponentAvatarFrame.classList.remove("thinking-aura");
             maybeAutoHint();
         } else {
@@ -2224,7 +2546,6 @@
 
     function isCorner(r, c) { return cornerSquares.some(([cr, cc]) => cr === r && cc === c); }
 
-    /* 【Ver 5.6.0 定石調律】角がまだ空いている時のみを真の危険マスと判定 */
     function isRealDanger(r, c, targetBoard) {
         const dangerCornerMap = [
             { corner: [0, 0], dangers: [[0, 1], [1, 0], [1, 1]] },
@@ -2237,20 +2558,19 @@
             const isTargetDanger = item.dangers.some(([dr, dc]) => dr === r && dc === c);
             if (isTargetDanger) {
                 const cornerOwner = targetBoard[item.corner[0]][item.corner[1]];
-                // 角が空いている時のみが真の危険マス。すでに自分の石なら安全な確定石
                 return (cornerOwner === 0);
             }
         }
         return false;
     }
 
-    /* 【Ver 5.6.0 新設】現在局面の真の最善手を算出する客観エンジン */
+    /* 【Ver 5.7.0 完全同期】ヒントAIと完全に同一の深さ（深さ7）で客観最善手を算出 */
     function calculateObjectiveBestMove(targetBoard, player) {
         const moves = getValidMoves(player, targetBoard);
         if (moves.length === 0) return null;
 
         const emptyCount = getEmptyCount(targetBoard);
-        const depth = emptyCount <= 12 ? emptyCount : 4;
+        const depth = emptyCount <= 14 ? emptyCount : 7;
         let bestScore = -Infinity;
         let bestMoves = [];
 
@@ -2268,23 +2588,31 @@
         return bestMoves.length > 0 ? bestMoves[0] : moves[0];
     }
 
-    /* プレイヤー着手処理 */
+    /* --- 【Ver 5.7.0 刷新】プレイヤー着手コントローラー --- */
     async function putStone(row, col) {
         if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
         if (!canPlace(row, col, humanColor, board)) return;
 
+        const session = currentGameSessionId;
         saveHistory();
         isBusy = true;
 
         if (getHintMode() === "always") usedHintInGame = true;
 
         const emptyCount = getEmptyCount(board);
+        const myAvailableMovesBefore = getValidMoves(humanColor, board);
         const oppMovesBefore = getValidMoves(cpuColor, board).length;
         const preScore = evaluateBoard(board, humanColor, emptyCount);
 
-        // 着手前の局面における客観的AI最善手を算出
+        // 【Ver 5.7.0 絶対保証】画面に提示されたヒントに打ったか判定
+        const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
+
+        // 客観最善手の算出
         const objectiveBest = calculateObjectiveBestMove(board, humanColor);
         const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
+
+        // 【Ver 5.7.0 強制着手保護】置けるマスが1箇所しかない場合は絶対に悪手にしない
+        const isForcedMove = (myAvailableMovesBefore.length === 1);
 
         let flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, humanColor, board));
         makeMove(board, row, col, humanColor);
@@ -2294,13 +2622,19 @@
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const scoreDiff = postScore - preScore;
 
-        /* 【Ver 5.6.0 判定優先順位・完全統一】 */
         let moveRating = "NORMAL";
         const isCornerMove = isCorner(row, col);
         const isDangerMove = isRealDanger(row, col, board);
 
-        // 優先度①：四隅の角は絶対に悪手から除外（最善手または好手）
-        if (isCornerMove) {
+        /* 【Ver 5.7.0 判定ロジック絶対保証】 */
+        // ① ヒント着手は100%最善手（BEST）絶対保証
+        if (isMatchedWithHint) {
+            moveRating = "BEST";
+            showMoveToast("best", "🎯 最善手 (BEST)");
+            setOpponentQuote("playerGood");
+        }
+        // ② 四隅の角は絶対に最善手または好手
+        else if (isCornerMove) {
             if (isMatchedWithObjectiveBest) {
                 moveRating = "BEST";
                 showMoveToast("best", "🎯 最善手 (BEST)");
@@ -2310,25 +2644,29 @@
             }
             setOpponentQuote("playerCorner");
         }
-        // 優先度②：真の危険マス打ち、または大失着の悪手チェック
-        else if (emptyCount >= 14 && (isDangerMove || (scoreDiff < -140 && !isMatchedWithObjectiveBest))) {
-            moveRating = "BAD";
-            showMoveToast("bad", "⚠️ 悪手 (BAD)");
-            setOpponentQuote("playerBad");
-        }
-        // 優先度③：客観的AI最善手との合致（自力着手も含む）
+        // ③ 自力着手での客観最善手合致
         else if (isMatchedWithObjectiveBest) {
             moveRating = "BEST";
             showMoveToast("best", "🎯 最善手 (BEST)");
             setOpponentQuote("playerGood");
         }
-        // 優先度④：逆転手（悪手ではない5石以上反転）
+        // ④ 強制着手（1手しかない時）はやむを得ない手（悪手除外）
+        else if (isForcedMove) {
+            moveRating = "NORMAL";
+        }
+        // ⑤ 悪手判定（真の危険マス、または大失着）
+        else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
+            moveRating = "BAD";
+            showMoveToast("bad", "⚠️ 悪手 (BAD)");
+            setOpponentQuote("playerBad");
+        }
+        // ⑥ 逆転手（5石以上の反転）
         else if (flipped.length >= 5 && emptyCount >= 16) {
             moveRating = "REVERSAL";
             showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
             setOpponentQuote("bigReversal");
         }
-        // 優先度⑤：好手（評価値の大幅UP）
+        // ⑦ 好手（評価値大幅向上）
         else if (scoreDiff > 120) {
             moveRating = "GOOD";
             showMoveToast("good", "⚜️ 好手 (GOOD)");
@@ -2353,13 +2691,13 @@
             contextNote += `石を ${flipped.length} 個反転させました。`;
         }
 
-        recordGameStep([row, col], humanColor, contextNote, objectiveBest);
+        recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
 
         playerMoveLogs.push({
             row, col, coord: toNotation(row, col), scoreDiff,
             rating: moveRating,
             isCorner: isCornerMove, isDanger: isDangerMove,
-            isObjectiveBest: isMatchedWithObjectiveBest,
+            isObjectiveBest: isMatchedWithObjectiveBest || isMatchedWithHint,
             flippedCount: flipped.length,
             oppMovesReduction: oppMovesBefore - oppMovesAfter,
             emptyCountAtMove: emptyCount,
@@ -2374,9 +2712,13 @@
 
         drawBoard();
         updateBalanceGauge();
-        await sleep((flipped.length * 75) + 480);
 
-        // 【Ver 5.6.0 調律】プレイヤーの反転が完了し相手番に入る瞬間にトーストとヒント枠を即座に初期化
+        // 【Ver 5.7.0 高速調律】待ち時間を約25%短縮
+        await sleep((flipped.length * 55) + 380);
+
+        // セッション破棄チェック（アニメーション中に新対局や待ったが押されていた場合は中断）
+        if (session !== currentGameSessionId) return;
+
         hideMoveToast();
         clearHintForOpponentTurn();
 
@@ -2406,12 +2748,17 @@
                 return;
             }
 
+            // 【Ver 5.7.0 棋譜連動】パスの事実を棋譜ステップに明示的に記録
+            const passPlayerName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
+            recordGameStep(null, currentPlayer, `${passPlayerName}が置ける場所がないため【パス】しました。`, null, true);
+
             currentPlayer = opp;
             drawBoard();
             updateBalanceGauge();
 
             if (currentPlayer === humanColor) {
                 setStatus("human-turn", "相手がパスしました。あなたの番です…");
+                triggerTurnPulse();
                 setOpponentQuote("cpuPass");
                 DOM.opponentAvatarFrame.classList.remove("thinking-aura");
                 maybeAutoHint();
@@ -2426,8 +2773,8 @@
         }
 
         if (currentPlayer === humanColor) {
-            // 【Ver 5.6.0 修正】相手の思考完了後、確実に「あなたの番です…」へと更新
             setStatus("human-turn", "あなたの番です…");
+            triggerTurnPulse();
             DOM.opponentAvatarFrame.classList.remove("thinking-aura");
             drawBoard();
             updateBalanceGauge();
@@ -2481,15 +2828,18 @@
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
+    /* 【Ver 5.7.0 排他制御】コンピューター着手コントローラー */
     async function computerMove() {
         if (gameOver || isReviewMode) return;
+        const session = currentGameSessionId;
+
         clearHintForOpponentTurn();
         isBusy = true;
         updateUndoButtonState();
         setStatus("cpu-turn", "相手が思考を巡らせています…");
 
         await sleep(220);
-        if (gameOver || isReviewMode) return;
+        if (session !== currentGameSessionId || gameOver || isReviewMode) return;
 
         const char = getCurrentCharacter();
         const move = getComputerMove(board, cpuColor, char);
@@ -2509,7 +2859,7 @@
                 setOpponentQuote("thinking");
             }
 
-            recordGameStep(move, cpuColor, contextNote);
+            recordGameStep(move, cpuColor, contextNote, null, false);
 
             pendingAnimation = { placedRow: move[0], placedCol: move[1], flipped, newColor: cpuColor, oldColor: humanColor };
 
@@ -2518,7 +2868,11 @@
 
             drawBoard();
             updateBalanceGauge();
-            await sleep((flipped.length * 75) + 480);
+
+            // 【Ver 5.7.0 高速調律】待ち時間を約25%短縮
+            await sleep((flipped.length * 55) + 380);
+
+            if (session !== currentGameSessionId) return;
             drawBoard();
         }
 
@@ -2683,6 +3037,7 @@
         DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
     }
 
+    /* 【Ver 5.7.0 深層思考同期】ヒント計算エンジン */
     function computeHint() {
         if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
         usedHintInGame = true;
@@ -2763,7 +3118,7 @@
 
                         const fIdx = pendingAnimation.flipped.findIndex(([fr, fc]) => fr === r && fc === c);
                         if (fIdx >= 0) {
-                            const delayStr = `${fIdx * 75}ms`;
+                            const delayStr = `${fIdx * 55}ms`;
                             flipWrap.style.animationDelay = delayStr;
                             cylinder.style.animationDelay = delayStr;
                         }
@@ -2798,13 +3153,13 @@
         DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode;
     }
 
-    function updateScore() {
-        const stats = getBoardStats(board);
+    function updateScore(targetBoard = board) {
+        const stats = getBoardStats(targetBoard);
         DOM.opponentScore.textContent = (cpuColor === BLACK) ? stats.black : stats.white;
         DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
     }
 
-    /* 【Ver 5.6.0 改修】AI戦術カルテ分析エンジン（的外れな悪手説教を根絶） */
+    /* --- 【Ver 5.7.0 精密手筋判定】AI戦術カルテ分析エンジン --- */
     function generateTacticsReport() {
         if (playerMoveLogs.length === 0) {
             return {
@@ -2821,9 +3176,9 @@
 
         for (const log of playerMoveLogs) {
             let score = log.scoreDiff;
-            if (log.isCorner) score += 250;
-            if (log.isObjectiveBest) score += 180;
-            if (log.oppMovesReduction >= 3) score += 110;
+            if (log.isCorner) score += 300;
+            if (log.isObjectiveBest) score += 200;
+            if (log.oppMovesReduction >= 3) score += 120;
             if (score > bestScore) {
                 bestScore = score;
                 best = log;
@@ -2834,24 +3189,20 @@
         if (best.isCorner) {
             goodDesc = "四隅の要衝（角）を制圧し、絶対に反転しない強固な確定石を築いた決定打でした。";
         } else if (best.isObjectiveBest) {
-            goodDesc = "宮廷AIの完全推奨筋と一致した、隙のない見事な知謀の進軍でした。";
+            goodDesc = "宮廷AIの完全推奨筋と一致した、隙のない見事な知謀の進軍（中割り）でした。";
         } else if (best.oppMovesReduction >= 2) {
             goodDesc = `相手の打てるマスを ${best.oppMovesReduction} 箇所も奪い、相手の選択肢を力強く封殺しました。`;
         } else if (best.flippedCount >= 4) {
             goodDesc = "豪快な大量反転によって一気に盤上の勢力図を塗り替えました。";
         }
 
-        // ② 真の悪手のみを抽出（角取りや安全な手は絶対に除外）
-        const candidates = playerMoveLogs.filter(log => {
-            // 四隅の角、客観的AI最善手、終盤の詰め（空き12未満）は悪手から完全除外
-            if (log.isCorner || log.isObjectiveBest || log.emptyCountAtMove < 12) return false;
-            return (log.rating === "BAD" || log.isDanger || log.scoreDiff < -140);
-        });
+        // ② 真の悪手のみを抽出（着手時にBAD認定された手のみに一本化）
+        const badMoves = playerMoveLogs.filter(log => log.rating === "BAD" && !log.isCorner && !log.isObjectiveBest);
 
         let worst = null;
-        if (candidates.length > 0) {
+        if (badMoves.length > 0) {
             let worstPenalty = Infinity;
-            for (const log of candidates) {
+            for (const log of badMoves) {
                 let penalty = log.scoreDiff;
                 if (log.isDanger) penalty -= 200;
                 if (penalty < worstPenalty) {
@@ -2866,7 +3217,6 @@
         let badStep = -1;
         let alternative = null;
 
-        // 【Ver 5.6.0 改善】本当に失着があった場合のみ指摘。なければ「悪手なし」と堂々称賛
         if (worst) {
             badCoord = worst.coord;
             badStep = worst.stepIndex;
@@ -2994,7 +3344,7 @@
         DOM.carteBadCoord.textContent = report.badCoord;
         DOM.carteBadDesc.textContent = report.badDesc;
 
-        /* 【Ver 5.6.0 導線調律】ヒント使用時はセリフ通り「ヒントなし再戦」を最優先ボタンに配置 */
+        /* 【Ver 5.7.0 導線調律】ヒント使用時はセリフ通り「ヒントなし再戦」を最優先ボタンに配置 */
         if (isWin) {
             if (usedHintInGame) {
                 DOM.btnAdvanceIcon.textContent = "👑";
@@ -3056,8 +3406,11 @@
         DOM.reviewModePanel.classList.remove("show");
         DOM.normalControlCard.style.display = "";
         updateUndoButtonState();
+        updateScore(board);
+        updateBalanceGauge(board);
     }
 
+    /* --- 【Ver 5.7.0 棋譜連動】ステップごとの石数・天秤リアルタイム復元 --- */
     function applyReviewStep(index) {
         if (index < 0 || index >= gameStepLogs.length) return;
         reviewStepIndex = index;
@@ -3082,6 +3435,8 @@
         const char = getCurrentCharacter();
         if (index === 0) {
             DOM.speechText.textContent = "【初期配置】対局開始時の盤面です。";
+        } else if (step.isPass) {
+            DOM.speechText.textContent = `【第 ${index} 手】${step.contextNote}`;
         } else if (step.move) {
             const coord = toNotation(step.move[0], step.move[1]);
             if (step.playerColor === humanColor) {
@@ -3095,8 +3450,10 @@
             }
         }
 
+        // 過去時点の石数・天秤のリアルタイム復元
+        updateScore(board);
+        updateBalanceGauge(board);
         drawBoard();
-        updateBalanceGauge();
     }
 
     /* イベントリスナー設定 */
