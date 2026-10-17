@@ -11,12 +11,12 @@
   [Ver 4.2.0] 2026/09/04 : 3大アシスト体系整理（好手・悪手採点、手動・常時・完全OFF）
   [Ver 4.3.0] 2026/09/05 : 厳選6人制へ移行、動的セリフ＆アバター演出システム実装
   [Ver 4.4.0] 2026/09/06 : 宮廷対面コロシアム構図、肖像枠80px大型化、3段ビュー視線最適化
-  [Ver 4.5.0] 2026/09/07 : 【実写アニメ調アバター＆喋る黄金音波システム】
-    - 実写アニメ調美麗ポートレート（char1.png, char2.png）の二重金箔額装＆最適フォーカス
-    - 未作成キャラ（char3〜6）の自動紋章フォールバック（安心設計）
-    - 【案A】セリフ連動のトーキング・バウンス（小気味よい頷き）実装
-    - アバター外周から2重の金色の光の波紋が広がる「黄金音波パルス（Voice Wave）」実装
-    - 吹き出しにしっぽ（発話ポインタ）を新設、対面対局の臨場感を極大化
+  [Ver 4.5.0] 2026/09/07 : 【決定版：オーバル肖像・綱引きバトルゲージ・王宮決着演出】
+    - ロココ調カメオ鏡「縦長オーバル額縁（横66px×縦96px）」＆全6画像最適フォーカス
+    - キャラ別王室テーマカラー（紅、翠、藍、薔薇、紫紺、純金）の音波＆オーラ個別演出
+    - セリフの重層化（複数ランダム台詞＆大量反転検知）＆終盤クライマックス文字発光
+    - 格ゲー風「押し合い綱引き」パワーバトルゲージ（中央激突スパーク・情勢バッジ）
+    - 終局時のドラマチック王宮決着（VICTORY / DEFEAT）カットイン演出
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -48,7 +48,11 @@
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
             --panel-bg: rgba(16, 19, 26, 0.92);
             --imperial-green: radial-gradient(circle at 45% 45%, #0f522e 0%, #093b20 55%, #042413 100%);
-            --frame-pad: clamp(12px, 2.8vw, 18px);
+            --frame-pad: clamp(10px, 2.6vw, 16px);
+            
+            /* キャラ別テーマカラー動的変数（デフォルト：純金） */
+            --char-accent: #ffd700;
+            --char-glow: rgba(255, 215, 0, 0.6);
         }
 
         /* 1画面完全収束（スクロールゼロ＆完全静的フィット） */
@@ -86,7 +90,7 @@
             z-index: 0;
         }
 
-        /* --- ヘッダー（スリム＆高級感） --- */
+        /* --- ヘッダー --- */
         header {
             width: 100%;
             max-width: 1080px;
@@ -106,7 +110,7 @@
 
         .main-header-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: clamp(14px, 3.6vw, 18px);
+            font-size: clamp(13.5px, 3.4vw, 17px);
             font-weight: 900;
             letter-spacing: 0.14em;
             background: var(--royal-gold);
@@ -165,18 +169,18 @@
             position: relative;
             z-index: 2;
             min-height: 0;
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         /* ==========================================================================
-           ◆ ゾーン①：対戦相手ゾーン（アバター大型化＆トーキング音波演出）
+           ◆ ゾーン①：対戦相手ゾーン（ロココ調オーバル額縁＆キャラカラー演出）
         ========================================================================== */
         .opponent-zone {
             width: min(94vw, 440px);
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 6px 10px;
+            padding: 5px 10px;
             background: linear-gradient(135deg, rgba(22, 26, 36, 0.88) 0%, rgba(10, 12, 18, 0.95) 100%);
             border: 1px solid var(--gold-border);
             border-radius: 14px;
@@ -184,6 +188,7 @@
             backdrop-filter: blur(10px);
             z-index: 10;
             flex-shrink: 0;
+            transition: border-color 0.4s ease;
         }
 
         .opponent-avatar-wrap {
@@ -194,59 +199,58 @@
             justify-content: center;
         }
 
-        /* 【新設】黄金音波パルス（Voice Wave Ripple） */
+        /* 楕円音波リング（Voice Wave） */
         .voice-wave-ring {
             position: absolute;
             inset: -4px;
-            border-radius: 50%;
-            border: 2px solid #ffd700;
+            border-radius: 50% / 50%;
+            border: 2px solid var(--char-accent);
             pointer-events: none;
             opacity: 0;
             z-index: 1;
         }
 
         .is-talking .voice-wave-ring.wave-1 {
-            animation: voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+            animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
         }
 
         .is-talking .voice-wave-ring.wave-2 {
-            animation: voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) 0.22s forwards;
+            animation: oval-voice-ripple 0.9s cubic-bezier(0.1, 0.7, 0.3, 1) 0.22s forwards;
         }
 
-        @keyframes voice-ripple {
-            0% { transform: scale(1); opacity: 0.85; border-color: #fff4bd; }
-            100% { transform: scale(1.38); opacity: 0; border-color: #d4a748; }
+        @keyframes oval-voice-ripple {
+            0% { transform: scale(1); opacity: 0.9; }
+            100% { transform: scale(1.35, 1.25); opacity: 0; }
         }
 
-        /* 【新設】肖像画フレーム（直径80px・重厚ゴールド二重額装） */
+        /* 【改修】縦長オーバル額縁（横66px × 縦96px・カメオ風二重彫刻） */
         .opponent-avatar-frame {
-            width: clamp(68px, 17vw, 80px);
-            height: clamp(68px, 17vw, 80px);
-            border-radius: 50%;
-            border: 3px solid #ffd700;
+            width: clamp(58px, 15vw, 66px);
+            height: clamp(84px, 22vw, 96px);
+            border-radius: 50% / 50%;
+            border: 3px solid var(--char-accent);
             box-shadow: 
-                0 0 0 2px #442a10,
-                0 0 16px rgba(212, 167, 72, 0.6),
-                inset 0 0 10px rgba(0, 0, 0, 0.85);
-            background: radial-gradient(circle at 35% 35%, #423826 0%, #1e1910 65%, #0d0b07 100%);
+                0 0 0 2px #38240f,
+                0 0 14px var(--char-glow),
+                inset 0 0 10px rgba(0, 0, 0, 0.9);
+            background: radial-gradient(ellipse at 40% 35%, #3a3224 0%, #171510 65%, #080705 100%);
             position: relative;
             z-index: 2;
-            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+            transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        /* 画像トリミング用インナーコンテナ */
         .avatar-img-box {
             width: 100%;
             height: 100%;
-            border-radius: 50%;
+            border-radius: 50% / 50%;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85);
         }
 
         .avatar-img-box img {
@@ -257,54 +261,41 @@
         }
 
         .avatar-fallback-icon {
-            font-size: clamp(30px, 8vw, 38px);
+            font-size: 32px;
             color: #ffd700;
         }
 
-        /* 【案A】トーキング・バウンス（喋っている時の小気味よい頷き） */
         .is-talking {
             animation: talking-bounce 0.65s ease-in-out;
         }
 
         @keyframes talking-bounce {
             0% { transform: scale(1) translateY(0); }
-            25% { transform: scale(1.05) translateY(-3.5px); }
+            25% { transform: scale(1.04) translateY(-3px); }
             50% { transform: scale(0.98) translateY(1px); }
-            75% { transform: scale(1.03) translateY(-1.5px); }
+            75% { transform: scale(1.02) translateY(-1.5px); }
             100% { transform: scale(1) translateY(0); }
         }
 
-        /* 相手思考中オーラパルス */
         .opponent-avatar-frame.thinking-aura {
-            animation: royal-aura 1.8s infinite alternate ease-in-out;
+            animation: oval-aura 1.8s infinite alternate ease-in-out;
         }
 
-        @keyframes royal-aura {
-            from { box-shadow: 0 0 0 2px #442a10, 0 0 10px rgba(212, 167, 72, 0.5); }
-            to { box-shadow: 0 0 0 3px #ffd700, 0 0 24px rgba(255, 215, 0, 0.9); }
-        }
-
-        .opponent-avatar-frame.react {
-            animation: avatar-shock 0.4s ease-in-out;
-        }
-
-        @keyframes avatar-shock {
-            0% { transform: scale(1) translateY(0); }
-            30% { transform: scale(1.15) translateY(-4px) rotate(-3deg); }
-            60% { transform: scale(0.95) translateY(1px) rotate(2deg); }
-            100% { transform: scale(1) translateY(0); }
+        @keyframes oval-aura {
+            from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); }
+            to { box-shadow: 0 0 0 3px var(--char-accent), 0 0 24px var(--char-glow); }
         }
 
         .opponent-rank-badge {
             position: absolute;
-            bottom: -2px;
-            right: -2px;
-            background: linear-gradient(135deg, #ffd700 0%, #aa7a22 100%);
+            bottom: -3px;
+            right: -3px;
+            background: linear-gradient(135deg, var(--char-accent) 0%, #7d5918 100%);
             color: #121008;
             font-family: 'Cinzel', serif;
-            font-size: 9.5px;
+            font-size: 9px;
             font-weight: 900;
-            padding: 1px 6px;
+            padding: 1px 5px;
             border-radius: 10px;
             border: 1px solid #ffffff;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
@@ -341,14 +332,14 @@
         }
 
         .opponent-title {
-            font-size: 9.5px;
+            font-size: 9px;
             color: #bfa882;
             font-weight: 600;
         }
 
         .opponent-score-badge {
             font-family: 'Cinzel', serif;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 900;
             padding: 1px 7px;
             border-radius: 6px;
@@ -360,7 +351,7 @@
             gap: 4px;
         }
 
-        /* 相手セリフ吹き出し（左向きのしっぽ新設） */
+        /* 相手セリフ吹き出し */
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
             border: 1px solid rgba(212, 167, 72, 0.38);
@@ -375,21 +366,36 @@
             white-space: normal;
             word-break: break-all;
             animation: bubble-appear 0.28s ease-out;
-            min-height: 32px;
+            min-height: 34px;
             display: flex;
             align-items: center;
+            transition: all 0.3s ease;
         }
 
         .opponent-speech-bubble::before {
             content: "";
             position: absolute;
             left: -6px;
-            top: 10px;
+            top: 12px;
             width: 0;
             height: 0;
             border-top: 5px solid transparent;
             border-bottom: 5px solid transparent;
             border-right: 6px solid rgba(212, 167, 72, 0.6);
+        }
+
+        /* 【新設】山場（クライマックス）時の文字発光演出 */
+        .opponent-speech-bubble.is-climax {
+            border-color: var(--char-accent);
+            box-shadow: 0 0 14px var(--char-glow);
+        }
+
+        .opponent-speech-bubble.is-climax span {
+            background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, var(--char-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            filter: drop-shadow(0 0 4px var(--char-glow));
         }
 
         @keyframes bubble-appear {
@@ -398,7 +404,7 @@
         }
 
         /* ==========================================================================
-           ◆ ゾーン②：聖戦の盤面 ＆ リアルタイム黄金天秤（直結マウント）
+           ◆ ゾーン②：聖戦の盤面 ＆ 格ゲー風「綱引きバトルゲージ」
         ========================================================================== */
         .board-zone {
             display: flex;
@@ -407,7 +413,7 @@
             justify-content: center;
             flex-shrink: 0;
             position: relative;
-            margin: 2px 0;
+            margin: 1px 0;
         }
 
         .dynasty-board-chassis {
@@ -417,7 +423,7 @@
             border-radius: 12px;
             border: 2px solid #54331e;
             box-shadow: 
-                0 14px 36px rgba(0, 0, 0, 0.88),
+                0 14px 34px rgba(0, 0, 0, 0.88),
                 0 4px 10px rgba(0, 0, 0, 0.6),
                 inset 0 1px 1px rgba(255, 255, 255, 0.25);
             flex-shrink: 0;
@@ -438,7 +444,7 @@
         .coord-label {
             position: absolute;
             font-family: 'Cinzel', serif;
-            font-size: clamp(8.5px, 1.9vw, 10.5px);
+            font-size: clamp(8.5px, 1.8vw, 10px);
             font-weight: 700;
             color: #cca45b;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
@@ -449,8 +455,8 @@
         }
 
         #board {
-            width: min(92vw, 42dvh);
-            height: min(92vw, 42dvh);
+            width: min(92vw, 41dvh);
+            height: min(92vw, 41dvh);
             display: grid;
             grid-template-columns: repeat(8, 1fr);
             grid-template-rows: repeat(8, 1fr);
@@ -487,8 +493,8 @@
         .can-place::after {
             content: "";
             position: absolute;
-            width: 7px;
-            height: 7px;
+            width: 6.5px;
+            height: 6.5px;
             border-radius: 50%;
             background: rgba(255, 240, 205, 0.55);
             box-shadow: 0 0 6px rgba(212, 167, 72, 0.8);
@@ -667,67 +673,89 @@
             box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 1), inset 0 -1.5px 2.5px rgba(120, 105, 80, 0.4);
         }
 
-        /* 黄金天秤（盤面直結マウント） */
-        .balance-gauge-container {
-            width: min(92vw, 42dvh);
+        /* ==========================================================================
+           ◆ 【大改修】格闘ゲーム風「押し合い綱引き」パワーバトルゲージ
+        ========================================================================== */
+        .battle-gauge-container {
+            width: min(92vw, 41dvh);
             display: flex;
-            align-items: center;
-            gap: 6px;
+            flex-direction: column;
+            gap: 2px;
             padding: 2px 2px;
             flex-shrink: 0;
             margin-top: 2px;
         }
 
-        .gauge-title-badge {
+        .battle-gauge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9.5px;
+            padding: 0 2px;
+        }
+
+        .battle-badge {
             font-size: 9.5px;
             font-weight: 800;
-            letter-spacing: 0.06em;
             color: #fff2cc;
-            background: linear-gradient(135deg, rgba(140, 98, 24, 0.4) 0%, rgba(35, 25, 10, 0.6) 100%);
+            background: linear-gradient(135deg, rgba(140, 98, 24, 0.45) 0%, rgba(35, 25, 10, 0.65) 100%);
             border: 1px solid var(--gold-border);
-            padding: 1px 5px;
+            padding: 1px 6px;
             border-radius: 4px;
-            white-space: nowrap;
         }
 
-        .gauge-label {
-            font-family: 'Cinzel', serif;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #d1b888;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .gauge-track {
-            flex: 1;
-            height: 7.5px;
-            background: linear-gradient(90deg, #18191c 0%, #20222a 100%);
-            border: 1px solid var(--gold-border);
+        .battle-track {
+            position: relative;
+            height: 9px;
+            background: #111318;
+            border: 1.5px solid var(--gold-border);
             border-radius: 6px;
             overflow: hidden;
-            position: relative;
+            display: flex;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
         }
 
-        .gauge-bar-black {
+        /* 中央の基準線 */
+        .battle-center-mark {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1.5px;
+            background: rgba(255, 255, 255, 0.25);
+            z-index: 10;
+            transform: translateX(-50%);
+        }
+
+        /* 黒の侵略パワー */
+        .battle-power-black {
             height: 100%;
-            width: 50%;
-            background: linear-gradient(90deg, #3d3e45 0%, #1e2025 100%);
-            border-right: 2px solid #ffd700;
+            background: linear-gradient(90deg, #101114 0%, #2b2e38 70%, #d4a748 100%);
             transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
             position: relative;
         }
 
-        .gauge-bar-black::after {
-            content: "";
+        /* 白の侵略パワー */
+        .battle-power-white {
+            height: 100%;
+            flex: 1;
+            background: linear-gradient(90deg, #ffd700 0%, #e2ded5 30%, #ffffff 100%);
+            transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+            position: relative;
+        }
+
+        /* 激突点（スパーク閃光） */
+        .battle-clash-spark {
             position: absolute;
-            right: -3px;
             top: -2px;
             width: 5px;
-            height: 10px;
-            background: #ffd700;
+            height: 13px;
+            background: #ffffff;
             border-radius: 2px;
-            box-shadow: 0 0 5px #ffd700;
+            box-shadow: 0 0 8px #ffd700, 0 0 14px #ffffff;
+            transform: translateX(-50%);
+            z-index: 15;
+            transition: left 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
         }
 
         /* ==========================================================================
@@ -746,7 +774,7 @@
             background: var(--panel-bg);
             border: 1px solid var(--gold-border);
             border-radius: 12px;
-            padding: 6px 10px;
+            padding: 5px 9px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
             position: relative;
@@ -771,9 +799,9 @@
 
         #status {
             flex: 1;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 800;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.05em;
             text-align: left;
             min-height: 20px;
             display: flex;
@@ -806,25 +834,6 @@
 
         @keyframes cpu-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
 
-        #status.status-win {
-            background: linear-gradient(135deg, #ffffff 0%, #fff2b8 35%, #ffd700 70%, #d4a748 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 13.5px;
-            font-weight: 900;
-        }
-
-        #status.status-lose {
-            color: #e59b9b;
-            -webkit-text-fill-color: #e59b9b;
-            font-size: 13px;
-        }
-
-        #status.status-draw {
-            color: #e0d8c8;
-            -webkit-text-fill-color: #e0d8c8;
-        }
-
         .player-stats-group {
             display: flex;
             align-items: center;
@@ -833,7 +842,7 @@
 
         .player-score-badge {
             font-family: 'Cinzel', serif;
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 900;
             padding: 1px 7px;
             border-radius: 6px;
@@ -861,7 +870,7 @@
 
         .color-btn {
             font-family: inherit;
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: 700;
             padding: 2px 6px;
             border-radius: 4px;
@@ -947,7 +956,7 @@
             letter-spacing: 0.05em;
         }
 
-        /* ヒント表示（手元ゾーン上へスマート浮遊） */
+        /* ヒント表示 */
         #hintMessage {
             display: none;
             position: absolute;
@@ -976,6 +985,123 @@
         #hintMessage .hint-close { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #48a6b0; background: rgba(255, 255, 255, 0.08); color: #def7f8; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; }
         #hintMessage .hint-reason-list { margin: 0; padding-left: 1.1em; }
         #hintMessage .hint-reason-list li { margin-bottom: 2px; }
+
+        /* ==========================================================================
+           ◆ 【新設】王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン
+        ========================================================================== */
+        .royal-result-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            background: rgba(4, 5, 8, 0.88);
+            backdrop-filter: blur(10px);
+            animation: modal-fade-in 0.4s ease-out forwards;
+            padding: 16px;
+        }
+
+        .royal-result-modal.show { display: flex; }
+
+        @keyframes modal-fade-in {
+            from { opacity: 0; } to { opacity: 1; }
+        }
+
+        .royal-result-card {
+            width: 100%;
+            max-width: 380px;
+            background: linear-gradient(160deg, #1c202a 0%, #0e1017 100%);
+            border: 2px solid #ffd700;
+            border-radius: 16px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), 0 20px 50px rgba(0, 0, 0, 0.9);
+            position: relative;
+            transform: scale(0.9);
+            animation: result-pop 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+        }
+
+        @keyframes result-pop {
+            to { transform: scale(1); }
+        }
+
+        .result-crown-icon { font-size: 38px; margin-bottom: 4px; }
+        .result-main-title {
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            margin-bottom: 6px;
+        }
+
+        .result-title-win {
+            background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, #ffd700 80%, #d4a748 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.6));
+        }
+
+        .result-title-lose {
+            color: #ff6b6b;
+            text-shadow: 0 0 12px rgba(255, 107, 107, 0.6);
+        }
+
+        .result-title-draw {
+            color: #e5e0d4;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .result-quote-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(212, 167, 72, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.45;
+            color: #f7eed8;
+            margin: 12px 0;
+            font-style: italic;
+        }
+
+        .result-score-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .result-btn {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .result-btn-gold {
+            background: var(--pure-gold-btn);
+            color: #121008;
+            border: 1px solid #ffffff;
+            box-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
+        }
+
+        .result-btn-dark {
+            background: rgba(255, 255, 255, 0.08);
+            color: #f7eed8;
+            border: 1px solid var(--gold-border);
+        }
 
         /* --- フッター --- */
         footer.app-footer {
@@ -1022,7 +1148,7 @@
             text-shadow: 0 0 8px var(--gold-glow);
         }
 
-        /* --- タブレット・横長PC対応 --- */
+        /* タブレット・横長PC対応 */
         @media (min-aspect-ratio: 1/1) {
             .app-container {
                 flex-direction: row;
@@ -1033,8 +1159,8 @@
             }
 
             .board-zone { margin: 0; }
-            #board { width: min(72dvh, 46vw); height: min(72dvh, 46vw); }
-            .balance-gauge-container { width: min(72dvh, 46vw); }
+            #board { width: min(72dvh, 45vw); height: min(72dvh, 45vw); }
+            .battle-gauge-container { width: min(72dvh, 45vw); }
 
             .side-dashboard {
                 display: flex;
@@ -1047,7 +1173,7 @@
             .player-control-zone { width: 100%; }
         }
 
-        /* --- モーダル系 --- */
+        /* モーダル系 */
         .dynasty-overlay {
             display: none;
             position: fixed;
@@ -1232,19 +1358,17 @@
     <div class="app-container">
         
         <!-- ==============================================================
-             ◆ ゾーン①：対戦相手ゾーン（実写アニメ調肖像＆喋る黄金音波）
+             ◆ ゾーン①：対戦相手ゾーン（縦長オーバル額縁＆キャラカラー演出）
         ============================================================== -->
-        <div class="opponent-zone">
+        <div class="opponent-zone" id="opponentZone">
             <div class="opponent-avatar-wrap">
-                <!-- 黄金音波リング（発話パルス） -->
+                <!-- 楕円音波リング（発話パルス） -->
                 <div class="voice-wave-ring wave-1"></div>
                 <div class="voice-wave-ring wave-2"></div>
 
-                <!-- 二重金箔額装フレーム -->
+                <!-- 【改修】カメオ風オーバル額縁（横66px×縦96px） -->
                 <div class="opponent-avatar-frame" id="opponentAvatarFrame">
-                    <div class="avatar-img-box" id="avatarImgBox">
-                        <!-- JSで動的に画像または紋章アイコンを描画 -->
-                    </div>
+                    <div class="avatar-img-box" id="avatarImgBox"></div>
                 </div>
                 <div class="opponent-rank-badge" id="opponentRankBadge">Lv.1</div>
             </div>
@@ -1262,12 +1386,14 @@
                     </div>
                 </div>
                 <!-- 相手セリフ吹き出し -->
-                <div class="opponent-speech-bubble" id="opponentSpeech">ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！</div>
+                <div class="opponent-speech-bubble" id="opponentSpeech">
+                    <span id="speechText">ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！</span>
+                </div>
             </div>
         </div>
 
         <!-- ==============================================================
-             ◆ ゾーン②：聖戦の盤面 ＆ リアルタイム黄金天秤（直結マウント）
+             ◆ ゾーン②：聖戦の盤面 ＆ 格ゲー風「押し合い綱引きゲージ」
         ============================================================== -->
         <div class="board-zone">
             <div class="dynasty-board-chassis" id="boardChassis">
@@ -1280,14 +1406,19 @@
                 <div id="board"></div>
             </div>
 
-            <!-- 黄金天秤（評価値ゲージ） -->
-            <div class="balance-gauge-container">
-                <span class="gauge-title-badge">⚜️ 黄金天秤</span>
-                <span class="gauge-label" id="gaugeBlackLabel">⚫ 50%</span>
-                <div class="gauge-track">
-                    <div class="gauge-bar-black" id="gaugeBarBlack" style="width: 50%;"></div>
+            <!-- 【改修】格闘ゲーム風「押し合い綱引き」パワーバトルゲージ -->
+            <div class="battle-gauge-container">
+                <div class="battle-gauge-header">
+                    <span id="battleStatBlack">⚫ 50%</span>
+                    <span class="battle-badge" id="battleSituationBadge">⚖️ 互角の攻防</span>
+                    <span id="battleStatWhite">50% ⚪</span>
                 </div>
-                <span class="gauge-label" id="gaugeWhiteLabel">50% ⚪</span>
+                <div class="battle-track">
+                    <div class="battle-center-mark"></div>
+                    <div class="battle-power-black" id="battlePowerBlack" style="width: 50%;"></div>
+                    <div class="battle-power-white" id="battlePowerWhite"></div>
+                    <div class="battle-clash-spark" id="battleClashSpark" style="left: 50%;"></div>
+                </div>
             </div>
         </div>
 
@@ -1344,6 +1475,26 @@
 
     </div>
 
+    <!-- ==============================================================
+         ◆ 【新設】王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン
+    ============================================================== -->
+    <div id="royalResultModal" class="royal-result-modal">
+        <div class="royal-result-card">
+            <div class="result-crown-icon" id="resultCrownIcon">👑</div>
+            <div class="result-main-title" id="resultMainTitle">VICTORY</div>
+            <div class="result-quote-box" id="resultQuoteBox">「参った参った〜！ お見事でゴザイマス！」</div>
+            <div class="result-score-row">
+                <span id="resultScoreBlack">⚫ 38</span>
+                <span>VS</span>
+                <span id="resultScoreWhite">⚪ 26</span>
+            </div>
+            <div class="result-actions">
+                <button type="button" class="result-btn result-btn-gold" id="btnResultRematch">再戦を挑む</button>
+                <button type="button" class="result-btn result-btn-dark" id="btnResultClose">盤面を見る</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 画面最下部：金箔フッター -->
     <footer class="app-footer">
         <div class="footer-brand">
@@ -1372,48 +1523,40 @@
                     <div>画面上部に「対戦相手の肖像画・セリフ・持ち石」、画面下部に「あなた自身の手番と石数」を配置しています。視線を上下に迷わせることなく、自然に対面でボードゲームを嗜むことができます。</div>
                 </div>
                 <div class="manual-card">
-                    <div class="manual-card-title">🎭 トーキング肖像画＆黄金音波</div>
-                    <div>相手が喋ると、肖像画がリズミカルに頷き、金色の光の輪（音波パルス）が広がります。相手の息遣いを感じながら対局をお楽しみください。</div>
-                </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">👑 3大アシスト機能の違いと使い分け</div>
-                    <ul style="margin: 4px 0 0 16px; padding: 0;">
-                        <li style="margin-bottom: 3px;"><b>🟡 盤上ガイド（常時）</b>：置けるマスを光るドットでお知らせします。</li>
-                        <li style="margin-bottom: 3px;"><b>💡 最善手ヒント（打つ前）</b>：AIが「次に打つべき一手とその理由」を伝授します。</li>
-                        <li style="margin-bottom: 3px;"><b>⚜️ 着手採点（打った後）</b>：打った手を「好手」「悪手」で即座に採点します。</li>
-                    </ul>
+                    <div class="manual-card-title">⚖️ 格ゲー風・綱引きバトルゲージ</div>
+                    <div>中央50%を境に、優勢な陣営が相手の領地をググッと押し込むパワーゲージです。火花スパークがどちらへ押し込まれているかで形勢を直感把握できます。</div>
                 </div>
             </div>
 
             <div id="tab-rank" class="manual-tab-content">
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.1</span> 宮廷道化師 ピエロ（練習用）</div>
-                    <div class="manual-meta-row"><span>気質：お調子者</span><span>強さ：完全ランダム</span></div>
+                    <div class="manual-meta-row"><span>気質：お調子者</span><span>テーマ：道化の深紅＆真鍮金</span></div>
                     <div>オセロのルールを覚えたての方へ。おどけながら角の隣に平気で石を置いてくれます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.2</span> 見習い侍女 コレット（初級）</div>
-                    <div class="manual-meta-row"><span>気質：可憐・欲張り</span><span>強さ：1手先計算（石数重視）</span></div>
+                    <div class="manual-meta-row"><span>気質：可憐・欲張り</span><span>テーマ：宮廷エメラルド</span></div>
                     <div>石をたくさん取れるマスに飛びつく癖があります。罠を仕掛ければ簡単に勝てます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.3</span> 近衛騎士 ローラン（中級・標準）</div>
-                    <div class="manual-meta-row"><span>気質：実直・堂々</span><span>強さ：3手先計算（基本に忠実）</span></div>
+                    <div class="manual-meta-row"><span>気質：実直・堂々</span><span>テーマ：白銀＆ロイヤルブルー</span></div>
                     <div>角を最優先で狙う王道スタイル。オセロの基本が身につく好敵手です。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 薔薇の伯爵夫人 エリザベート（上級）</div>
-                    <div class="manual-meta-row"><span>気質：気品・策略</span><span>強さ：5手先計算（開放度理論）</span></div>
+                    <div class="manual-meta-row"><span>気質：気品・策略</span><span>テーマ：妖艶のルビーワイン</span></div>
                     <div>序盤は石を少なく取り、こちらの置けるマスを狭めてくる強敵です。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.5</span> 宮廷宰相 ヴォルフガング（有段）</div>
-                    <div class="manual-meta-row"><span>気質：冷徹・深謀遠慮</span><span>強さ：6手先＋終盤10手完全読み</span></div>
+                    <div class="manual-meta-row"><span>気質：冷徹・深謀遠慮</span><span>テーマ：深淵の紫紺＆黒</span></div>
                     <div>大会上位クラス。相手の手を完全に封じる高等戦術を展開します。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン（神域・最強）</div>
-                    <div class="manual-meta-row"><span>気質：絶対君主・威厳</span><span>強さ：8手先＋終盤14手完全読み</span></div>
+                    <div class="manual-meta-row"><span>気質：絶対君主・威厳</span><span>テーマ：至高のインペリアル純金</span></div>
                     <div>ミスが一切許されない王国最高峰の絶対王者です。</div>
                 </div>
             </div>
@@ -1441,11 +1584,11 @@
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.5.0</span><span class="chronicle-date">2026/09/07</span>
-                    <div class="chronicle-desc">【実写アニメ調アバター＆黄金音波】char1, char2の二重金箔額装、個別フォーカス最適化、セリフ連動トーキング・バウンス＆黄金音波パルス実装。</div>
+                    <div class="chronicle-desc">【決定版】オーバル額縁（横66px×縦96px）、格ゲー綱引きバトルゲージ、キャラ別王室テーマカラー、山場発光、王宮決着カットイン実装。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.4.0</span><span class="chronicle-date">2026/09/06</span>
-                    <div class="chronicle-desc">【対面コロシアム・視線最適化UI】アバター80px大型化、上部相手・中央盤面・下部手元の3段ビュー刷新。</div>
+                    <div class="chronicle-desc">【対面コロシアム・視線最適化UI】アバター大型化、上部相手・中央盤面・下部手元の3段ビュー刷新。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.3.0</span><span class="chronicle-date">2026/09/05</span>
@@ -1457,7 +1600,7 @@
 
 <script>
     /* ==========================================
-       ROYAL OTHELLO ENGINE (Ver 4.5.0)
+       ROYAL OTHELLO ENGINE (Ver 4.5.0 決定版)
     ========================================== */
     const boardSize = 8;
     const BLACK = 1;
@@ -1496,7 +1639,7 @@
         [ 120, -20,  20,   5,   5,  20, -20, 120]
     ];
 
-    /* --- 【新設】画像パス＆個別最適フォーカス付きキャラクター定義 --- */
+    /* --- 【新設】キャラ別王室テーマカラー＆重層的セリフ辞書 --- */
     const CHARACTERS = {
         1: {
             id: 1,
@@ -1504,20 +1647,24 @@
             title: "（宮廷道化師）",
             icon: "🃏",
             image: "images/char1.png",
-            imgFocus: "center 26%", // 手と魅惑的な目線を完璧にトリミング
+            imgFocus: "center 26%",
+            themeColor: "#e63946", // 真鍮赤
+            themeGlow: "rgba(230, 57, 70, 0.65)",
             depth: 0,
             exact: 0,
             quotes: {
-                start: "ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！",
-                thinking: "どこに置こうかニャ〜？ サイコロでも振るかネ！",
-                playerGood: "ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！",
-                playerBad: "おやおや！ そこ置いちゃってホントにいいのかニャ〜！？",
-                cpuCorner: "やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！",
-                playerCorner: "あちゃー！ 大事な角っこを取られちゃったヨ〜！",
-                cpuPass: "おっとっと、置く場所がないからパスしちゃうネ！",
-                playerPass: "ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！",
-                win: "まさかの大勝利！？ 宮廷一の奇跡でゴザイマス！",
-                lose: "参った参った〜！ さすが貴方様、お見事でゴザイマス！"
+                start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
+                thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ふむふむ… こっちのマスが光って見えマスネ！"],
+                playerGood: ["ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！", "お見事！ …って、ボクがピンチじゃないデスか！？"],
+                playerBad: ["おやおや！ そこ置いちゃってホントにいいのかニャ〜！？", "ヒヒッ！ 隙だらけでゴザイマスよ〜！"],
+                bigReversal: ["ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！", "目が回る〜！ ボクの石が全滅しちゃうヨ〜！"],
+                cpuCorner: ["やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！", "隅っこゲット！ これで負けない…かもネ！"],
+                playerCorner: ["あちゃー！ 大事な角っこを取られちゃったヨ〜！", "そこはボクが狙ってたのに〜！ ひどいデス！"],
+                climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？", "ヒヒッ！ これが最後の悪あがきでゴザイマス！"],
+                cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
+                playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
+                win: ["まさかの大勝利！？ 宮廷一の奇跡でゴザイマス！"],
+                lose: ["参った参った〜！ さすが貴方様、完敗でゴザイマス！"]
             }
         },
         2: {
@@ -1526,20 +1673,24 @@
             title: "（見習い侍女）",
             icon: "🎀",
             image: "images/char2.png",
-            imgFocus: "center 20%", // 可憐な瞳とティアラを完璧にトリミング
+            imgFocus: "center 20%",
+            themeColor: "#2a9d8f", // 宮廷エメラルド
+            themeGlow: "rgba(42, 157, 143, 0.65)",
             depth: 1,
             exact: 0,
             quotes: {
-                start: "王宮のオセロ、覚えたてですけど…一生懸命がんばります！",
-                thinking: "ええと…たくさんひっくり返せる場所はどこかな…？",
-                playerGood: "きゃっ！？ そんな上手な手があるなんて…！",
-                playerBad: "えっ、そこに置いちゃって大丈夫なんですか…？",
-                cpuCorner: "わぁっ！ 角が取れちゃいました！ 嬉しいです！",
-                playerCorner: "そんな…！ 私の大切な角が…うぅ…！",
-                cpuPass: "ごめんなさい、私、置ける場所がありません…パスです！",
-                playerPass: "ふふっ、私の番ですね！ 頑張ってひっくり返します！",
-                win: "勝てちゃいました…！ 私、王宮で一番の侍女になれるかも！",
-                lose: "やっぱりお強いです…！ もっとお城で練習してきます！"
+                start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！", "ご指導お願いします！ 負けませんよっ！"],
+                thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？", "あっちもこっちも…迷っちゃいますね。"],
+                playerGood: ["きゃっ！？ そんな上手な手があるなんて…！", "すごい…！ 私の作戦が読まれてるみたいです…！"],
+                playerBad: ["えっ、そこに置いちゃって大丈夫なんですか…？", "ふふっ、チャンスかも…！ いただきます！"],
+                bigReversal: ["わぁぁっ！？ こんなにたくさん取られちゃうなんて…！", "ひどいです〜！ 私の並べた石が〜！"],
+                cpuCorner: ["わぁっ！ 角が取れちゃいました！ 嬉しいです！", "えへへ、要所を確保です！"],
+                playerCorner: ["そんな…！ 私の大切な角が…うぅ…！", "あっ！ そこだけは取られたくなかったのに…！"],
+                climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！", "最後の一手まで、あきらめませんっ！"],
+                cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
+                playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
+                win: ["勝てちゃいました…！ 私、王宮で一番の侍女になれるかも！"],
+                lose: ["やっぱりお強いです…！ もっとお城で勉強してきます！"]
             }
         },
         3: {
@@ -1549,19 +1700,23 @@
             icon: "⚔️",
             image: "images/char3.png",
             imgFocus: "center 22%",
+            themeColor: "#2b6cb0", // ロイヤルブルー
+            themeGlow: "rgba(43, 108, 176, 0.65)",
             depth: 3,
             exact: 0,
             quotes: {
-                start: "近衛の誇りにかけて、正々堂々とお手合わせ願おう！",
-                thinking: "我が陣形を立て直す… 次の一手はここだ！",
-                playerGood: "見事な太刀筋…！ 盤面の急所を突いてくるとは！",
-                playerBad: "ふっ… 隙を見せたな！ 我が剣の前に退路なし！",
-                cpuCorner: "要衝を確保！ この角は我が騎士団の防衛線だ！",
-                playerCorner: "不覚…！ 陣地の角を突破されるとは！",
-                cpuPass: "無念…！ 一時退却し、次の好機を待つ！",
-                playerPass: "包囲網は完成した！ 我が軍の進軍は止まらんぞ！",
-                win: "王国の勝利だ！ 貴殿との手合わせ、実に見事であった！",
-                lose: "見事な用兵… 完敗だ！ 貴殿の武勇に敬意を表する！"
+                start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！", "我が剣に迷いなし！ 貴殿の武勇、見せてみよ！"],
+                thinking: ["我が陣形を立て直す… 次の一手はここだ！", "戦局は膠着している… 活路を見出すぞ！"],
+                playerGood: ["見事な太刀筋…！ 盤面の急所を突いてくるとは！", "ぐっ…！ その一手、まさに神速の進軍だな！"],
+                playerBad: ["ふっ… 隙を見せたな！ 我が剣の前に退路なし！", "その悪手、見逃しはせんぞ！ 我が軍、前進！"],
+                bigReversal: ["なんと…！？ 我が前線が一気に崩壊しただと…！？", "見事な包囲網だ… だがまだ折れはせん！"],
+                cpuCorner: ["要衝を確保！ この角は我が騎士団の防衛線だ！", "四隅の制圧こそ勝機の源泉！ 我が陣地ぞ！"],
+                playerCorner: ["不覚…！ 陣地の角を突破されるとは！", "我が防壁が破られたか…！ 見事な攻めだ！"],
+                climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！", "我が騎士道の誇りをかけ、全力で迎え撃つ！"],
+                cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
+                playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
+                win: ["王国の勝利だ！ 貴殿との手合わせ、実に見事であった！"],
+                lose: ["見事な用兵… 完敗だ！ 貴殿の武勇に最大限の敬意を表する！"]
             }
         },
         4: {
@@ -1570,20 +1725,24 @@
             title: "（薔薇の伯爵夫人）",
             icon: "🌹",
             image: "images/char4.png",
-            imgFocus: "center 20%",
+            imgFocus: "center 22%",
+            themeColor: "#9b111e", // ルビーワイン
+            themeGlow: "rgba(155, 17, 30, 0.65)",
             depth: 5,
             exact: 0,
             quotes: {
-                start: "優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。",
-                thinking: "ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。",
-                playerGood: "あら…？ ずいぶんと小憎らしい手を打たれますこと。",
-                playerBad: "うふふ… 甘いお方。罠にかかってしまいましたわね。",
-                cpuCorner: "美しき角は、わたくしが優雅に頂戴いたしますわ。",
-                playerCorner: "まあ！ わたくしの角を奪うなんて… 許せませんこと！",
-                cpuPass: "あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。",
-                playerPass: "あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。",
-                win: "チェックメイト…オセロでも、美と知性の勝利ですわ。",
-                lose: "まさかこのわたくしが…！ ふふ、骨のあるお相手ですこと。"
+                start: ["優雅なティータイムにオセロはいかが？ 手加減はいたしませんわ。", "美しき盤上の舞踏会… 存分に楽しませてくださる？"],
+                thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。", "焦りは禁物… 優雅に罠を張り巡らせましょう。"],
+                playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。", "うふふ… 目の肥えた殿方は嫌いではありませんわ。"],
+                playerBad: ["うふふ… 甘いお方。罠にかかってしまいましたわね。", "あらあら、そこに置いてよろしかったの？ いただきますわ。"],
+                bigReversal: ["まあ！ わたくしの薔薇が一気に散らされるなんて…！", "ずいぶんと乱暴なお打ち方ですこと…！"],
+                cpuCorner: ["美しき角は、わたくしが優雅に頂戴いたしますわ。", "宝石のような角… わたくしの胸元を飾りましょう。"],
+                playerCorner: ["まあ！ わたくしの角を奪うなんて… 許せませんこと！", "殿方なら、淑女に譲るものではなくって？"],
+                climax: ["ふふ… 舞踏会もいよいよクライマックスですわね。", "どちらが最後まで気品を保てるかしら…？"],
+                cpuPass: ["あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。"],
+                playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
+                win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。"],
+                lose: ["まさかこのわたくしが…！ ふふ、骨のあるお相手ですこと。見事ですわ。"]
             }
         },
         5: {
@@ -1592,20 +1751,24 @@
             title: "（宮廷宰相）",
             icon: "📜",
             image: "images/char5.png",
-            imgFocus: "center 22%",
+            imgFocus: "center 24%",
+            themeColor: "#4a154b", // 紫紺
+            themeGlow: "rgba(74, 21, 75, 0.7)",
             depth: 6,
             exact: 10,
             quotes: {
-                start: "盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。",
-                thinking: "数手先の展開はすべて計算済みだ…。",
-                playerGood: "ほう… その急所が見えていたか。侮れん男だ。",
-                playerBad: "愚策だな。その一手で自らの首を絞めたと気づかんのか？",
-                cpuCorner: "定石通り、この要所は我が手中に収めさせてもらった。",
-                playerCorner: "なに…！？ 我が計算の裏をかいて角を突いてくるとは…！",
-                cpuPass: "計算外だな… 一旦パスとして貴公の出方を窺おう。",
-                playerPass: "置く場所がないか。貴公の戦略は完全に封殺されたのだ。",
-                win: "すべては我が想定通り。盤上の知略、私の勝ちだ。",
-                lose: "この私が読み負けるとは… 貴公の知恵、恐るべし…"
+                start: ["盤上の戦いは国家の縮図。余念なき戦略をお見せしよう。", "盤上の駒を動かすのは力ではない。冷徹な知略だ。"],
+                thinking: ["数手先の展開はすべて計算済みだ…。", "貴公の打てるマスは… もう数箇所しかあるまい。"],
+                playerGood: ["ほう… その急所が見えていたか。侮れん男だ。", "私の計算の隙間を縫ってくるとはな… 興をそそる。"],
+                playerBad: ["愚策だな。その一手で自らの首を絞めたと気づかんのか？", "ふっ… 浅薄な手だ。これですべてが決まった。"],
+                bigReversal: ["なに…！？ 瞬時に盤面の均衡を崩しただと…！？", "計算外の反転…！ 貴公、ただ者ではないな。"],
+                cpuCorner: ["定石通り、この要所は我が手中に収めさせてもらった。", "国家の要衝を抑えた。貴公に勝機はない。"],
+                playerCorner: ["なに…！？ 我が計算の裏をかいて角を突いてくるとは…！", "痛恨の失策…！ だが、まだ終わってはいない。"],
+                climax: ["終盤の完全計算領域に入った。一手の狂いも許されんぞ。", "詰みだ… 貴公に逆転の筋は残されていない。"],
+                cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
+                playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
+                win: ["すべては我が想定通り。盤上の知略、私の勝ちだ。"],
+                lose: ["この私が読み負けるとは… 貴公の知恵、恐るべしだ。完敗を認めよう。"]
             }
         },
         6: {
@@ -1614,20 +1777,24 @@
             title: "（至高の絶対君主）",
             icon: "👑",
             image: "images/char6.png",
-            imgFocus: "center 24%",
+            imgFocus: "center 20%",
+            themeColor: "#ffd700", // インペリアル純金
+            themeGlow: "rgba(255, 215, 0, 0.8)",
             depth: 8,
             exact: 14,
             quotes: {
-                start: "我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。",
-                thinking: "盤上の森羅万象… 余の眼から逃れる手など存在せぬ。",
-                playerGood: "見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！",
-                playerBad: "覇道の道は険しきもの。その手では余の壁は破れぬぞ。",
-                cpuCorner: "天地の理に従い、余がこの角を統べようぞ！",
-                playerCorner: "見事なり…！ 王の領域を奪うその覚悟、しかと認めた！",
-                cpuPass: "ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。",
-                playerPass: "道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。",
-                win: "良き戦いであった！ だがまだ余の玉座を譲るわけにはゆかぬ！",
-                lose: "天晴れだ…！ 王国最強の座、今ここにそなたへ託そうぞ！"
+                start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。", "王国の覇者たる資格があるか、余が試して進ぜよう！"],
+                thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。", "ふむ… 良い呼吸だ。盤面が静かに脈打っておるぞ。"],
+                playerGood: ["見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！", "天晴れだ！ 王の盤上を揺るがすその知恵、見事なり！"],
+                playerBad: ["覇道の道は険しきもの。その手では余の壁は破れぬぞ。", "迷いが出たな。王の威圧に呑まれては勝てぬぞ。"],
+                bigReversal: ["おお…！ 盤上が一変したか！ 実に豪快な一手よ！", "これぞ戦の醍醐味！ 余をここまで追い詰めるとはな！"],
+                cpuCorner: ["天地の理に従い、余がこの角を統べようぞ！", "四海の覇者として、この要所は余が治める！"],
+                playerCorner: ["見事なり…！ 王の領域を奪うその覚悟、しかと認めた！", "余の角を打ち砕くとは… 恐るべき若人よ！"],
+                climax: ["いよいよ最終局面！ 余の全知全能をもって迎え撃とう！", "神域の読み合い… どちらが勝っても悔いなし！"],
+                cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。"],
+                playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
+                win: ["良き戦いであった！ だがまだ余の玉座を譲るわけにはゆかぬ！"],
+                lose: ["天晴れだ…！ 王国最強の座、今ここにそなたへ託そうぞ！ 堂々の戴冠である！"]
             }
         }
     };
@@ -1834,7 +2001,7 @@
         return CHARACTERS[id] || CHARACTERS[1];
     }
 
-    /* --- 【新設】画像ロード＆安心フォールバック描画 --- */
+    /* --- 画像ロード＆安心フォールバック描画 --- */
     function renderCharacterAvatar() {
         const char = getCurrentCharacter();
         const imgBox = document.getElementById("avatarImgBox");
@@ -1853,32 +2020,45 @@
         };
 
         img.onerror = () => {
-            // 画像がまだない場合は美しい金箔紋章アイコンを表示
             imgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`;
         };
     }
 
-    /* --- 【案A】セリフ発話＆トーキング・バウンス＆黄金音波エフェクト --- */
+    /* --- 【新設】セリフ発話＆キャラ色オーラ＆山場文字発光 --- */
     let talkingTimeout = null;
-    function setOpponentQuote(type) {
+    function setOpponentQuote(category) {
         const char = getCurrentCharacter();
-        const text = char.quotes[type] || char.quotes.thinking;
+        let list = char.quotes[category] || char.quotes.thinking;
+        if (!Array.isArray(list)) list = [list];
+        const text = list[Math.floor(Math.random() * list.length)];
+
         const speechEl = document.getElementById("opponentSpeech");
+        const speechTextEl = document.getElementById("speechText");
         const avatarFrame = document.getElementById("opponentAvatarFrame");
         const avatarWrap = document.querySelector(".opponent-avatar-wrap");
 
-        if (speechEl) {
-            speechEl.textContent = text;
+        // 山場判定（残り12マス以下 または 決戦時）
+        const emptyCount = getEmptyCount(board);
+        const isClimax = (emptyCount <= 12) || category === "climax" || category === "win" || category === "lose";
+
+        if (speechEl && speechTextEl) {
+            speechTextEl.textContent = text;
+            if (isClimax) {
+                speechEl.classList.add("is-climax");
+            } else {
+                speechEl.classList.remove("is-climax");
+            }
+
             speechEl.style.animation = 'none';
             speechEl.offsetHeight; // リフロー
             speechEl.style.animation = 'bubble-appear 0.28s ease-out';
         }
 
-        // 【案A】バウンス ＆ 音波リングのトリガー
+        // バウンス＆楕円音波リングのトリガー
         if (avatarWrap && avatarFrame) {
             avatarWrap.classList.remove("is-talking");
             avatarFrame.classList.remove("react");
-            avatarWrap.offsetHeight; // リフロー
+            avatarWrap.offsetHeight;
             avatarWrap.classList.add("is-talking");
 
             if (talkingTimeout) clearTimeout(talkingTimeout);
@@ -1888,8 +2068,15 @@
         }
     }
 
+    /* --- キャラクター変更時のテーマカラー適用 --- */
     function updateOpponentStageUI() {
         const char = getCurrentCharacter();
+        const root = document.documentElement;
+
+        // キャラ別テーマカラーの注入
+        root.style.setProperty('--char-accent', char.themeColor);
+        root.style.setProperty('--char-glow', char.themeGlow);
+
         const rankEl = document.getElementById("opponentRankBadge");
         const nameEl = document.getElementById("opponentName");
         const titleEl = document.getElementById("opponentTitle");
@@ -1898,7 +2085,6 @@
         if (nameEl) nameEl.textContent = char.name;
         if (titleEl) titleEl.textContent = char.title;
 
-        // アイコンの色設定
         const opIconEl = document.getElementById("opponentPieceIcon");
         const plIconEl = document.getElementById("playerPieceIcon");
         if (opIconEl) opIconEl.textContent = (cpuColor === BLACK) ? "⚫" : "⚪";
@@ -1908,19 +2094,32 @@
         setOpponentQuote("start");
     }
 
+    /* --- 【大改修】格闘ゲーム風「綱引きバトルゲージ」計算 --- */
     function updateBalanceGauge() {
         const emptyCount = getEmptyCount(board);
         const evalScore = evaluateBoard(board, BLACK, emptyCount);
         const winrateBlack = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 180))) * 100)));
         const winrateWhite = 100 - winrateBlack;
 
-        const bar = document.getElementById("gaugeBarBlack");
-        const labelB = document.getElementById("gaugeBlackLabel");
-        const labelW = document.getElementById("gaugeWhiteLabel");
+        const powerBar = document.getElementById("battlePowerBlack");
+        const spark = document.getElementById("battleClashSpark");
+        const statB = document.getElementById("battleStatBlack");
+        const statW = document.getElementById("battleStatWhite");
+        const badge = document.getElementById("battleSituationBadge");
 
-        if (bar) bar.style.width = `${winrateBlack}%`;
-        if (labelB) labelB.textContent = `⚫ ${winrateBlack}%`;
-        if (labelW) labelW.textContent = `${winrateWhite}% ⚪`;
+        if (powerBar) powerBar.style.width = `${winrateBlack}%`;
+        if (spark) spark.style.left = `${winrateBlack}%`;
+        if (statB) statB.textContent = `⚫ ${winrateBlack}%`;
+        if (statW) statW.textContent = `${winrateWhite}% ⚪`;
+
+        // 直感的な戦況バッジのテキスト判定
+        if (badge) {
+            if (winrateBlack >= 75) badge.textContent = "⚫ 黒 圧倒的優勢！";
+            else if (winrateBlack >= 58) badge.textContent = "⚫ 黒 押し込み中！";
+            else if (winrateWhite >= 75) badge.textContent = "⚪ 白 圧倒的優勢！";
+            else if (winrateWhite >= 58) badge.textContent = "⚪ 白 押し返し中！";
+            else badge.textContent = "⚖️ 互角の攻防";
+        }
     }
 
     /* --- 好手・悪手トースト --- */
@@ -2005,6 +2204,9 @@
         pendingAnimation = null;
         historyStack = [];
         clearHint();
+
+        const resultModal = document.getElementById("royalResultModal");
+        if (resultModal) resultModal.classList.remove("show");
 
         elapsedSeconds = 0;
         if (timerInterval !== null) clearInterval(timerInterval);
@@ -2116,9 +2318,15 @@
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const scoreDiff = postScore - preScore;
 
+        // セリフ分岐（角、大量反転、好手、悪手、山場）
         if (isCorner(row, col)) {
             showMoveToast("good", "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerCorner");
+        } else if (flipped.length >= 4) {
+            showMoveToast("good", "⚜️ 大逆転！");
+            setOpponentQuote("bigReversal");
+        } else if (emptyCount <= 12) {
+            setOpponentQuote("climax");
         } else if (scoreDiff > 110) {
             showMoveToast("good", "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerGood");
@@ -2222,9 +2430,7 @@
         const moves = getValidMoves(player, targetBoard);
         if (moves.length === 0) return null;
 
-        if (charConfig.id === 1) {
-            return moves[Math.floor(Math.random() * moves.length)];
-        }
+        if (charConfig.id === 1) return moves[Math.floor(Math.random() * moves.length)];
 
         if (charConfig.id === 2) {
             let bestMove = moves[0];
@@ -2280,8 +2486,11 @@
 
             makeMove(board, move[0], move[1], cpuColor);
 
+            const emptyCount = getEmptyCount(board);
             if (isCorner(move[0], move[1])) {
                 setOpponentQuote("cpuCorner");
+            } else if (emptyCount <= 12) {
+                setOpponentQuote("climax");
             } else {
                 setOpponentQuote("thinking");
             }
@@ -2642,6 +2851,7 @@
         if (plScoreEl) plScoreEl.textContent = humanStones;
     }
 
+    /* --- 【新設】ドラマチック王宮決着（VICTORY / DEFEAT）演出 --- */
     function endGame() {
         gameOver = true;
         isBusy = false;
@@ -2663,22 +2873,59 @@
         const humanStones = (humanColor === BLACK) ? stones.black : stones.white;
         const cpuStones = (cpuColor === BLACK) ? stones.black : stones.white;
 
+        const char = getCurrentCharacter();
+        const modal = document.getElementById("royalResultModal");
+        const crownEl = document.getElementById("resultCrownIcon");
+        const titleEl = document.getElementById("resultMainTitle");
+        const quoteEl = document.getElementById("resultQuoteBox");
+        const scoreB = document.getElementById("resultScoreBlack");
+        const scoreW = document.getElementById("resultScoreWhite");
+
+        scoreB.textContent = `⚫ ${stones.black}`;
+        scoreW.textContent = `⚪ ${stones.white}`;
+
+        let finalQuote = "";
         if (humanStones > cpuStones) {
             setStatus("win", "👑 栄光の勝利！ あなたの勝ちです！");
             setOpponentQuote("lose");
+            crownEl.textContent = "👑";
+            titleEl.className = "result-main-title result-title-win";
+            titleEl.textContent = "VICTORY";
+            finalQuote = Array.isArray(char.quotes.lose) ? char.quotes.lose[0] : char.quotes.lose;
         } else if (cpuStones > humanStones) {
             setStatus("lose", "🥀 惜敗… 相手の勝利です。");
             setOpponentQuote("win");
+            crownEl.textContent = "🥀";
+            titleEl.className = "result-main-title result-title-lose";
+            titleEl.textContent = "DEFEAT";
+            finalQuote = Array.isArray(char.quotes.win) ? char.quotes.win[0] : char.quotes.win;
         } else {
             setStatus("draw", "⚖️ ゲーム終了！ 格式高き引き分けです。");
-            setOpponentQuote("thinking");
+            crownEl.textContent = "⚖️";
+            titleEl.className = "result-main-title result-title-draw";
+            titleEl.textContent = "DRAW";
+            finalQuote = "見事な勝負… まさに互角の知略であったな。";
         }
+
+        if (quoteEl) quoteEl.textContent = `「${finalQuote}」― ${char.name}`;
+
+        setTimeout(() => {
+            if (modal) modal.classList.add("show");
+        }, 800);
     }
 
     /* --- イベントリスナー設定 --- */
     document.getElementById("restartButton").addEventListener("click", startGame);
     document.getElementById("undoButton").addEventListener("click", undoMove);
     document.getElementById("hintButton").addEventListener("click", computeHint);
+
+    document.getElementById("btnResultRematch").addEventListener("click", () => {
+        document.getElementById("royalResultModal").classList.remove("show");
+        startGame();
+    });
+    document.getElementById("btnResultClose").addEventListener("click", () => {
+        document.getElementById("royalResultModal").classList.remove("show");
+    });
 
     const charSelect = document.getElementById("characterSelect");
     charSelect.addEventListener("change", () => {
@@ -2792,6 +3039,8 @@
         if (e.key === "Escape") {
             if (guideOverlay) guideOverlay.classList.remove("show");
             if (versionOverlay) versionOverlay.classList.remove("show");
+            const resModal = document.getElementById("royalResultModal");
+            if (resModal) resModal.classList.remove("show");
         }
     });
 
@@ -2803,4 +3052,3 @@
 
 </body>
 </html>
-
