@@ -1,13 +1,15 @@
+
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.0.0 (2026/09/23)
+  バージョン: Ver 6.1.0 (2026/10/18)
   
-  [Ver 6.0.0] 2026/09/23 更新内容:
-  - 終盤パリティ理論の手番連動加減点化（turnPlayer 引数の導入と符号是正）
-  - 完全確定辺走査（埋まった辺上の石を確定石として瞬時に検出）の実装
-  - ヒント探索深さの動的適正化（序盤深さ5、中盤深さ6、終盤完全読み）による応答高速化
-  - 合法手・フロンティア探索の軽量化・早期脱出最適化
+  [Ver 6.1.0] 2026/10/18 更新内容:
+  - プレイヤー着手時の即時反応化（タップ前の重い先読み同期計算を廃止・即座に石配置と反転が開始する超快速レスポンス）
+  - 常時ヒント時の「💡 宮廷AIが最善手を思案中…」先行描画により、相手番との誤認を完全根絶
+  - 完全OFF（真剣勝負）選択時の合法手点滅ガイド非表示＆指南封印黒金プレートUIへの切り替え
+  - パス（PASS）発生時の特大トースト演出と直感的な手番スキップ演出の導入
+  - 決着時の「👑 決着（FINISH）」カットインおよび余韻時間拡大（1.4秒）
 ========================================================================== */
 
 const boardSize = 8;
@@ -60,6 +62,8 @@ const DOM = {
     characterSelect: document.getElementById("characterSelect"),
     hintMode: document.getElementById("hintMode"),
     hintButton: document.getElementById("hintButton"),
+    hintBadgeTag: document.getElementById("hintBadgeTag"),
+    hintFixedDisplay: document.getElementById("hintFixedDisplay"),
     hintCoordText: document.getElementById("hintCoordText"),
     hintBodyText: document.getElementById("hintBodyText"),
     undoButton: document.getElementById("undoButton"),
@@ -484,11 +488,11 @@ function updateBalanceGauge(targetBoard = board) {
 }
 
 function showMoveToast(type, text) {
-    if (getHintMode() === "off" || isReviewMode) return;
     if (toastTimeout) clearTimeout(toastTimeout);
     DOM.moveToast.className = `move-toast toast-${type} show`;
     DOM.moveToast.textContent = text;
-    toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), 1400);
+    const delay = (type === "finish") ? 1800 : (type === "pass" ? 1300 : 1200);
+    toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), delay);
 }
 const hideMoveToast = () => { if (toastTimeout) clearTimeout(toastTimeout); DOM.moveToast.classList.remove("show"); };
 
@@ -531,7 +535,7 @@ async function undoMove() {
         gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
         pendingAnimation = null;
 
-        setStatus("human-turn", "時を戻しました。あなたの番です…");
+        setStatus("human-turn", "👑 あなたの番です…（時を戻しました）");
         triggerTurnPulse();
         setOpponentQuote("thinking");
         updateTimerDisplay();
@@ -597,11 +601,12 @@ function startGame() {
     updateTimerDisplay();
     updateUndoButtonState();
     updateOpponentStageUI(true);
+    updateHintModeUI();
     drawBoard();
     updateBalanceGauge();
 
     if (humanColor === BLACK) {
-        setStatus("human-turn", "あなたの番です…");
+        setStatus("human-turn", "👑 あなたの番です…");
         triggerTurnPulse();
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         maybeAutoHint();
@@ -750,6 +755,7 @@ async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     return true;
 }
 
+/* Ver 6.1.0 プレイヤー着手：即時反転開始（重い先読み同期計算を廃止して超快速化） */
 async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
@@ -758,40 +764,66 @@ async function putStone(row, col) {
     isBusy = true;
     if (getHintMode() === "always") usedHintInGame = true;
 
+    // 着手前の盤面スナップショット
+    const boardBefore = cloneBoard(board);
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
     const oppMovesBefore = getValidMoves(cpuColor, board).length;
     const preScore = evaluateBoard(board, humanColor, emptyCount, humanColor);
 
     const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
-    const objectiveBest = calculateObjectiveBestMove(board, humanColor);
-    const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
     const isForcedMove = (myAvailableMovesBefore.length === 1);
     const isCornerMove = isCorner(row, col);
     const isDangerMove = isRealDanger(row, col, board);
 
+    // 即座に石配置・反転アニメーション開始
     const success = await executeTurnAction(row, col, humanColor, true, (flipped) => {
+        // 反転アニメ開始と同時に非同期評価
         const oppMovesAfter = getValidMoves(cpuColor, board).length;
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1, cpuColor);
         const scoreDiff = postScore - preScore;
 
-        let moveRating = "NORMAL";
+        let objectiveBest = null;
         if (isMatchedWithHint) {
-            moveRating = "BEST"; showMoveToast("best", "🎯 最善手 (BEST)"); setOpponentQuote("playerGood");
+            objectiveBest = hintMove;
+        } else {
+            objectiveBest = calculateObjectiveBestMove(boardBefore, humanColor);
+        }
+        const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
+
+        let moveRating = "NORMAL";
+        if (isMatchedWithHint || isMatchedWithObjectiveBest) {
+            moveRating = "BEST";
+            if (getHintMode() !== "off") {
+                showMoveToast("best", "🎯 最善手 (BEST)");
+            }
+            setOpponentQuote("playerGood");
         } else if (isCornerMove) {
             moveRating = isMatchedWithObjectiveBest ? "BEST" : "GOOD";
-            showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
+            if (getHintMode() !== "off") {
+                showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
+            }
             setOpponentQuote("playerCorner");
-        } else if (isMatchedWithObjectiveBest) {
-            moveRating = "BEST"; showMoveToast("best", "🎯 最善手 (BEST)"); setOpponentQuote("playerGood");
         } else if (isForcedMove) {
             moveRating = "NORMAL";
         } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
-            moveRating = "BAD"; showMoveToast("bad", "⚠️ 悪手 (BAD)"); setOpponentQuote("playerBad");
+            moveRating = "BAD";
+            if (getHintMode() !== "off") {
+                showMoveToast("bad", "⚠️ 悪手 (BAD)");
+            }
+            setOpponentQuote("playerBad");
         } else if (flipped.length >= 5 && emptyCount >= 16) {
-            moveRating = "REVERSAL"; showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)"); setOpponentQuote("bigReversal");
+            moveRating = "REVERSAL";
+            if (getHintMode() !== "off") {
+                showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
+            }
+            setOpponentQuote("bigReversal");
         } else if (scoreDiff > 120) {
-            moveRating = "GOOD"; showMoveToast("good", "⚜️ 好手 (GOOD)"); setOpponentQuote("playerGood");
+            moveRating = "GOOD";
+            if (getHintMode() !== "off") {
+                showMoveToast("good", "⚜️ 好手 (GOOD)");
+            }
+            setOpponentQuote("playerGood");
         } else if (emptyCount <= 12) {
             setOpponentQuote("climax");
         }
@@ -828,7 +860,8 @@ function clearHintForOpponentTurn() {
     DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思考中…）</div>';
 }
 
-function processTurn() {
+/* Ver 6.1.0 ターン進行およびパス処理の強化 */
+async function processTurn() {
     if (gameOver || isReviewMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
 
@@ -839,19 +872,29 @@ function processTurn() {
         const passName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
         recordGameStep(null, currentPlayer, `${passName}が置ける場所がないため【パス】しました。`, null, true);
 
+        // 特大パストースト演出
+        showMoveToast("pass", `⚜️ ${passName} はパス（PASS）です`);
+
+        if (currentPlayer === humanColor) {
+            setOpponentQuote("playerPass");
+            setStatus("cpu-turn", "置けるマスがないためパスしました…");
+        } else {
+            setOpponentQuote("cpuPass");
+            setStatus("human-turn", "相手がパスしました。あなたの番です！");
+        }
+
+        await sleep(950);
         currentPlayer = opp;
         drawBoard();
         updateBalanceGauge();
 
         if (currentPlayer === humanColor) {
-            setStatus("human-turn", "相手がパスしました。あなたの番です…");
+            setStatus("human-turn", "👑 あなたの番です…");
             triggerTurnPulse();
-            setOpponentQuote("cpuPass");
             DOM.opponentAvatarFrame.classList.remove("thinking-aura");
             maybeAutoHint();
         } else {
-            setStatus("cpu-turn", "置ける場所がないためパスです。");
-            setOpponentQuote("playerPass");
+            setStatus("cpu-turn", "相手が思考を巡らせています…");
             DOM.opponentAvatarFrame.classList.add("thinking-aura");
             setTimeout(computerMove, 300);
         }
@@ -860,7 +903,7 @@ function processTurn() {
     }
 
     if (currentPlayer === humanColor) {
-        setStatus("human-turn", "あなたの番です…");
+        setStatus("human-turn", "👑 あなたの番です…");
         triggerTurnPulse();
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         drawBoard();
@@ -1000,7 +1043,6 @@ function countFrontierStones(targetBoard, player) {
 function countStableStones(targetBoard, player) {
     const stable = new Set();
 
-    // 1. 四隅から辺への連続確定石
     for (const [cr, cc] of cornerSquares) {
         if (targetBoard[cr][cc] !== player) continue;
         stable.add(`${cr},${cc}`);
@@ -1013,12 +1055,11 @@ function countStableStones(targetBoard, player) {
         }
     }
 
-    // 2. 完全確定辺（辺全体が埋まっている場合、その辺の石は全て確定石）
     const edges = [
-        [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7]], // 上辺
-        [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]], // 下辺
-        [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]], // 左辺
-        [[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7]]  // 右辺
+        [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7]],
+        [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]],
+        [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]],
+        [[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7]]
     ];
     for (const edge of edges) {
         const isFull = edge.every(([er, ec]) => targetBoard[er][ec] !== 0);
@@ -1032,7 +1073,7 @@ function countStableStones(targetBoard, player) {
     return stable.size;
 }
 
-/* 盤面評価関数（Ver 6.0.0 手番連動パリティ＆確定辺完全対応） */
+/* 盤面評価関数 */
 function evaluateBoard(targetBoard, player, emptyCount, turnPlayer = player) {
     const opponent = opposite(player);
     let myStones = 0, oppStones = 0, myPosScore = 0, oppPosScore = 0;
@@ -1066,7 +1107,6 @@ function evaluateBoard(targetBoard, player, emptyCount, turnPlayer = player) {
         score = (mobilityScore * 20) + (frontierScore * 18) + (stableDiff * 55) + (myPosScore - oppPosScore) * 1.6;
     } else {
         score = (myStones - oppStones) * 25 + (stableDiff * 60) + (mobilityScore * 12);
-        // パリティ理論：空きマスが奇数の場合、現手番のプレイヤーが最後の1手を打てる優位性
         if (emptyCount % 2 !== 0) {
             score += (turnPlayer === player) ? 40 : -40;
         }
@@ -1081,12 +1121,40 @@ function clearHint() {
 }
 
 const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
-const maybeAutoHint = () => { if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) computeHint(); };
 
+/* Ver 6.1.0 常時ヒント：思案中先行表示 */
+async function maybeAutoHint() {
+    if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) {
+        setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+        await sleep(20);
+        computeHint();
+        if (currentPlayer === humanColor && !gameOver) {
+            setStatus("human-turn", "👑 あなたの番です…");
+        }
+    }
+}
+
+/* Ver 6.1.0 完全OFF真剣勝負モード表示への調律 */
 function updateHintModeUI() {
     const mode = getHintMode();
     DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
-    if (mode === "always") { usedHintInGame = true; maybeAutoHint(); } else clearHint();
+
+    if (mode === "off") {
+        DOM.hintFixedDisplay.classList.add("hint-mode-sealed");
+        DOM.hintBadgeTag.textContent = "⚔️【真剣勝負モード】";
+        DOM.hintCoordText.textContent = "--";
+        DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text" style="color:#d4a748; font-weight:700;">己の知謀のみで挑む格式高き真剣勝負（指南封印中）</div>';
+    } else {
+        DOM.hintFixedDisplay.classList.remove("hint-mode-sealed");
+        DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
+        if (mode === "always") {
+            usedHintInGame = true;
+            maybeAutoHint();
+        } else {
+            clearHint();
+        }
+    }
+    drawBoard();
 }
 
 function buildHintReasons(chosen, allMoves) {
@@ -1111,7 +1179,6 @@ function buildHintReasons(chosen, allMoves) {
     return reasons;
 }
 
-/* ヒント計算（Ver 6.0.0 探索深さの動的調律による高速化） */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1120,7 +1187,6 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    // 序盤5、中盤6、終盤14手以下は完全読み
     const depth = emptyCount <= 14 ? emptyCount : (emptyCount > 40 ? 5 : 6);
     let bestScore = -Infinity, bestMoves = [];
 
@@ -1141,22 +1207,24 @@ function computeHint() {
     drawBoard();
 }
 
+/* Ver 6.1.0 盤面描画：完全OFF時は合法手ガイド（can-place）を非表示 */
 function drawBoard() {
     DOM.board.querySelectorAll(".cell").forEach(cell => cell.remove());
     const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
+    const isHintOff = (getHintMode() === "off");
 
     for (let r = 0; r < boardSize; r++) {
         for (let c = 0; c < boardSize; c++) {
             const cell = document.createElement("div");
             cell.className = "cell";
 
-            if (!isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
+            if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
                 cell.classList.add("can-place", previewClass);
             }
             if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
                 cell.classList.add("last-move-cell");
             }
-            if (!isReviewMode && hintMove && hintMove[0] === r && hintMove[1] === c) {
+            if (!isReviewMode && !isHintOff && hintMove && hintMove[0] === r && hintMove[1] === c) {
                 cell.classList.add("hint-cell");
             }
 
@@ -1216,7 +1284,7 @@ function drawBoard() {
 
     pendingAnimation = null;
     updateScore();
-    DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode;
+    DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff;
 }
 
 function updateScore(targetBoard = board) {
@@ -1316,6 +1384,7 @@ function generateTacticsReport() {
     };
 }
 
+/* Ver 6.1.0 終局処理：決着カットインと余韻の調律（1.4秒） */
 function endGame() {
     gameOver = true;
     isBusy = false;
@@ -1327,6 +1396,9 @@ function endGame() {
     drawBoard();
     updateBalanceGauge();
     updateUndoButtonState();
+
+    // 決着トーストカットイン
+    showMoveToast("finish", "👑 決着（FINISH）");
 
     const stats = getBoardStats(board);
     const hStones = (humanColor === BLACK) ? stats.black : stats.white;
@@ -1437,7 +1509,8 @@ function endGame() {
         };
     }
 
-    setTimeout(() => DOM.royalResultModal.classList.add("show"), 800);
+    // 余韻を味わうための表示遅延（1.4秒）
+    setTimeout(() => DOM.royalResultModal.classList.add("show"), 1400);
 }
 
 function enterReviewMode() {
@@ -1601,7 +1674,6 @@ if (soundToggleBtn) {
 }
 
 DOM.hintMode.addEventListener("change", updateHintModeUI);
-updateHintModeUI();
 
 function setupModal(openBtnId, overlayId, closeBtnId) {
     const openBtn = document.getElementById(openBtnId);
@@ -1639,3 +1711,4 @@ document.addEventListener("keydown", (e) => {
 // 初期化実行
 initCoordLabels();
 startGame();
+

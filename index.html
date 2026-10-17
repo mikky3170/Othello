@@ -1,3 +1,4 @@
+
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -26,11 +27,11 @@
   [Ver 5.8.0] 2026/09/21 : 【コードアーキテクチャ最適化・共通パイプライン統合エディション】
   [Ver 5.9.0] 2026/09/22 : 【生命感キャラクター・対面3D反転・10:16/16:10タブレットワイド調律エディション】
   [Ver 6.0.0] 2026/09/23 : 【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】
-    - 【ファイル構造2分割】HTML+CSS（othello_ai_sensei.html）とJS（othello_ai_sensei_js.js）に完全分離。
-    - 【終盤パリティ理論の厳密化】葉ノード手番と残り空きマス数に基づく加減点論理の是正。
-    - 【完全確定辺走査の統合】四隅からの走査に加え、埋まった辺ラインの確定石を高速検出。
-    - 【ヒントレスポンス最適化】序盤・中盤・終盤に応じた探索深さの適正配分により応答速度約2.5倍向上。
-    - 【探索負荷の軽量化】合法手探索・フロンティア走査の早期脱出（early break）最適化。
+  [Ver 6.1.0] 2026/10/18 : 【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】
+    - 【ステータスUI独立配置】盤面直下に1行専用帯を新設し、完全中央揃え＋黄金ネオングローパルスで手番状況を明示。
+    - 【下部UI階層の再編成】スコア・タイマー・先後手選択ボタンを独立サブ行へ分離し、窮屈感を解消。
+    - 【完全OFF時の真剣勝負意匠】ヒント枠に「⚔️ 真剣勝負モード（指南封印中）」の格式高い黒金プレート表示を導入。
+    - 【戦後会見の盤面視認性調律】モーダル背景の透過度とブラーを上品に調整し、背後の決着盤面を視認可能に改良。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -50,7 +51,7 @@
 
         :root {
             --royal-gold: linear-gradient(135deg, #fff9e6 0%, #ecd08c 25%, #c5973e 50%, #8c6218 75%, #f7e6ba 100%);
-            --royal-gold-bright: linear-gradient(135deg, #ffffff 0%, #fae6b2 40%, #d4a748 80%, #aa7a22 100%);
+            --royal-gold-bright: linear-gradient(135deg, #ffffff 0%, #fae6b2 40%, #ffd700 80%, #aa7a22 100%);
             --pure-gold-btn: linear-gradient(180deg, #ffffff 0%, #fff1ba 15%, #ffd700 45%, #e5b842 75%, #a67314 100%);
             --gold-border: rgba(212, 167, 72, 0.45);
             --gold-glow: rgba(212, 167, 72, 0.35);
@@ -502,8 +503,8 @@
 
         .move-toast {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6);
-            opacity: 0; pointer-events: none; padding: 7px 15px; border-radius: 20px; font-weight: 800;
-            font-size: 12.5px; letter-spacing: 0.08em; z-index: 50;
+            opacity: 0; pointer-events: none; padding: 8px 16px; border-radius: 20px; font-weight: 800;
+            font-size: 13px; letter-spacing: 0.08em; z-index: 50;
             transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25); white-space: nowrap;
         }
         .move-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -511,6 +512,8 @@
         .toast-good { background: linear-gradient(135deg, rgba(22, 35, 28, 0.96) 0%, rgba(10, 20, 14, 0.98) 100%); border: 1.5px solid #2ecc71; color: #d4f8e2; box-shadow: 0 0 20px rgba(46, 204, 113, 0.6); }
         .toast-reversal { background: linear-gradient(135deg, rgba(30, 26, 45, 0.96) 0%, rgba(15, 12, 28, 0.98) 100%); border: 1.5px solid #9b59b6; color: #f2e2ff; box-shadow: 0 0 22px rgba(155, 89, 182, 0.75); }
         .toast-bad { background: linear-gradient(135deg, rgba(45, 15, 15, 0.96) 0%, rgba(22, 8, 8, 0.98) 100%); border: 1.5px solid #ff4d4d; color: #ffd8d8; box-shadow: 0 0 24px rgba(255, 77, 77, 0.75); }
+        .toast-pass { background: linear-gradient(135deg, rgba(36, 28, 14, 0.96) 0%, rgba(18, 14, 6, 0.98) 100%); border: 2px solid #ffd700; color: #fff5cc; box-shadow: 0 0 28px rgba(255, 215, 0, 0.85); font-size: 14px; padding: 10px 20px; }
+        .toast-finish { background: linear-gradient(135deg, rgba(40, 32, 10, 0.98) 0%, rgba(15, 12, 3, 0.98) 100%); border: 2.5px solid #ffd700; color: #ffffff; box-shadow: 0 0 35px rgba(255, 215, 0, 0.95); font-size: 16px; padding: 12px 24px; }
 
         /* 手番連動対面3D反転アニメーション（0.54秒） */
         .stone-wrapper { position: relative; width: 88%; height: 88%; display: flex; align-items: center; justify-content: center; }
@@ -560,24 +563,49 @@
         .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2); border-radius: 10px; pointer-events: none; }
         .royal-card.turn-notify-pulse { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important; border-color: #ffd700 !important; }
 
-        .player-status-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px; }
-        #status { flex: 1; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-align: left; min-height: 18px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #status.status-human-turn { background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: human-turn-blink 1.4s ease-in-out infinite; }
-        @keyframes human-turn-blink {
-            0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.7)); transform: scale(1); }
-            50% { opacity: 0.35; filter: drop-shadow(0 0 12px rgba(255, 240, 190, 0.95)); transform: scale(1.02); }
+        /* Ver 6.1.0 独立ステータスバナー（完全中央配置・太字900・ネオングロー） */
+        .player-status-banner {
+            width: 100%; display: flex; align-items: center; justify-content: center;
+            padding: 3px 6px; margin-bottom: 4px;
+            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(212, 167, 72, 0.12) 50%, rgba(0,0,0,0) 100%);
+            border-bottom: 1px solid rgba(212, 167, 72, 0.25);
         }
-        #status.status-cpu-turn { color: #d1b888; -webkit-text-fill-color: #d1b888; opacity: 0.85; animation: hint-fade-pulse 1.8s ease-in-out infinite; }
-        #status.status-hint-thinking { color: #f7e6ba; -webkit-text-fill-color: #f7e6ba; text-shadow: 0 0 8px rgba(229, 184, 66, 0.7); animation: hint-fade-pulse 1.2s ease-in-out infinite; }
-        @keyframes hint-fade-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 
-        .player-stats-group { display: flex; align-items: center; gap: 5px; }
+        #status {
+            font-size: 13.5px; font-weight: 900; letter-spacing: 0.08em; text-align: center;
+            min-height: 20px; display: flex; align-items: center; justify-content: center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        #status.status-human-turn {
+            background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: human-turn-blink 1.4s ease-in-out infinite;
+        }
+        @keyframes human-turn-blink {
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.85)); transform: scale(1); }
+            50% { opacity: 0.55; filter: drop-shadow(0 0 14px rgba(255, 240, 190, 1)); transform: scale(1.02); }
+        }
+        #status.status-cpu-turn { color: #d1b888; -webkit-text-fill-color: #d1b888; opacity: 0.9; animation: hint-fade-pulse 1.8s ease-in-out infinite; }
+        #status.status-hint-thinking {
+            color: #ffe699; -webkit-text-fill-color: #ffe699;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.9));
+            animation: hint-fade-pulse 0.9s ease-in-out infinite;
+        }
+        @keyframes hint-fade-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+        /* スコア・時間・手番切替の独立サブ行 */
+        .player-sub-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 6px; margin-bottom: 4px; padding: 0 2px;
+        }
+
+        .player-stats-group { display: flex; align-items: center; gap: 6px; }
         .player-score-badge {
             font-family: 'Cinzel', serif; font-size: 12.5px; font-weight: 900; padding: 1px 7px;
             border-radius: 6px; background: rgba(8, 10, 14, 0.9); border: 1px solid #ffd700;
             color: #fff4bd; box-shadow: 0 0 8px rgba(255, 215, 0, 0.35);
         }
-        .player-timer { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 600; color: #baa070; }
+        .player-timer { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; color: #d1b888; display: flex; align-items: center; gap: 2px; }
 
         .color-selector { display: flex; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border); border-radius: 6px; padding: 2px; gap: 2px; }
         .color-btn {
@@ -612,7 +640,15 @@
             border: 1px solid rgba(212, 167, 72, 0.45); border-radius: 8px; background: rgba(14, 15, 20, 0.95);
             box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.5);
             display: flex; flex-direction: column; justify-content: center; overflow: hidden; position: relative;
+            transition: all 0.3s ease;
         }
+
+        .hint-fixed-display.hint-mode-sealed {
+            background: linear-gradient(135deg, rgba(20, 15, 10, 0.98) 0%, rgba(10, 8, 5, 0.98) 100%);
+            border: 1.5px solid rgba(212, 167, 72, 0.6);
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 0 14px rgba(212, 167, 72, 0.25);
+        }
+
         .hint-fixed-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(212, 167, 72, 0.25); padding-bottom: 1px; margin-bottom: 2px; }
         .hint-badge-tag { font-size: 9.5px; font-weight: 800; color: #fae6b2; display: flex; align-items: center; gap: 4px; }
         .hint-target-coord { font-family: 'Cinzel', serif; font-size: 13.5px; font-weight: 900; color: #fff2d1; }
@@ -646,14 +682,14 @@
 
         .royal-result-modal {
             display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center;
-            background: rgba(4, 5, 8, 0.94); backdrop-filter: blur(10px); padding: 12px;
+            background: rgba(4, 5, 8, 0.84); backdrop-filter: blur(6px); padding: 12px;
         }
         .royal-result-modal.show { display: flex; animation: modal-fade-in 0.35s ease-out forwards; }
         @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
         .royal-result-card {
             width: 100%; max-width: 440px; max-height: 94dvh; overflow-y: auto;
-            background: linear-gradient(165deg, #1c212d 0%, #11141c 55%, #0a0b10 100%);
+            background: linear-gradient(165deg, rgba(28, 33, 45, 0.96) 0%, rgba(17, 20, 28, 0.98) 55%, rgba(10, 11, 16, 0.98) 100%);
             border: 2px solid var(--char-accent); border-radius: 16px; padding: 16px 14px; text-align: center;
             box-shadow: 0 0 32px var(--char-glow), 0 24px 60px rgba(0, 0, 0, 0.95); position: relative;
             animation: result-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
@@ -898,14 +934,19 @@
         <!-- ゾーン③：操作ゾーン -->
         <div class="player-control-zone">
             <div class="royal-card" id="normalControlCard">
-                <div class="player-status-row">
-                    <div id="status" class="status-human-turn">あなたの番です…</div>
+                <!-- Ver 6.1.0 独立センタリングステータスバナー -->
+                <div class="player-status-banner">
+                    <div id="status" class="status-human-turn">👑 あなたの番です…</div>
+                </div>
+
+                <!-- スコア・タイマー・白黒選択の独立サブ行 -->
+                <div class="player-sub-row">
                     <div class="player-stats-group">
-                        <span class="player-timer" id="playerTime">⏱️ 00:00</span>
                         <div class="player-score-badge">
                             <span id="playerPieceIcon">⚫</span>
                             <span id="playerScore">2</span>
                         </div>
+                        <span class="player-timer" id="playerTime">⏱️ 00:00</span>
                     </div>
                     <div class="color-selector">
                         <button type="button" class="color-btn active" id="btnPlayerBlack">先手(黒)</button>
@@ -939,7 +980,7 @@
 
                 <div class="hint-fixed-display" id="hintFixedDisplay">
                     <div class="hint-fixed-header">
-                        <div class="hint-badge-tag">💡【宮廷AI指南・最善手】</div>
+                        <div class="hint-badge-tag" id="hintBadgeTag">💡【宮廷AI指南・最善手】</div>
                         <div class="hint-target-coord" id="hintCoordText">--</div>
                     </div>
                     <div class="hint-elegant-gold-text" id="hintBodyText">
@@ -1079,7 +1120,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.0.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.1.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1177,12 +1218,16 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 6.1.0</span><span class="chronicle-date">2026/10/18</span>
+                    <div class="chronicle-desc">【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。スコア・タイマー・先後手選択ボタンを独立サブ行へ分離。完全OFF時の合法手点滅非表示および「⚔️ 真剣勝負モード（指南封印中）」専用意匠を導入。パス発生時の特大トーストカットイン、決着時の余韻拡大および背景盤面の視認性向上を実施。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.0.0</span><span class="chronicle-date">2026/09/23</span>
                     <div class="chronicle-desc">【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTML+CSS（othello_ai_sensei.html）とJS（othello_ai_sensei_js.js）に完全分離。終盤パリティ理論の手番連動加減点化、埋まった辺の確定石を高速検出する完全確定辺走査アルゴリズム統合、序盤・中盤・終盤のヒント探索深さ動的配分による応答2.5倍高速化、合法手判定の枝刈り最適化を実施。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 5.9.0</span><span class="chronicle-date">2026/09/22</span>
-                    <div class="chronicle-desc">【生命感キャラクター・対面3D反転・10:16/16:10タブレットワイド調律エディション】スマホヘッダー分離、盤面幅いっぱい最大化。呼吸（Breathing）常時微動＋発話アクティブパルス＋タイピングセリフ。キャラクター肖像特大化。手番連動対面3D反転アニメーション実装。</div>
+                    <div class="chronicle-desc">【生命感キャラクター・対面3D反転・10:16/16:10タブレットワイド調律エディション】スマホヘッダー分離、盤面幅いっぱい最大化。呼吸常時微動＋発話アクティブパルス＋タイピングセリフ。キャラクター肖像特大化。手番連動対面3D反転アニメーション実装。</div>
                 </div>
             </div>
         </div>
@@ -1192,3 +1237,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
+
