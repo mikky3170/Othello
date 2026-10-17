@@ -1,4 +1,3 @@
-
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -9,17 +8,14 @@
   [Ver 4.0.0] 2026/09/02 : ラグジュアリー意匠刷新、高速パタパタ反転、フッターUI新設
   [Ver 4.1.0] 2026/09/03 : 西洋王朝風デザイン刷新、全画面API、BGM連動、しっぽり明朝採用
   [Ver 4.2.0] 2026/09/04 : 3大アシスト体系整理（好手・悪手採点、手動・常時・完全OFF）
-  [Ver 4.3.0] 2026/09/05 : 厳選6人制へ移行、動的セリフ＆アバター演出システム実装
-  [Ver 4.4.0] 2026/09/06 : 宮廷対面コロシアム構図、肖像枠80px大型化、3段ビュー視線最適化
-  [Ver 4.5.0] 2026/09/07 : 【決定版：オーバル肖像・綱引きバトルゲージ・王宮決着演出】
-  [Ver 4.6.0] 2026/09/08 : 【レイアウト最適化・UX強化・構造リファクタリング】
-  [Ver 4.7.0] 2026/09/09 : 【王宮戦後会見（ROYAL DEBRIEFING）＆戦術カルテ実装】
-    - 終局専用「王宮戦後会見」フルモーダル新設
-    - 対戦中の2倍サイズ（横115px×縦155px）特大オーバル肖像画の表示
-    - キャラクターの感情セリフ（肉声）と【宮廷AI戦術カルテ】の2段完全分離
-    - プレイヤー vs 相手の個別消費時間（思考時間）集計＆最終石数グラフ表示
-    - 対局中の手筋解析による「最善手（勝因打点）」と「要反省の手（痛恨の隙）」の自動解説
-    - 勝敗適応型アクションボタン（勝利時は「次の強敵へ進む」、敗北時は「雪辱を期す」）
+  [Ver 4.5.0] 2026/09/07 : オーバル肖像、綱引きバトルゲージ、王宮決着カットイン演出
+  [Ver 4.6.0] 2026/09/08 : 中央タイトル＆干渉回避、運命の天秤上部化、固定ヒント枠新設
+  [Ver 4.7.0] 2026/09/09 : 王宮戦後会見新設、2倍特大肖像、双方消費時間集計、AI戦術カルテ
+  [Ver 4.8.0] 2026/09/10 : 極上石デザイン＆棋譜検証モード、宮廷思案所極意書を実装
+  [Ver 4.8.1] 2026/09/10 : 【3Dフリップ完全調律＆レイヤー分離・物理反転エフェクト最適化】
+    - filterとtransform-style: preserve-3dの干渉によるブラウザ3Dフラット化バグを完全解消
+    - 浮遊シャドウ外枠と純粋3Dシリンダー内枠を完全分離し、表裏の突き抜けや透けを根本撲滅
+    - 320msの極上物理フリップカーブ＆リムライト厚み、連鎖音との完全同期を達成
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -45,7 +41,8 @@
         :root {
             --royal-gold: linear-gradient(135deg, #fff9e6 0%, #ecd08c 25%, #c5973e 50%, #8c6218 75%, #f7e6ba 100%);
             --royal-gold-bright: linear-gradient(135deg, #ffffff 0%, #fae6b2 40%, #d4a748 80%, #aa7a22 100%);
-            --pure-gold-btn: linear-gradient(135deg, #fff4cc 0%, #ffd700 45%, #e5b842 80%, #c4921f 100%);
+            /* 3D鋳造立体金塊ゴールド */
+            --pure-gold-btn: linear-gradient(180deg, #ffffff 0%, #fff1ba 15%, #ffd700 45%, #e5b842 75%, #a67314 100%);
             --gold-border: rgba(212, 167, 72, 0.45);
             --gold-glow: rgba(212, 167, 72, 0.35);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
@@ -89,7 +86,7 @@
             z-index: 0;
         }
 
-        /* --- ヘッダー：中央センタリング＆干渉回避 --- */
+        /* --- ヘッダー --- */
         header {
             width: 100%;
             max-width: 1080px;
@@ -378,7 +375,7 @@
             to { opacity: 1; transform: translateX(0) scale(1); }
         }
 
-        /* ゾーン②：盤面ゾーン（上部に「運命の天秤」を配置） */
+        /* ゾーン②：盤面ゾーン */
         .board-zone {
             display: flex;
             flex-direction: column;
@@ -527,7 +524,7 @@
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            perspective: 800px;
+            perspective: 900px; /* 3D回転パースペクティブ */
         }
 
         .last-move-cell {
@@ -538,6 +535,16 @@
         @keyframes gold-pulse {
             from { box-shadow: inset 0 0 0 2px #d4a748, inset 0 0 8px rgba(212, 167, 72, 0.4); }
             to { box-shadow: inset 0 0 0 2.5px #fff4bd, inset 0 0 16px rgba(255, 215, 0, 0.85); }
+        }
+
+        .review-focus-cell {
+            box-shadow: inset 0 0 0 3px #00ffff, inset 0 0 18px rgba(0, 255, 255, 0.85) !important;
+            animation: review-pulse 1.2s infinite alternate !important;
+        }
+
+        @keyframes review-pulse {
+            from { filter: drop-shadow(0 0 2px #00ffff); }
+            to { filter: drop-shadow(0 0 10px #ffffff); }
         }
 
         .can-place { background-color: rgba(212, 167, 72, 0.08); }
@@ -566,13 +573,13 @@
         }
 
         .preview-black.can-place::before {
-            background: linear-gradient(145deg, rgba(40, 42, 48, 0.85) 0%, rgba(18, 19, 22, 0.9) 60%, rgba(10, 10, 12, 0.95) 100%);
+            background: linear-gradient(145deg, rgba(30, 32, 38, 0.85) 0%, rgba(12, 13, 16, 0.95) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.6);
             box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7);
         }
 
         .preview-white.can-place::before {
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(246, 243, 236, 0.88) 50%, rgba(220, 215, 202, 0.9) 100%);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 236, 226, 0.9) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.7);
             box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
         }
@@ -631,52 +638,89 @@
             box-shadow: 0 0 24px rgba(255, 77, 77, 0.65);
         }
 
+        /* ==========================================================================
+           ◆ 【Ver 4.8.1 完全刷新】3Dフリップ＆レイヤー分離・物理反転エフェクト
+           - filterによる3D破壊を根絶するため、シャドウ浮遊親枠と純粋3Dシリンダーを完全分離
+        ========================================================================== */
         .stone-wrapper {
             position: relative;
-            width: 82%;
-            height: 82%;
+            width: 86%;
+            height: 86%;
             display: flex;
             align-items: center;
             justify-content: center;
-            transform-style: preserve-3d;
         }
 
-        .stone-base-shadow {
-            position: absolute;
-            width: 92%;
-            height: 92%;
-            border-radius: 50%;
-            background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.3) 60%, transparent 80%);
-            transform: translateY(2.5px) scale(0.96);
-            pointer-events: none;
-            z-index: 1;
-        }
-
+        /* 静止時の石本体 */
         .stone {
             position: relative;
             width: 100%;
             height: 100%;
             border-radius: 50%;
             z-index: 2;
+            filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82));
         }
 
-        .stone-new { animation: stone-drop 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25); }
-        @keyframes stone-drop {
-            from { transform: scale(0.3) translateY(-18px); opacity: 0; }
-            to { transform: scale(1) translateY(0); opacity: 1; }
+        .stone-new {
+            animation: stone-drop-clean 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
         }
 
+        @keyframes stone-drop-clean {
+            from { transform: translateY(-16px) scale(0.65); opacity: 0; filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.4)); }
+            to { transform: translateY(0) scale(1); opacity: 1; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
+        }
+
+        /* ① 浮遊・着地＆動的影を受け持つ親枠（filterをここに集約） */
+        .stone-flip-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+            animation: flip-lift-shadow 0.32s cubic-bezier(0.25, 1, 0.4, 1) forwards;
+            z-index: 10;
+        }
+
+        @keyframes flip-lift-shadow {
+            0% {
+                transform: translateY(0) scale(1);
+                filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82));
+            }
+            45% {
+                /* 空中最高点：石が跳ね上がり、影が自然に下に落ちて拡散 */
+                transform: translateY(-8px) scale(1.06);
+                filter: drop-shadow(0 11px 12px rgba(0, 0, 0, 0.35));
+            }
+            100% {
+                /* 着地：吸い付くようにカチッと着地 */
+                transform: translateY(0) scale(1);
+                filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82));
+            }
+        }
+
+        /* ② 純粋な3D回転シリンダー（一切のfilterを排除し、完全な3D空間を維持） */
         .stone-flip-cylinder {
             position: relative;
             width: 100%;
             height: 100%;
             border-radius: 50%;
             transform-style: preserve-3d;
-            animation: flip-cylinder-motion 0.42s cubic-bezier(0.25, 0.9, 0.35, 1.05) forwards;
-            z-index: 2;
+            animation: flip-spin-3d 0.32s cubic-bezier(0.25, 1, 0.4, 1) forwards;
         }
 
-        .stone-layer {
+        @keyframes flip-spin-3d {
+            0% {
+                transform: rotateY(0deg);
+            }
+            100% {
+                transform: rotateY(180deg);
+            }
+        }
+
+        /* 表面・裏面ディスク */
+        .stone-face {
             position: absolute;
             inset: 0;
             border-radius: 50%;
@@ -684,36 +728,40 @@
             -webkit-backface-visibility: hidden;
         }
 
-        .stone-disk-front { transform: translateZ(2.5px); }
-        .stone-disk-back { transform: rotateY(180deg) translateZ(2.5px); }
+        .stone-face-front {
+            transform: rotateY(0deg) translateZ(1.5px);
+        }
 
-        .stone-split-side {
+        .stone-face-back {
+            transform: rotateY(180deg) translateZ(1.5px);
+        }
+
+        /* 断面の厚みリムライト（回転時に石の厚みとして自然にチラリと見える境界） */
+        .stone-edge-rim {
             position: absolute;
             inset: 0;
             border-radius: 50%;
             transform: translateZ(0px);
-            background: linear-gradient(90deg, #151618 0%, #1c1d22 49%, #3b372f 50%, #eae6dc 51%, #f6f3eb 100%);
+            background: linear-gradient(90deg, #101114 0%, #1a1c22 49%, #3b372f 50%, #ede7da 51%, #fcfbf7 100%);
             border: 1px solid rgba(45, 42, 38, 0.85);
         }
 
-        @keyframes flip-cylinder-motion {
-            0% { transform: translateY(0) scale(1) rotateX(0deg) rotateY(0deg); }
-            40% { transform: translateY(-16px) scale(1.08) rotateX(24deg) rotateY(70deg); }
-            50% { transform: translateY(-18px) scale(1.1) rotateX(26deg) rotateY(90deg); }
-            75% { transform: translateY(-8px) scale(1.04) rotateX(12deg) rotateY(140deg); }
-            100% { transform: translateY(0) scale(1) rotateX(0deg) rotateY(180deg); }
-        }
-
+        /* 漆黒ピアノブラック（深みのある黒曜石・クリアコート光沢） */
         .black-stone {
-            background: linear-gradient(145deg, #2c2e35 0%, #17181c 45%, #0b0c0e 100%);
-            border: 1.2px solid #3d3b36;
-            box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), inset 0 -2px 3px rgba(0, 0, 0, 0.95);
+            background: radial-gradient(circle at 32% 26%, #3a3e48 0%, #17181d 40%, #08090b 80%, #020203 100%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 
+                inset 1px 1.5px 2px rgba(255, 255, 255, 0.38),
+                inset -2px -2.5px 4px rgba(0, 0, 0, 0.95);
         }
 
+        /* プレミアム白磁アイボリー（清潔で温かみのあるボーンチャイナ調） */
         .white-stone {
-            background: linear-gradient(145deg, #ffffff 0%, #f6f3ec 42%, #e5dfd2 100%);
-            border: 1.2px solid #ded6c5;
-            box-shadow: inset 0 1.5px 1.5px #ffffff, inset 0 -1.5px 2.5px rgba(120, 105, 80, 0.4);
+            background: radial-gradient(circle at 32% 26%, #ffffff 0%, #fbf9f4 45%, #ece4d4 82%, #ded3be 100%);
+            border: 1px solid #ffffff;
+            box-shadow: 
+                inset 1px 1.5px 2px #ffffff,
+                inset -1.5px -2.5px 4px rgba(120, 105, 85, 0.38);
         }
 
         /* ゾーン③：操作ゾーン */
@@ -753,7 +801,6 @@
             margin-bottom: 5px;
         }
 
-        /* あなたの番です：点滅発光 */
         #status {
             flex: 1;
             font-size: 12.5px;
@@ -776,16 +823,8 @@
         }
 
         @keyframes human-turn-blink {
-            0%, 100% {
-                opacity: 1;
-                filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.7));
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.35;
-                filter: drop-shadow(0 0 12px rgba(255, 240, 190, 0.95));
-                transform: scale(1.02);
-            }
+            0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.7)); transform: scale(1); }
+            50% { opacity: 0.35; filter: drop-shadow(0 0 12px rgba(255, 240, 190, 0.95)); transform: scale(1.02); }
         }
 
         #status.status-cpu-turn {
@@ -825,7 +864,7 @@
             font-family: inherit;
             font-size: 9.5px;
             font-weight: 700;
-            padding: 2px 6px;
+            padding: 3px 7px;
             border-radius: 4px;
             border: 1px solid transparent;
             background: transparent;
@@ -834,12 +873,18 @@
             transition: all 0.2s ease;
         }
 
+        /* 3D鋳造立体エンボスゴールド（先手後手） */
         .color-btn.active {
             background: var(--pure-gold-btn) !important;
-            color: #12141a !important;
-            border-color: #fff4cc !important;
-            font-weight: 800;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.75) !important;
+            color: #1a1204 !important;
+            border: 1px solid #ffffff !important;
+            font-weight: 900;
+            box-shadow: 
+                0 2px 6px rgba(0, 0, 0, 0.8),
+                0 0 12px rgba(255, 215, 0, 0.85),
+                inset 0 1px 1px #ffffff,
+                inset 0 -1px 2px rgba(120, 80, 10, 0.6) !important;
+            transform: translateY(-1px);
         }
 
         .action-grid-row1 {
@@ -851,7 +896,7 @@
 
         .action-grid-row2 {
             display: grid;
-            grid-template-columns: 1fr 1.1fr 1fr 1.15fr; /* 待った, 新対局, 思案所, ヒント */
+            grid-template-columns: 1fr 1.1fr 1fr 1.15fr;
             gap: 5px;
         }
 
@@ -910,7 +955,6 @@
             font-weight: 800;
         }
 
-        /* 目線がぶれない「固定配置ヒントディスプレイ枠」 */
         .hint-fixed-display {
             width: 100%;
             height: 64px;
@@ -951,7 +995,70 @@
         .hint-placeholder-text { font-size: 10.5px; color: #7d8b99; font-style: italic; text-align: center; line-height: 20px; }
 
         /* ==========================================================================
-           ◆ 王宮戦後会見（ROYAL DEBRIEFING）フルモーダル（Ver 4.7.0）
+           ◆ 棋譜検証（振り返りモード）パネル
+        ========================================================================== */
+        .review-mode-panel {
+            display: none;
+            width: 100%;
+            background: linear-gradient(165deg, #18202d 0%, #0d1017 100%);
+            border: 1.5px solid #48a6b0;
+            border-radius: 12px;
+            padding: 7px 10px;
+            box-shadow: 0 0 20px rgba(72, 166, 176, 0.35);
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .review-mode-panel.show { display: flex; }
+
+        .review-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(72, 166, 176, 0.3);
+            padding-bottom: 4px;
+        }
+
+        .review-step-label { font-size: 12px; font-weight: 800; color: #a4ebf2; }
+        .review-turn-info { font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700; color: #fff2cc; }
+
+        .review-controls-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .review-controls-row2 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 5px; }
+
+        .btn-review-nav {
+            padding: 6px 4px;
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 6px;
+            border: 1px solid var(--gold-border);
+            background: linear-gradient(180deg, #2a3346 0%, #141a24 100%);
+            color: #ffffff;
+        }
+
+        .btn-jump-good {
+            background: linear-gradient(180deg, #3d351b 0%, #1f190b 100%);
+            border: 1px solid #ffd700;
+            color: #fff2bd;
+            font-weight: 800;
+        }
+
+        .btn-jump-bad {
+            background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%);
+            border: 1px solid #ff6b6b;
+            color: #ffd8d8;
+            font-weight: 800;
+        }
+
+        .btn-review-exit {
+            background: var(--pure-gold-btn);
+            color: #121008;
+            border: 1px solid #ffffff;
+            font-weight: 900;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+
+        /* ==========================================================================
+           ◆ 王宮戦後会見（ROYAL DEBRIEFING）フルモーダル
         ========================================================================== */
         .royal-result-modal {
             display: none;
@@ -960,17 +1067,18 @@
             z-index: 2000;
             align-items: center;
             justify-content: center;
-            background: rgba(4, 5, 8, 0.9);
+            background: rgba(4, 5, 8, 0.92);
             backdrop-filter: blur(10px);
             padding: 12px;
         }
 
         .royal-result-modal.show { display: flex; animation: modal-fade-in 0.35s ease-out forwards; }
+        @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
         .royal-result-card {
             width: 100%;
             max-width: 440px;
-            max-height: 92dvh;
+            max-height: 94dvh;
             overflow-y: auto;
             background: linear-gradient(165deg, #1c212d 0%, #11141c 55%, #0a0b10 100%);
             border: 2px solid var(--char-accent);
@@ -982,9 +1090,14 @@
             animation: result-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
         }
 
+        @keyframes result-pop {
+            from { transform: scale(0.9); }
+            to { transform: scale(1); }
+        }
+
         .result-main-title {
             font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
-            font-size: 23px;
+            font-size: 24px;
             font-weight: 900;
             letter-spacing: 0.16em;
             margin-bottom: 2px;
@@ -1000,7 +1113,6 @@
         .result-title-lose { color: #ff6b6b; text-shadow: 0 0 14px rgba(255, 107, 107, 0.6); }
         .result-title-draw { color: #e5e0d4; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
 
-        /* 特大カメオ肖像画（2倍サイズ） */
         .result-avatar-container {
             display: flex;
             flex-direction: column;
@@ -1035,14 +1147,13 @@
             letter-spacing: 0.05em;
         }
 
-        /* キャラクターの肉声（感情セリフ枠） */
         .result-quote-card {
             background: linear-gradient(135deg, rgba(32, 38, 52, 0.85) 0%, rgba(16, 18, 26, 0.92) 100%);
             border: 1px solid rgba(212, 167, 72, 0.35);
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 9px 12px;
             font-size: 11.5px;
-            line-height: 1.45;
+            line-height: 1.5;
             color: #f7eed8;
             margin-bottom: 10px;
             font-style: italic;
@@ -1061,7 +1172,6 @@
             padding: 0 2px;
         }
 
-        /* 対局実績スタッツ */
         .result-stats-card {
             background: rgba(0, 0, 0, 0.35);
             border: 1px solid var(--gold-border);
@@ -1074,17 +1184,10 @@
             font-size: 11px;
         }
 
-        .stats-col {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            align-items: center;
-        }
-
+        .stats-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
         .stats-col-title { font-size: 9.5px; color: #bfa882; font-weight: 700; }
         .stats-col-val { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 900; color: #fff4bd; }
 
-        /* 宮廷AI戦術カルテ */
         .ai-tactics-carte {
             background: linear-gradient(135deg, rgba(22, 28, 38, 0.9) 0%, rgba(12, 14, 20, 0.95) 100%);
             border: 1.5px solid rgba(72, 166, 176, 0.5);
@@ -1106,12 +1209,7 @@
             border-bottom: 1px solid rgba(72, 166, 176, 0.25);
         }
 
-        .carte-row {
-            margin-bottom: 6px;
-            font-size: 11px;
-            line-height: 1.4;
-        }
-
+        .carte-row { margin-bottom: 6px; font-size: 11px; line-height: 1.4; }
         .carte-row:last-child { margin-bottom: 0; }
         .carte-label { font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
         .carte-label.good { color: #ffd700; }
@@ -1129,36 +1227,81 @@
         }
         .carte-desc { color: #ecd08c; margin-top: 1px; padding-left: 14px; font-size: 10.5px; }
 
-        /* 結果アクションボタン */
         .result-actions { display: flex; flex-direction: column; gap: 6px; }
         .result-main-btn-row { display: flex; gap: 8px; }
-        .result-btn {
-            flex: 1;
-            padding: 9px 12px;
-            font-size: 12px;
-            font-weight: 800;
+
+        .result-btn-gold {
+            background: var(--pure-gold-btn);
+            color: #1a1204;
+            border: 1px solid #ffffff;
+            box-shadow: 
+                0 4px 12px rgba(0, 0, 0, 0.7),
+                0 0 16px rgba(255, 215, 0, 0.75),
+                inset 0 1px 1px #ffffff,
+                inset 0 -2px 3px rgba(120, 80, 10, 0.7);
+            font-size: 12.5px;
+            font-weight: 900;
+            padding: 10px 14px;
             border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 5px;
+            transition: all 0.2s ease;
         }
 
-        .result-btn-gold {
-            background: var(--pure-gold-btn);
-            color: #121008;
-            border: 1px solid #ffffff;
-            box-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
+        .result-btn-gold:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8), 0 0 22px rgba(255, 215, 0, 0.95);
         }
 
         .result-btn-dark {
             background: rgba(255, 255, 255, 0.08);
             color: #f7eed8;
             border: 1px solid var(--gold-border);
-            padding: 6px 12px;
-            font-size: 11px;
+            padding: 7px 12px;
+            font-size: 11.5px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
         }
+
+        .result-btn-dark:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #ffd700;
+        }
+
+        .manual-char-card {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid rgba(212, 167, 72, 0.25);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+        }
+
+        .manual-char-avatar-mini {
+            width: 44px;
+            height: 58px;
+            border-radius: 50%;
+            border: 2px solid var(--gold-border);
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #111;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        .manual-char-avatar-mini img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
 
         /* フッター */
         footer.app-footer {
@@ -1233,8 +1376,8 @@
 
         .dynasty-modal {
             width: 100%;
-            max-width: 560px;
-            max-height: 85dvh;
+            max-width: 580px;
+            max-height: 86dvh;
             overflow-y: auto;
             text-align: left;
             color: #f7eed8;
@@ -1294,10 +1437,10 @@
             border: 1px solid rgba(212, 167, 72, 0.25);
             background: rgba(255, 255, 255, 0.03);
             border-radius: 8px;
-            padding: 9px 11px;
-            margin-bottom: 8px;
+            padding: 10px 12px;
+            margin-bottom: 9px;
             font-size: 11.5px;
-            line-height: 1.55;
+            line-height: 1.6;
         }
 
         .manual-card-title {
@@ -1307,7 +1450,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
         }
 
         .manual-rank-badge {
@@ -1321,14 +1464,12 @@
             border-radius: 3px;
         }
 
-        .manual-meta-row { display: flex; gap: 12px; font-size: 10px; color: #bfa882; margin-bottom: 3px; }
-
         .chronicle-timeline { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
         .chronicle-item {
             position: relative;
             padding-left: 18px;
             border-left: 2px solid rgba(212, 167, 72, 0.35);
-            font-size: 11.5px;
+            font-size: 11px;
             line-height: 1.45;
         }
 
@@ -1344,8 +1485,8 @@
             box-shadow: 0 0 6px #ffd700;
         }
 
-        .chronicle-version { font-family: 'Cinzel', serif; font-weight: 800; color: #fff4bd; font-size: 12px; }
-        .chronicle-date { font-size: 10px; color: #baa070; margin-left: 6px; }
+        .chronicle-version { font-family: 'Cinzel', serif; font-weight: 800; color: #fff4bd; font-size: 11.5px; }
+        .chronicle-date { font-size: 9.5px; color: #baa070; margin-left: 6px; }
         .chronicle-desc { color: #ded6c2; margin-top: 2px; }
     </style>
 </head>
@@ -1401,7 +1542,7 @@
             </div>
         </div>
 
-        <!-- ゾーン②：聖戦の盤面ゾーン（上部に『運命の天秤』） -->
+        <!-- ゾーン②：盤面ゾーン -->
         <div class="board-zone">
             <div class="battle-gauge-container">
                 <div class="battle-gauge-header">
@@ -1429,7 +1570,9 @@
 
         <!-- ゾーン③：操作ゾーン -->
         <div class="player-control-zone">
-            <div class="royal-card">
+            
+            <!-- 通常対局操作カード -->
+            <div class="royal-card" id="normalControlCard">
                 <div class="player-status-row">
                     <div id="status" class="status-human-turn">あなたの番です…</div>
                     <div class="player-stats-group">
@@ -1462,7 +1605,6 @@
                     </select>
                 </div>
 
-                <!-- ボタン並び順：待った, 新対局, 思案所, ヒント -->
                 <div class="action-grid-row2">
                     <button id="undoButton" class="btn-royal" type="button">⚜️ 待った</button>
                     <button id="restartButton" class="btn-royal" type="button">👑 新対局</button>
@@ -1470,7 +1612,6 @@
                     <button id="hintButton" class="btn-royal" type="button">💡 ヒント</button>
                 </div>
 
-                <!-- 目線がブレない「固定配置ヒントディスプレイ枠」 -->
                 <div class="hint-fixed-display" id="hintFixedDisplay">
                     <div class="hint-fixed-header">
                         <div class="hint-badge-tag">💡【宮廷AI指南・最適手】</div>
@@ -1481,6 +1622,24 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 本格『棋譜検証（振り返り）モード』パネル -->
+            <div class="review-mode-panel" id="reviewModePanel">
+                <div class="review-header-row">
+                    <div class="review-step-label">🔍【棋譜検証モード】</div>
+                    <div class="review-turn-info" id="reviewTurnInfo">第 0 手 / 全 0 手</div>
+                </div>
+                <div class="review-controls-row1">
+                    <button type="button" class="btn-review-nav" id="btnReviewPrev">◀ 1手戻る</button>
+                    <button type="button" class="btn-review-nav" id="btnReviewNext">1手進む ▶</button>
+                </div>
+                <div class="review-controls-row2">
+                    <button type="button" class="btn-review-nav btn-jump-good" id="btnJumpGood">⚜️ 最善手へ</button>
+                    <button type="button" class="btn-review-nav btn-jump-bad" id="btnJumpBad">⚠️ 反省点へ</button>
+                    <button type="button" class="btn-review-nav btn-review-exit" id="btnReviewExit">👑 会見へ戻る</button>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -1492,22 +1651,19 @@
         <div class="royal-result-card">
             <div class="result-main-title" id="resultMainTitle">VICTORY</div>
 
-            <!-- 特大カメオ肖像画（2倍サイズ） -->
             <div class="result-avatar-container">
                 <div class="result-avatar-frame" id="resultAvatarFrame"></div>
                 <div class="result-char-name-badge" id="resultCharNameBadge">道化師 ピエロ (Lv.1)</div>
             </div>
 
-            <!-- キャラクターの感情セリフ（肉声） -->
             <div class="result-quote-card" id="resultQuoteBox">
                 「参った参った〜！ さすが貴方様、完敗でゴザイマス！」
             </div>
 
-            <!-- 対局実績スタッツ（最終石数＆個別消費時間） -->
             <div class="result-stats-card">
                 <div class="stats-col">
                     <span class="stats-col-title">最終盤面制圧</span>
-                    <span class="stats-col-val" id="resultStonesDetail">⚫ 42 VS 22 ⚪</span>
+                    <span class="stats-col-val" id="resultStonesDetail">⚫ 42 vs 22 ⚪</span>
                 </div>
                 <div class="stats-col">
                     <span class="stats-col-title">費やした思考時間</span>
@@ -1515,7 +1671,6 @@
                 </div>
             </div>
 
-            <!-- 宮廷AI戦術カルテ（客観的技術分析） -->
             <div class="ai-tactics-carte">
                 <div class="carte-header">
                     <span>📜 宮廷AI戦術カルテ（手筋分析）</span>
@@ -1530,15 +1685,14 @@
                 </div>
             </div>
 
-            <!-- 状況適応型アクションボタン -->
             <div class="result-actions">
                 <div class="result-main-btn-row">
-                    <button type="button" class="result-btn result-btn-gold" id="btnResultAdvance">
+                    <button type="button" class="result-btn-gold" id="btnResultAdvance" style="flex:1;">
                         <span id="btnAdvanceIcon">⚔️</span>
                         <span id="btnAdvanceText">次の強敵へ挑む</span>
                     </button>
                 </div>
-                <button type="button" class="result-btn result-btn-dark" id="btnResultClose">盤面をじっくり検証する</button>
+                <button type="button" class="result-btn-dark" id="btnStartReview">🔍 盤面をじっくり検証する（棋譜再生）</button>
             </div>
         </div>
     </div>
@@ -1548,7 +1702,7 @@
         <div class="footer-brand">
             <span>👑 OTHELLO 2026 AI SENSEI</span>
         </div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 4.7.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 4.8.1</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1579,52 +1733,72 @@
             </div>
 
             <div id="tab-rank" class="manual-tab-content">
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.1</span> 宮廷道化師 ピエロ（練習用）</div>
-                    <div class="manual-meta-row"><span>気質：お調子者</span><span>テーマ：道化の深紅＆真鍮金</span></div>
-                    <div>オセロのルールを覚えたての方へ。おどけながら角の隣に平気で石を置いてくれます。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char1.png" alt="ピエロ" onerror="this.src='';this.parentElement.textContent='🃏'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.1</span> 宮廷道化師 ピエロ</div>
+                        <div>おどけながら角の隣（危険マス）に平気で石を置いてくれます。まずはオセロの基本ルールと勝利の快感を味わってください。</div>
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.2</span> 見習い侍女 コレット（初級）</div>
-                    <div class="manual-meta-row"><span>気質：可憐・欲張り</span><span>テーマ：宮廷エメラルド</span></div>
-                    <div>石をたくさん取れるマスに飛びつく癖があります。罠を仕掛ければ簡単に勝てます。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char2.png" alt="コレット" onerror="this.src='';this.parentElement.textContent='🎀'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.2</span> 見習い侍女 コレット</div>
+                        <div>「たくさんひっくり返せるマス」に無邪気に飛びつく癖があります。石を少なく取らせる罠を張れば簡単に勝機を掴めます。</div>
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.3</span> 近衛騎士 ローラン（中級・標準）</div>
-                    <div class="manual-meta-row"><span>気質：実直・堂々</span><span>テーマ：白銀＆ロイヤルブルー</span></div>
-                    <div>角を最優先で狙う王道スタイル。オセロの基本が身につく好敵手です。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char3.png" alt="ローラン" onerror="this.src='';this.parentElement.textContent='⚔️'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.3</span> 近衛騎士 ローラン</div>
+                        <div>四隅の角を最優先で狙う王道騎士道スタイル。序盤から中央の守りを固めるオセロの基礎を身につけるための最高の好敵手です。</div>
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 薔薇の伯爵夫人 エリザベート（上級）</div>
-                    <div class="manual-meta-row"><span>気質：気品・策略</span><span>テーマ：妖艶のルビーワイン</span></div>
-                    <div>序盤は石を少なく取り、こちらの置けるマスを狭めてくる強敵です。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 薔薇の伯爵夫人 エリザベート</div>
+                        <div>序盤はあえて石を少なく取り、こちらの打てるマスを巧みに狭めてきます。「中割り」を理解していないと手詰まりに追い込まれます。</div>
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.5</span> 宮廷宰相 ヴォルフガング（有段）</div>
-                    <div class="manual-meta-row"><span>気質：冷徹・深謀遠慮</span><span>テーマ：深淵の紫紺＆黒</span></div>
-                    <div>大会上位クラス。相手の手を完全に封じる高等戦術を展開します。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char5.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.5</span> 宮廷宰相 ヴォルフガング</div>
+                        <div>大会有段者レベル。中盤の壁作りやパリティ（偶数理論）を計算し、こちらの選択肢を完全に奪う冷徹な高等戦術を展開します。</div>
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン（神域・最強）</div>
-                    <div class="manual-meta-row"><span>気質：絶対君主・威厳</span><span>テーマ：至高のインペリアル純金</span></div>
-                    <div>ミスが一切許されない王国最高峰の絶対王者です。</div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン</div>
+                        <div>神域の完全計算AI。14手先までの完全読みを誇り、わずかな油断や悪手も決して見逃さない、王国最高峰の絶対君主です。</div>
+                    </div>
                 </div>
             </div>
 
             <div id="tab-tips" class="manual-tab-content">
                 <div class="manual-card">
-                    <div class="manual-card-title">🌱 序盤：少数精鋭の美徳</div>
-                    <div>序盤は石をたくさん取ると自分の手が減ります。「石は少なめに」中央を確保しましょう。</div>
+                    <div class="manual-card-title">🌱 序盤の極意「中割り（なかわり）と開放度理論」</div>
+                    <div>オセロ初心者が最も陥りやすい罠は「序盤からたくさん石を取ること」です。外側の石を多く取ると、相手に足場（打てるマス）を大量に与えてしまいます。盤面の内側にある石だけをひっくり返す<b>「中割り」</b>を意識し、石の数は少なく保ちながら中央に陣取りましょう。</div>
                 </div>
                 <div class="manual-card">
-                    <div class="manual-card-title">🛡️ 危険なマス（X打点・C打点）</div>
-                    <div>角のすぐ隣にあるマスに置くと、次の手で角を奪われます。特別な理由がない限り避けましょう。</div>
+                    <div class="manual-card-title">⚔️ 中盤の極意「壁の構築とウィングの罠」</div>
+                    <div>中盤は、自分の石が一列に並んだ「壁」を作らないことが大切です。壁を作ると相手に外周を自由に取られてしまいます。また、辺の3マスを中途半端に取る「ウィング」は、相手に角を献上する典型的な罠となります。相手の手数を減らし、パスを強要させる立ち回りを狙いましょう。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">👑 終盤の極意「偶数理論（パリティ）の鉄則」</div>
+                    <div>盤面が埋まる終盤、勝敗を分けるのは<b>「偶数理論」</b>です。分割された空きマスが「偶数個」のエリアには、相手に先に打たせ、自分が最後に打ち込むことで手番の主導権を握れます。奇数個のエリアを避け、偶数のエリアで最後に打つ形を作れば、大量の確定石を一気に回収できます。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">🛡️ 隅（角）と危険マス（X・C打点）の攻防秘伝</div>
+                    <div>四隅の「角」は二度とひっくり返らない最強の石（確定石）です。その角の斜め前にある<b>「Xマス」</b>や、隣の<b>「Cマス」</b>に安易に打つと、次の手で角を奪われます。ただし「相手が絶対に角に打てない局面」や「すでに自分がその列を制圧している場合」に限っては、X打ちが奇襲の決定打となることもあります。</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 王家年代記モーダル -->
+    <!-- 歴代バージョン年代記 -->
     <div id="versionOverlay" class="dynasty-overlay">
         <div id="versionModal" class="dynasty-modal">
             <div class="guide-header">
@@ -1633,16 +1807,36 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 4.8.1</span><span class="chronicle-date">2026/09/10</span>
+                    <div class="chronicle-desc">【3Dフリップ完全調律】シャドウ浮遊親枠と純粋3Dシリンダーのレイヤー分離によりブラウザ3Dフラット化バグを根絶。表裏突き抜けを解消し極上の反転手応えを完成。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 4.8.0</span><span class="chronicle-date">2026/09/10</span>
+                    <div class="chronicle-desc">【極上石＆爽快フリップ】ピアノブラック＆白磁アイボリー石、棋譜検証モード、思案所肖像画、プロ極意書を網羅。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.7.0</span><span class="chronicle-date">2026/09/09</span>
-                    <div class="chronicle-desc">【王宮戦後会見＆戦術カルテ】2倍特大肖像画、キャラ肉声とAI技術講評の分離、双方消費時間集計、好手・悪手客観解析、勝敗適応型進軍ボタン実装。</div>
+                    <div class="chronicle-desc">【王宮戦後会見】2倍特大肖像画、キャラ肉声とAI戦術カルテの2段分離、双方消費時間の個別集計、勝敗適応型進軍ボタンを新設。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.6.0</span><span class="chronicle-date">2026/09/08</span>
-                    <div class="chronicle-desc">【レイアウト最適化・UX強化】中央タイトル＆ボタン干渉回避、運命の天秤上部化＆拡大、手番点滅誘導、固定ヒント枠＆エレガントゴールド配色、最下部安全余白実装。</div>
+                    <div class="chronicle-desc">【レイアウト最適化】中央タイトル＆ボタン干渉回避、運命の天秤上部化＆拡大、手番点滅誘導、固定ヒント枠＆エレガントゴールド配色を導入。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.5.0</span><span class="chronicle-date">2026/09/07</span>
-                    <div class="chronicle-desc">【決定版】オーバル額縁（横66px×縦96px）、格ゲー綱引きバトルゲージ、キャラ別王室テーマカラー、山場発光、王宮決着カットイン実装。</div>
+                    <div class="chronicle-desc">【決定版】オーバル額縁（横66px×縦96px）、格ゲー綱引きバトルゲージ、キャラ別王室テーマカラー、山場発光演出を実装。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 4.0.0</span><span class="chronicle-date">2026/09/02</span>
+                    <div class="chronicle-desc">【ラグジュアリー刷新】高速パタパタ連続反転アニメーション、王朝調金箔フッターUIを新設。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 3.5.0</span><span class="chronicle-date">2026/08/31</span>
+                    <div class="chronicle-desc">【3D円柱立体化】白黒合体スリット・断面境界線を忠実に再現したリアル3D反転エフェクトを導入。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 1.0.0</span><span class="chronicle-date">2026/08/10</span>
+                    <div class="chronicle-desc">【初回リリース】オセロ基本盤面、合法手判定、AI対戦エンジン（ミニマックス法・αβ枝刈り）を実装。</div>
                 </div>
             </div>
         </div>
@@ -1650,7 +1844,7 @@
 
 <script>
     /* ==========================================================================
-       ROYAL OTHELLO ENGINE (Ver 4.7.0 戦術カルテ＆戦後会見版)
+       ROYAL OTHELLO ENGINE (Ver 4.8.1 完全調律3Dフリップ版)
     ========================================================================== */
     const boardSize = 8;
     const BLACK = 1;
@@ -1662,12 +1856,16 @@
     let lastComputerMove = null, pendingAnimation = null, hintMove = null;
     let historyStack = [];
 
-    // 時間計測（総合・プレイヤー・CPU）
+    let gameStepLogs = [];
+    let reviewStepIndex = 0;
+    let isReviewMode = false;
+    let tacticsBestIndex = -1;
+    let tacticsWorstIndex = -1;
+
     let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
-    let timerInterval = null, turnStartTime = 0;
+    let timerInterval = null;
     let talkingTimeout = null, toastTimeout = null;
 
-    // プレイヤー着手履歴（AI戦術カルテ用）
     let playerMoveLogs = [];
 
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -1703,7 +1901,15 @@
         battleSituationBadge: document.getElementById("battleSituationBadge"),
         btnPlayerBlack: document.getElementById("btnPlayerBlack"),
         btnPlayerWhite: document.getElementById("btnPlayerWhite"),
-        // 王宮戦後会見
+        normalControlCard: document.getElementById("normalControlCard"),
+        reviewModePanel: document.getElementById("reviewModePanel"),
+        reviewTurnInfo: document.getElementById("reviewTurnInfo"),
+        btnReviewPrev: document.getElementById("btnReviewPrev"),
+        btnReviewNext: document.getElementById("btnReviewNext"),
+        btnJumpGood: document.getElementById("btnJumpGood"),
+        btnJumpBad: document.getElementById("btnJumpBad"),
+        btnReviewExit: document.getElementById("btnReviewExit"),
+        btnStartReview: document.getElementById("btnStartReview"),
         royalResultModal: document.getElementById("royalResultModal"),
         resultMainTitle: document.getElementById("resultMainTitle"),
         resultAvatarFrame: document.getElementById("resultAvatarFrame"),
@@ -1717,8 +1923,7 @@
         carteBadDesc: document.getElementById("carteBadDesc"),
         btnResultAdvance: document.getElementById("btnResultAdvance"),
         btnAdvanceIcon: document.getElementById("btnAdvanceIcon"),
-        btnAdvanceText: document.getElementById("btnAdvanceText"),
-        btnResultClose: document.getElementById("btnResultClose")
+        btnAdvanceText: document.getElementById("btnAdvanceText")
     };
 
     const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
@@ -1758,8 +1963,8 @@
                 climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？", "ヒヒッ！ これが最後の悪あがきでゴザイマス！"],
                 cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
                 playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
-                win: ["ヒヒッ！ボクの勝ち〜！たまには道化師だって本気出すんだヨ！", "まさかの大勝利！？宮廷一の奇跡でゴザイマス！"],
-                lose: ["参った参った〜！さすが貴方様、完敗でゴザイマス！", "降参ダ〜！ボクの知恵じゃ貴方様には敵わないヨ〜！"]
+                win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！盤面がボクの色に染まっていく眺めは最高ダネ！悔しかったらまたいつでもおいでヨ！", "まさかの大勝利！？宮廷一の奇跡でゴザイマス！ボクのおどけた手に惑わされちゃったかニャ？次はもっと油断しちゃダメデスヨ〜！"],
+                lose: ["参った参った〜！さすが貴方様、完敗でゴザイマス！ボクのふざけた揺さぶりにも微動だにせず、見事な知略の進軍でした！宮廷一のオセロの達人として、王宮中に言いふらしてあげマスネ！", "降参ダ〜！ボクの浅知恵じゃ、貴方様の堂々たる打ち筋には手も足も出ないヨ！お見事すぎる一手一手に、思わず拍手喝采でゴザイマス！"]
             }
         },
         2: {
@@ -1776,8 +1981,8 @@
                 climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！", "最後の一手まで、あきらめませんっ！"],
                 cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
                 playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
-                win: ["勝てちゃいました…！私、王宮で一番の侍女になれるかも！えへへ！", "私の勝ちです！ご指導ありがとうございました！"],
-                lose: ["やっぱりお強いです…！私、もっとお城で勉強して出直してきますっ！", "うぅ…完敗です！貴方様のオセロ、とっても素敵でした！"]
+                win: ["勝てちゃいました…！私、お城の侍女の中で一番オセロが強くなれちゃったかも！えへへ、たくさん石がひっくり返る瞬間、とってもワクワクしちゃいました！また私と遊んでくださいねっ！", "私の勝ちです！ご指導ありがとうございました！貴方様のお手並みに追いつきたくて、必死に考えちゃいました。今日はお祝いに、特製の紅茶を淹れてきますね！"],
+                lose: ["うぅ…！完敗です…！盤面をじっと見つめる貴方様の真剣な眼差し、本当に素敵でした！私、もっとお城の図書室で定石を勉強して、いつか貴方様をアッと言わせてみせますっ！", "やっぱりお強いです…！私の並べた石が、魔法みたいに全部ひっくり返されちゃいました…！貴方様のオセロ、とっても美しくて感動です！もっともっと教えてください！"]
             }
         },
         3: {
@@ -1794,8 +1999,8 @@
                 climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！", "我が騎士道の誇りをかけ、全力で迎え撃つ！"],
                 cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
                 playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
-                win: ["王国の勝利だ！我が騎士団の陣形、破ることは叶わぬ！良き勝負であった！", "騎士道の勝利！貴殿の武勇も実に見事であったぞ！"],
-                lose: ["見事な用兵…完敗だ！貴殿の盤上の武勇に、最大限の敬意を表する！", "我が防壁が完全に崩された…！貴殿こそ真の勇者だ！"]
+                win: ["王国の勝利だ！我が近衛騎士団の鉄壁の陣形、そう易々と崩せはせんぞ！だが貴殿の鋭い太刀筋、実に天晴れであった！戦士としての我が血が久々に滾ったぞ！良き手合わせであった！", "騎士道の勝利！四隅を制圧し、中央を断つ定石通りの進軍が功を奏したな！貴殿の武勇にも最大限の敬意を表する！次の戦場でも、互いに全力を尽くそうぞ！"],
+                lose: ["見事な用兵…完敗だ！我が誇る防壁を正面から粉砕されるとはな…！貴殿の盤上の武勇と冷静沈着な読み、まさに一軍の将たる器だ！我が剣に誓って、貴殿に最大限の敬意を表する！", "我が前線が完全に包囲されたか…！貴殿の見事な進軍の前に、我が騎士団は完膚なきまでに打ち破られた！この敗北を糧に、我が剣技をさらに磨き上げよう！天晴れなり！"]
             }
         },
         4: {
@@ -1812,8 +2017,8 @@
                 climax: ["ふふ… 舞踏会もいよいよクライマックスですわね。", "どちらが最後まで気品を保てるかしら…？"],
                 cpuPass: ["あら、打つ手がございませんの？ 淑女として待ってさしあげますわ。"],
                 playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
-                win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。ごめんあそばせ。", "うふふ、淑女の罠からは逃げられませんのよ。良き舞踏会でしたわ。"],
-                lose: ["まさかこのわたくしが…！ふふ、骨のあるお方ですこと。見事ですわ。", "わたくしの薔薇を散らすとは…小憎らしい殿方。お見事でございました。"]
+                win: ["チェックメイト…オセロでも、美と知性の勝利ですわ。あなたの逃げ道を一輪ずつ摘み取っていく時間は、極上の紅茶のように甘美でございました。またいつでも舞踏会にいらして？", "うふふ、淑女の張り巡らせた罠からは、そう簡単には抜け出せませんのよ。でも、わたくしをここまで本気にさせた殿方は久しぶりですわ。今宵は格別に楽しい夜になりましたわね。"],
+                lose: ["まさかこのわたくしが、盤上で踊らされてしまうなんて…！わたくしの薔薇を一気に散らしてみせるなんて、ずいぶんと罪深い殿方ですこと。ふふ…でも、骨のある殿方は嫌いではありませんわ。お見事でございました。", "完敗ですわ…！わたくしの策略のさらに上を行く冷徹な知性、恐れ入りましたわ。わたくしを負かしたのですもの、次は宮廷の頂点まで駆け上がってみせてくださる？見事でしたわ。"]
             }
         },
         5: {
@@ -1830,8 +2035,8 @@
                 climax: ["終盤の完全計算領域に入った。一手の狂いも許されんぞ。", "詰みだ… 貴公に逆転の筋は残されていない。"],
                 cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
                 playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
-                win: ["すべては我が想定通り。盤上の知略、私の勝ちだ。国家を治める者の読みを見誤ったな。", "冷徹なる計算の勝利だ。貴公の知略も高邁であったが、我が一歩先を行っていたな。"],
-                lose: ["この私が読み負けるとは…！貴公の知恵、恐るべしだ。完敗を認めよう。", "私の深謀遠慮を打ち破ったか…見事だ。貴公を真の知者として認めよう。"]
+                win: ["すべては我が冷徹な計算の帰結だ。国家を治める者の大局観、そう易々と覆せるものではない。貴公の知略も凡百の域は遥かに超えていたが、盤上の偶数理論を制したのは私だ。良き盤上遊戯であった。", "計算通りの勝利だ。序盤の中割りから終盤のパリティ支配まで、我が設計図に一点の狂いも生じなかった。だが貴公の急所を突く鋭敏な太刀筋、私の背筋をわずかに凍らせたぞ。天晴れだ。"],
+                lose: ["この私が…読み負けたというのか！？我が完璧な深謀遠慮の包囲網を、わずかな隙間から突破されるとは…！貴公の知謀、恐るべしだ。言い訳の余地なき完敗を認めよう。貴公こそ真の知者だ。", "痛恨の極み…！我が計算の遥か先を見据えたその手筋、鳥肌が立つほど見事であった。国家を揺るがすほどの謀略家が、よもや盤上に現れようとはな…！我が完敗だ。最大限の賛辞を贈ろう。"]
             }
         },
         6: {
@@ -1848,13 +2053,13 @@
                 climax: ["いよいよ最終局面！ 余の全知全能をもって迎え撃とう！", "神域の読み合い… どちらが勝っても悔いなし！"],
                 cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次なる一手を見守ろう。"],
                 playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
-                win: ["良き戦いであった！だがまだ余の玉座を譲るわけにはゆかぬ！見事な気迫であったぞ！", "王の威厳、しかと示した！そなたの魂の打ち筋、余の心に深く刻まれたぞ！"],
-                lose: ["天晴れだ…！王国最強の座、今ここにそなたへ託そうぞ！堂々の戴冠である！", "見事なり！余の全力を超えてみせたな！新しき王の誕生を、心より祝福しよう！"]
+                win: ["良き戦いであったぞ、若人よ！そなたの放つ鋭い魂の太刀筋、余の老いた胸を熱く焦がしてくれた！だが、幾星霜の風雪を越えてきた王の玉座、そう簡単に譲るわけにはゆかぬ！そなたの再度の挑戦、心より待っておるぞ！", "王の威厳、しかと盤上に刻ませてもらった！神域の読み合いの中で、そなたが見せた不屈の闘志、誠に見事であった！真の強敵と巡り合えたこと、余の長き生涯における無上の歓びである！"],
+                lose: ["天晴れだ…！王国の覇者たる資格、今ここにそなたへと託そうぞ！余の全知全能を注ぎ込んだ読みを、神懸かりの一手で打ち砕いてみせたな！新しき王の誕生を、全臣民とともに心より祝福しよう！堂々の戴冠である！", "見事なり…！余の全力を超え、完璧なる布陣で玉座を奪い取ってみせたな！老兵は去るのみよ…今日よりはこの盤上の天下、そなたの思うがままに治めるがよい！至高の勝利、天晴れであった！"]
             }
         }
     };
 
-    /* --- BGM再生エンジン --- */
+    /* --- BGM再生 --- */
     const bgm = document.getElementById("bgmAudio");
     bgm.volume = 0.32;
 
@@ -2061,7 +2266,7 @@
     }
 
     function showMoveToast(type, text) {
-        if (getHintMode() === "off") return;
+        if (getHintMode() === "off" || isReviewMode) return;
         if (toastTimeout) clearTimeout(toastTimeout);
         DOM.moveToast.className = `move-toast toast-${type} show`;
         DOM.moveToast.textContent = text;
@@ -2076,17 +2281,18 @@
             elapsedSeconds: elapsedSeconds,
             playerSeconds: playerSeconds,
             cpuSeconds: cpuSeconds,
-            playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs))
+            playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs)),
+            gameStepLogsLength: gameStepLogs.length
         });
         updateUndoButtonState();
     }
 
     function updateUndoButtonState() {
-        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || gameOver;
+        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || gameOver || isReviewMode;
     }
 
     async function undoMove() {
-        if (historyStack.length === 0 || isBusy || gameOver) return;
+        if (historyStack.length === 0 || isBusy || gameOver || isReviewMode) return;
         clearHint();
         isBusy = true;
 
@@ -2107,6 +2313,7 @@
             playerSeconds = targetState.playerSeconds;
             cpuSeconds = targetState.cpuSeconds;
             playerMoveLogs = targetState.playerMoveLogs || [];
+            gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
             pendingAnimation = null;
 
             setStatus("human-turn", "時を戻しました。あなたの番です…");
@@ -2115,15 +2322,25 @@
             drawBoard();
             updateBalanceGauge();
             maybeAutoHint();
-            turnStartTime = Date.now();
         }
 
         isBusy = false;
         updateUndoButtonState();
     }
 
+    function recordGameStep(move, playerColor) {
+        gameStepLogs.push({
+            move: move ? [...move] : null,
+            playerColor,
+            board: cloneBoard(board),
+            turnIndex: gameStepLogs.length + 1
+        });
+    }
+
     function startGame() {
         tryPlayBgm();
+        exitReviewMode();
+
         board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
         board[3][3] = WHITE; board[3][4] = BLACK;
         board[4][3] = BLACK; board[4][4] = WHITE;
@@ -2136,18 +2353,20 @@
         pendingAnimation = null;
         historyStack = [];
         playerMoveLogs = [];
+        gameStepLogs = [];
         clearHint();
+
+        recordGameStep(null, null);
 
         DOM.royalResultModal.classList.remove("show");
 
         elapsedSeconds = 0;
         playerSeconds = 0;
         cpuSeconds = 0;
-        turnStartTime = Date.now();
 
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
-            if (!gameOver) {
+            if (!gameOver && !isReviewMode) {
                 elapsedSeconds++;
                 if (currentPlayer === humanColor) playerSeconds++;
                 else cpuSeconds++;
@@ -2236,7 +2455,7 @@
     }
 
     async function putStone(row, col) {
-        if (gameOver || isBusy || currentPlayer !== humanColor) return;
+        if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
         if (!canPlace(row, col, humanColor, board)) return;
 
         saveHistory();
@@ -2249,12 +2468,12 @@
         let flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, humanColor, board));
 
         makeMove(board, row, col, humanColor);
+        recordGameStep([row, col], humanColor);
 
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const oppMovesAfter = getValidMoves(cpuColor, board).length;
         const scoreDiff = postScore - preScore;
 
-        // 手筋ログ記録（AI戦術カルテ分析用）
         playerMoveLogs.push({
             row, col,
             coord: toNotation(row, col),
@@ -2262,7 +2481,8 @@
             isCorner: isCorner(row, col),
             isDanger: isDanger(row, col),
             flippedCount: flipped.length,
-            oppMovesReduction: oppMovesBefore - oppMovesAfter
+            oppMovesReduction: oppMovesBefore - oppMovesAfter,
+            stepIndex: gameStepLogs.length - 1
         });
 
         if (isCorner(row, col)) {
@@ -2288,17 +2508,16 @@
 
         drawBoard();
         updateBalanceGauge();
-        await sleep((flipped.length * 55) + 420);
+        await sleep((flipped.length * 55) + 320);
 
         drawBoard();
         currentPlayer = cpuColor;
         isBusy = false;
-        turnStartTime = Date.now();
         processTurn();
     }
 
     function processTurn() {
-        if (gameOver) return;
+        if (gameOver || isReviewMode) return;
         const moves = getValidMoves(currentPlayer, board);
 
         if (moves.length === 0) {
@@ -2395,19 +2614,20 @@
     }
 
     async function computerMove() {
-        if (gameOver) return;
+        if (gameOver || isReviewMode) return;
         clearHint();
         isBusy = true;
         updateUndoButtonState();
         setStatus("cpu-turn", "相手が思考を巡らせています…");
 
         await sleep(350);
-        if (gameOver) return;
+        if (gameOver || isReviewMode) return;
 
         const move = getComputerMove(board, cpuColor, getCurrentCharacter());
         if (move) {
             let flipped = sortFlippedByDistance(move[0], move[1], getFlippableStones(move[0], move[1], cpuColor, board));
             makeMove(board, move[0], move[1], cpuColor);
+            recordGameStep(move, cpuColor);
 
             if (isCorner(move[0], move[1])) setOpponentQuote("cpuCorner");
             else if (getEmptyCount(board) <= 12) setOpponentQuote("climax");
@@ -2421,13 +2641,12 @@
 
             drawBoard();
             updateBalanceGauge();
-            await sleep((flipped.length * 55) + 420);
+            await sleep((flipped.length * 55) + 320);
             drawBoard();
         }
 
         isBusy = false;
         currentPlayer = humanColor;
-        turnStartTime = Date.now();
 
         if (getValidMoves(humanColor, board).length === 0) {
             if (getValidMoves(cpuColor, board).length === 0) {
@@ -2540,7 +2759,7 @@
     }
 
     function getHintMode() { return DOM.hintMode ? DOM.hintMode.value : "manual"; }
-    function maybeAutoHint() { if (getHintMode() === "always") computeHint(); }
+    function maybeAutoHint() { if (getHintMode() === "always" && !isReviewMode) computeHint(); }
 
     function updateHintModeUI() {
         const mode = getHintMode();
@@ -2577,7 +2796,7 @@
     }
 
     function computeHint() {
-        if (gameOver || isBusy || currentPlayer !== humanColor) return;
+        if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
         const moves = getValidMoves(humanColor, board);
         if (moves.length === 0) return;
 
@@ -2614,40 +2833,54 @@
                 const cell = document.createElement("div");
                 cell.className = "cell";
 
-                if (!gameOver && !isBusy && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
+                if (!isReviewMode && !gameOver && !isBusy && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
                     cell.classList.add("can-place", previewClass);
                 }
-                if (lastComputerMove && lastComputerMove[0] === r && lastComputerMove[1] === c) {
+                if (!isReviewMode && lastComputerMove && lastComputerMove[0] === r && lastComputerMove[1] === c) {
                     cell.classList.add("last-move-cell");
                 }
-                if (hintMove && hintMove[0] === r && hintMove[1] === c) {
+                if (!isReviewMode && hintMove && hintMove[0] === r && hintMove[1] === c) {
                     cell.classList.add("hint-cell");
+                }
+
+                if (isReviewMode && reviewStepIndex > 0) {
+                    const step = gameStepLogs[reviewStepIndex];
+                    if (step && step.move && step.move[0] === r && step.move[1] === c) {
+                        cell.classList.add("review-focus-cell");
+                    }
                 }
 
                 if (board[r][c] !== 0) {
                     const wrapper = document.createElement("div");
                     wrapper.className = "stone-wrapper";
-                    const shadow = document.createElement("div");
-                    shadow.className = "stone-base-shadow";
-                    wrapper.appendChild(shadow);
 
-                    const isFlipping = pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
+                    const isFlipping = !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
                     if (isFlipping) {
+                        // 【Ver 4.8.1 完全刷新】影浮遊枠と純粋3Dシリンダーのレイヤー完全分離
+                        const flipWrap = document.createElement("div");
+                        flipWrap.className = "stone-flip-wrapper";
+
                         const cylinder = document.createElement("div");
                         cylinder.className = "stone-flip-cylinder";
+
                         const fIdx = pendingAnimation.flipped.findIndex(([fr, fc]) => fr === r && fc === c);
-                        if (fIdx >= 0) cylinder.style.animationDelay = `${fIdx * 55}ms`;
+                        if (fIdx >= 0) {
+                            const delayStr = `${fIdx * 55}ms`;
+                            flipWrap.style.animationDelay = delayStr;
+                            cylinder.style.animationDelay = delayStr;
+                        }
 
                         cylinder.innerHTML = `
-                            <div class="stone-layer stone-disk-front ${pendingAnimation.oldColor === BLACK ? "black-stone" : "white-stone"}"></div>
-                            <div class="stone-split-side"></div>
-                            <div class="stone-layer stone-disk-back ${pendingAnimation.newColor === BLACK ? "black-stone" : "white-stone"}"></div>
+                            <div class="stone-face stone-face-front ${pendingAnimation.oldColor === BLACK ? "black-stone" : "white-stone"}"></div>
+                            <div class="stone-edge-rim"></div>
+                            <div class="stone-face stone-face-back ${pendingAnimation.newColor === BLACK ? "black-stone" : "white-stone"}"></div>
                         `;
-                        wrapper.appendChild(cylinder);
+                        flipWrap.appendChild(cylinder);
+                        wrapper.appendChild(flipWrap);
                     } else {
                         const stone = document.createElement("div");
                         stone.className = `stone ${board[r][c] === BLACK ? "black-stone" : "white-stone"}`;
-                        if (pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
+                        if (!isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
                             stone.classList.add("stone-new");
                         }
                         wrapper.appendChild(stone);
@@ -2655,14 +2888,16 @@
                     cell.appendChild(wrapper);
                 }
 
-                cell.addEventListener("click", () => putStone(r, c));
+                if (!isReviewMode) {
+                    cell.addEventListener("click", () => putStone(r, c));
+                }
                 DOM.board.appendChild(cell);
             }
         }
 
         pendingAnimation = null;
         updateScore();
-        DOM.hintButton.disabled = gameOver || isBusy || currentPlayer !== humanColor;
+        DOM.hintButton.disabled = gameOver || isBusy || currentPlayer !== humanColor || isReviewMode;
     }
 
     function countStones() {
@@ -2684,16 +2919,15 @@
         DOM.playerScore.textContent = (humanColor === BLACK) ? stones.black : stones.white;
     }
 
-    /* --- AI戦術カルテ生成（最善手・悪手抽出） --- */
     function generateTacticsReport() {
         if (playerMoveLogs.length === 0) {
             return {
                 goodCoord: "--", goodDesc: "記録された着手データがありません。",
-                badCoord: "--", badDesc: "記録された着手データがありません。"
+                badCoord: "--", badDesc: "記録された着手データがありません。",
+                goodStep: -1, badStep: -1
             };
         }
 
-        // 好手：スコア上昇が最大、または角を取った手
         let best = playerMoveLogs[0];
         for (const log of playerMoveLogs) {
             let score = log.scoreDiff;
@@ -2707,7 +2941,6 @@
         else if (best.oppMovesReduction >= 2) goodDesc = `相手の打てるマスを ${best.oppMovesReduction} 箇所も奪い、行動を強く封鎖しました。`;
         else if (best.flippedCount >= 4) goodDesc = "豪快な大量反転によって一気に盤上の勢力を塗り替えました。";
 
-        // 悪手：スコア低下が最大、または危険なX打点
         let worst = playerMoveLogs[0];
         for (const log of playerMoveLogs) {
             let penalty = log.scoreDiff;
@@ -2720,20 +2953,19 @@
         if (worst.isDanger) badDesc = "角の斜め前（危険マス）に打ち、相手へ角を明け渡すリスクを招きました。";
         else if (worst.scoreDiff < -100) badDesc = "石を取りすぎたことで、自身の次なる着手可能マスを狭めてしまいました。";
 
-        // 目立った悪手がない場合
         if (worst.scoreDiff > -30 && !worst.isDanger) {
             badDesc = "致命的な悪手はなく、終始安定感のある落ち着いた打ち回しでした。";
         }
 
+        tacticsBestIndex = best.stepIndex;
+        tacticsWorstIndex = worst.stepIndex;
+
         return {
-            goodCoord: best.coord, goodDesc,
-            badCoord: worst.coord, badDesc
+            goodCoord: best.coord, goodDesc, goodStep: best.stepIndex,
+            badCoord: worst.coord, badDesc, badStep: worst.stepIndex
         };
     }
 
-    /* ==========================================================================
-       ◆ 王宮戦後会見（ROYAL DEBRIEFING）演出エンジン
-    ========================================================================== */
     function endGame() {
         gameOver = true;
         isBusy = false;
@@ -2752,7 +2984,6 @@
         const isDraw = hStones === cStones;
         const char = getCurrentCharacter();
 
-        // 2倍特大肖像画の流し込み
         DOM.resultAvatarFrame.innerHTML = "";
         const bigImg = new Image();
         bigImg.src = char.image;
@@ -2763,11 +2994,9 @@
 
         DOM.resultCharNameBadge.textContent = `${char.name} ${char.title}`;
 
-        // 実績スタッツ表示（石数 ＆ 各消費時間）
-        DOM.resultStonesDetail.textContent = `⚫ ${stones.black} VS ${stones.white} ⚪`;
+        DOM.resultStonesDetail.textContent = `⚫ ${stones.black} vs ${stones.white} ⚪`;
         DOM.resultTimesDetail.textContent = `あなた ${formatMinSec(playerSeconds)} / 相手 ${formatMinSec(cpuSeconds)}`;
 
-        // キャラクター肉声コメント
         let quoteText = "";
         if (isWin) {
             DOM.resultMainTitle.className = "result-main-title result-title-win";
@@ -2789,14 +3018,12 @@
         }
         DOM.resultQuoteBox.textContent = `「${quoteText}」`;
 
-        // 宮廷AI戦術カルテ生成
         const report = generateTacticsReport();
         DOM.carteGoodCoord.textContent = report.goodCoord;
         DOM.carteGoodDesc.textContent = report.goodDesc;
         DOM.carteBadCoord.textContent = report.badCoord;
         DOM.carteBadDesc.textContent = report.badDesc;
 
-        // 状況適応型アクションボタンの最適化
         if (isWin) {
             if (char.id < 6) {
                 const nextChar = CHARACTERS[char.id + 1];
@@ -2827,13 +3054,67 @@
         setTimeout(() => DOM.royalResultModal.classList.add("show"), 800);
     }
 
+    /* --- 棋譜検証（振り返り）モード --- */
+    function enterReviewMode() {
+        if (gameStepLogs.length === 0) return;
+        isReviewMode = true;
+        DOM.royalResultModal.classList.remove("show");
+        DOM.normalControlCard.style.display = "none";
+        DOM.reviewModePanel.classList.add("show");
+
+        reviewStepIndex = gameStepLogs.length - 1;
+        applyReviewStep(reviewStepIndex);
+        setStatus("human-turn", "🔍 棋譜検証モード：対局の全手筋を検証中");
+    }
+
+    function exitReviewMode() {
+        isReviewMode = false;
+        DOM.reviewModePanel.classList.remove("show");
+        DOM.normalControlCard.style.display = "";
+        updateUndoButtonState();
+    }
+
+    function applyReviewStep(index) {
+        if (index < 0 || index >= gameStepLogs.length) return;
+        reviewStepIndex = index;
+        const step = gameStepLogs[index];
+        board = cloneBoard(step.board);
+
+        const totalSteps = gameStepLogs.length - 1;
+        DOM.reviewTurnInfo.textContent = `第 ${index} 手 / 全 ${totalSteps} 手`;
+
+        DOM.btnReviewPrev.disabled = (index === 0);
+        DOM.btnReviewNext.disabled = (index === totalSteps);
+
+        drawBoard();
+        updateBalanceGauge();
+    }
+
     /* --- イベントリスナー設定 --- */
     document.getElementById("restartButton").addEventListener("click", startGame);
     DOM.undoButton.addEventListener("click", undoMove);
     DOM.hintButton.addEventListener("click", computeHint);
 
-    DOM.btnResultClose.addEventListener("click", () => {
-        DOM.royalResultModal.classList.remove("show");
+    DOM.btnStartReview.addEventListener("click", enterReviewMode);
+
+    DOM.btnReviewPrev.addEventListener("click", () => {
+        if (reviewStepIndex > 0) applyReviewStep(reviewStepIndex - 1);
+    });
+
+    DOM.btnReviewNext.addEventListener("click", () => {
+        if (reviewStepIndex < gameStepLogs.length - 1) applyReviewStep(reviewStepIndex + 1);
+    });
+
+    DOM.btnJumpGood.addEventListener("click", () => {
+        if (tacticsBestIndex >= 0) applyReviewStep(tacticsBestIndex);
+    });
+
+    DOM.btnJumpBad.addEventListener("click", () => {
+        if (tacticsWorstIndex >= 0) applyReviewStep(tacticsWorstIndex);
+    });
+
+    DOM.btnReviewExit.addEventListener("click", () => {
+        DOM.royalResultModal.classList.add("show");
     });
 
     DOM.characterSelect.addEventListener("change", startGame);
