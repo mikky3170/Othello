@@ -11,12 +11,12 @@
   [Ver 3.5.0] 2026/08/31 : 3D円柱立体化（白黒合体スリット・断面境界線の再現）
   [Ver 4.0.0] 2026/09/02 : ラグジュアリー意匠刷新、高速パタパタ反転、フッターUI新設
   [Ver 4.1.0] 2026/09/03 : 西洋王朝風デザイン刷新、全画面API、BGM連動、しっぽり明朝採用
-  [Ver 4.2.0] 2026/09/04 : 【配置最適化＆座標センタリング精密調整】
-    - ボタンとタイトルの被りを完全解消（上段右端にボタン、下段中央にタイトルを独立配置）
-    - タイトルおよび盤面自体を約2行分（約32px）下方へ優雅にシフト
-    - 操作パネル・黄金天秤・フッターは位置・寸法を強固に完全固定
-    - 左右の数字（1〜8）および上下の英字（A〜H）を木枠フレーム帯の完全ド真ん中へ精密センタリング
-    - 先手・後手ボタンの純金ゴールド発光、ヒント表示の完全独立フローティング維持
+  [Ver 4.2.0] 2026/09/04 : 【3大アシスト体系整理＆直感的用語への全面刷新】
+    - 着手判定を「好手（GOOD）」と「悪手（BAD）」へと直感的に改称
+    - アシスト体系を「①盤上ガイド(常時)」「②最善手ヒント(事前)」「③着手採点(事後)」へ整理
+    - 学習モード設定を「手動ヒント＋採点」「常時ヒント＋採点」「完全OFF(真剣勝負)」へ刷新
+    - 宮廷指南書モーダル内に「3大アシストの役割と使い分け」の図解解説を新設
+    - タイトル中央配置、盤面・操作枠の完全位置固定、木枠座標センタリングを完全維持
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -48,7 +48,7 @@
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
             --panel-bg: rgba(16, 19, 26, 0.9);
             --imperial-green: radial-gradient(circle at 45% 45%, #0f522e 0%, #093b20 55%, #042413 100%);
-            --frame-pad: clamp(16px, 3.4vw, 22px); /* 木枠帯の精密パディング */
+            --frame-pad: clamp(16px, 3.4vw, 22px);
         }
 
         /* 1画面完全収束（スクロールゼロ＆完全静的フィット） */
@@ -86,9 +86,7 @@
             z-index: 0;
         }
 
-        /* =======================================================
-           【改修】ヘッダー：ボタン被り解消 ＆ タイトル約2行分下方シフト
-        ======================================================= */
+        /* --- ヘッダー（タイトル盤面真上中央・ボタン独立） --- */
         header {
             width: 100%;
             max-width: 1080px;
@@ -100,7 +98,6 @@
             flex-shrink: 0;
         }
 
-        /* 最上段：右寄せのアクションボタンバー（タイトルと完全分離） */
         .header-top-bar {
             width: 100%;
             display: flex;
@@ -136,7 +133,6 @@
             transform: translateY(-1px);
         }
 
-        /* 下段：盤面真上の完全センター（約2行分下へ優雅に配置） */
         .header-title-wrap {
             display: flex;
             flex-direction: column;
@@ -168,9 +164,7 @@
             margin-top: -1px;
         }
 
-        /* =======================================================
-           メインコンテナ
-        ======================================================= */
+        /* --- メインコンテナ --- */
         .app-container {
             width: 100%;
             max-width: 1080px;
@@ -185,16 +179,14 @@
             padding-bottom: 2px;
         }
 
-        /* =======================================================
-           【改修】盤面エリア：約2行分（約32px）下方シフト
-        ======================================================= */
+        /* --- 盤面エリア（完全位置固定） --- */
         .board-container {
             display: flex;
             justify-content: center;
             align-items: center;
             flex-shrink: 0;
             position: relative;
-            margin-top: 28px; /* 盤面を約2行分下へシフト */
+            margin-top: 28px;
             margin-bottom: 6px;
         }
 
@@ -223,7 +215,6 @@
         .corner-bl { bottom: 5px; left: 5px; border-right: none; border-top: none; }
         .corner-br { bottom: 5px; right: 5px; border-left: none; border-top: none; }
 
-        /* 【改修】座標ラベル：木枠帯の中央へ配置 */
         .coord-label {
             position: absolute;
             font-family: 'Cinzel', serif;
@@ -262,7 +253,6 @@
             perspective: 800px;
         }
 
-        /* 直前着手マス：純金箔二重枠＋黄金パルス光彩 */
         .last-move-cell {
             box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 14px rgba(255, 215, 0, 0.65);
             animation: gold-pulse 2s ease-in-out infinite alternate;
@@ -332,7 +322,7 @@
             50% { box-shadow: inset 0 0 0 2.5px rgba(160, 245, 255, 1), inset 0 0 16px rgba(160, 245, 255, 0.65); }
         }
 
-        /* 妙手・疑問手トースト */
+        /* --- 【改修】好手・悪手トースト演出 --- */
         .move-toast {
             position: absolute;
             top: 50%;
@@ -355,14 +345,14 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
-        .toast-brilliant {
+        .toast-good {
             background: linear-gradient(135deg, rgba(35, 30, 18, 0.95) 0%, rgba(18, 15, 8, 0.98) 100%);
             border: 1.5px solid #ffd700;
             color: #fff4bd;
             box-shadow: 0 0 24px rgba(255, 215, 0, 0.65);
         }
 
-        .toast-blunder {
+        .toast-bad {
             background: linear-gradient(135deg, rgba(40, 15, 15, 0.95) 0%, rgba(20, 8, 8, 0.98) 100%);
             border: 1.5px solid #ff4d4d;
             color: #ffd2d2;
@@ -457,7 +447,7 @@
             box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 1), inset 0 -1.5px 2.5px rgba(120, 105, 80, 0.4);
         }
 
-        /* 黄金天秤（評価値ゲージ） */
+        /* 黄金天秤 */
         .balance-gauge-container {
             width: min(92vw, 45dvh);
             display: flex;
@@ -523,9 +513,7 @@
             box-shadow: 0 0 6px #ffd700;
         }
 
-        /* =======================================================
-           王宮操作パネル（寸法と位置の完全固定）
-        ======================================================= */
+        /* 王宮操作パネル */
         .control-panel {
             width: min(94vw, 440px);
             display: flex;
@@ -656,7 +644,6 @@
         }
         .timer-box { font-size: 10px; font-weight: 600; color: #baa070; margin-left: 2px; }
 
-        /* 先手・後手ボタン（純金ゴールド発光） */
         .color-selector {
             display: flex;
             background: rgba(8, 10, 14, 0.85);
@@ -702,7 +689,7 @@
 
         select {
             font-family: inherit;
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 700;
             padding: 4px 6px;
             border-radius: 6px;
@@ -754,7 +741,6 @@
             letter-spacing: 0.05em;
         }
 
-        /* ヒント表示：完全独立フローティングウィンドウ */
         #hintMessage {
             display: none;
             position: absolute;
@@ -791,7 +777,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2px 6px;
+            padding: 3px 6px;
             font-size: 10px;
             color: #b59f78;
             z-index: 10;
@@ -840,25 +826,10 @@
                 padding: 0 12px;
             }
 
-            .board-container {
-                margin-top: 0;
-                margin-bottom: 0;
-            }
-
-            #board {
-                width: min(76dvh, 48vw);
-                height: min(76dvh, 48vw);
-            }
-
-            .balance-gauge-container {
-                width: min(76dvh, 48vw);
-            }
-
-            .control-panel {
-                width: 320px;
-                gap: 8px;
-            }
-
+            .board-container { margin-top: 0; margin-bottom: 0; }
+            #board { width: min(76dvh, 48vw); height: min(76dvh, 48vw); }
+            .balance-gauge-container { width: min(76dvh, 48vw); }
+            .control-panel { width: 320px; gap: 8px; }
             .royal-card { padding: 10px 12px; }
             #status { font-size: 14px; margin-bottom: 8px; }
             .action-grid-row1 { margin-bottom: 6px; }
@@ -1030,7 +1001,6 @@
     <!-- 王宮BGM -->
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- 【改修】ヘッダー：ボタン被り完全解消 ＆ タイトル完全センタリング -->
     <header>
         <div class="header-top-bar">
             <div class="header-actions">
@@ -1051,14 +1021,14 @@
     </header>
 
     <div class="app-container">
-        <!-- 【改修】王宮オセロ盤（約2行分下方シフト ＆ 左右数字の木枠帯完全センタリング） -->
+        <!-- 王宮オセロ盤 -->
         <div class="board-container">
             <div class="dynasty-board-chassis" id="boardChassis">
                 <div class="corner-ornament corner-tl"></div>
                 <div class="corner-ornament corner-tr"></div>
                 <div class="corner-ornament corner-bl"></div>
                 <div class="corner-ornament corner-br"></div>
-                <!-- 妙手・疑問手トースト -->
+                <!-- 好手・悪手トースト -->
                 <div id="moveToast" class="move-toast"></div>
                 <div id="board"></div>
             </div>
@@ -1074,7 +1044,7 @@
             <span class="gauge-label" id="gaugeWhiteLabel">50% ⚪</span>
         </div>
 
-        <!-- 王宮操作パネル（位置・枠を完全固定） -->
+        <!-- 王宮操作パネル -->
         <div class="control-panel">
             <div id="hintMessage"></div>
 
@@ -1115,10 +1085,11 @@
                         <option value="9">Lv.9</option>
                         <option value="10">Lv.10（最強）</option>
                     </select>
+                    <!-- 【改修】直感的な学習モード選択 -->
                     <select id="hintMode" aria-label="学習モード">
-                        <option value="off">ヒントOFF</option>
-                        <option value="manual" selected>手動ヒント</option>
-                        <option value="always">常時ヒント</option>
+                        <option value="manual" selected>手動ヒント＋採点</option>
+                        <option value="always">常時ヒント＋採点</option>
+                        <option value="off">完全OFF(真剣勝負)</option>
                     </select>
                 </div>
 
@@ -1149,19 +1120,25 @@
             </div>
 
             <div class="manual-tabs">
-                <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作ガイド</button>
+                <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作＆アシスト体系</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-rank">📊 AI宮廷爵位</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-tips">📖 戦術の極意</button>
             </div>
 
+            <!-- 【改修】3大アシスト体系の明快な解説 -->
             <div id="tab-ops" class="manual-tab-content active">
+                <div class="manual-card">
+                    <div class="manual-card-title">👑 3大アシスト機能の違いと使い分け</div>
+                    <div>当アプリには、上達を助ける3つの支援機能が備わっています。</div>
+                    <ul style="margin: 6px 0 0 16px; padding: 0;">
+                        <li style="margin-bottom: 4px;"><b>🟡 盤上ガイド（常時）</b>：ルール上、石を置けるマスを光るドットと半透明石でお知らせします。</li>
+                        <li style="margin-bottom: 4px;"><b>💡 最善手ヒント（打つ前）</b>：AIが「次にどこへ打つべきか」とその明確な理由を伝授します。</li>
+                        <li style="margin-bottom: 4px;"><b>⚜️ 着手採点（打った後）</b>：あなたが打った手が良かったかを「好手」「悪手」で即座に判定します。</li>
+                    </ul>
+                </div>
                 <div class="manual-card">
                     <div class="manual-card-title">⚜️ 時を戻す（待った）</div>
                     <div>ミスをした時や形勢をやり直したい時に使用します。自分とCPUの手をセットで巻き戻し、直前の手番から再開できます。</div>
-                </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">💡 最善手ヒント</div>
-                    <div>AIが深層探索を行い、盤上の最も有利な一手とその理由（角の確保、相手の選択肢制限など）を解説付きで提示します。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">⚖️ 黄金天秤（評価値ゲージ）</div>
@@ -1237,7 +1214,7 @@
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.2.0</span><span class="chronicle-date">2026/09/04</span>
-                    <div class="chronicle-desc">【完全位置固定＆タイトル・ゴールド最適化】タイトル真上センタリング、枠の完全固定、ヒント独立フローティング化、先手後手純金ゴールド発光。</div>
+                    <div class="chronicle-desc">【体系整理＆好手悪手刷新】着手判定を「好手」「悪手」へ改称、3大アシスト体系整理、学習モード名称直感化、指南書図解追加。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.1.0</span><span class="chronicle-date">2026/09/03</span>
@@ -1467,15 +1444,12 @@
         [1, -1],  [1, 0],  [1, 1]
     ];
 
-    /* =======================================================
-       【改修】座標ラベル：木枠フレーム帯の完全ド真ん中配置
-    ======================================================= */
+    /* --- 座標ラベル --- */
     function initCoordLabels() {
         const chassis = document.getElementById("boardChassis");
         const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
         const rows = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-        // 上下の A〜H（上下木枠帯の中央へ配置）
         cols.forEach((col, i) => {
             const topL = document.createElement("div");
             topL.className = "coord-label";
@@ -1494,7 +1468,6 @@
             chassis.appendChild(botL);
         });
 
-        // 左右の 1〜8（左右木枠帯の中央へ配置）
         rows.forEach((row, i) => {
             const leftL = document.createElement("div");
             leftL.className = "coord-label";
@@ -1548,8 +1521,12 @@
         if (labelW) labelW.textContent = `${winrateWhite}% ⚪`;
     }
 
+    /* --- 【改修】好手・悪手トースト --- */
     let toastTimeout = null;
     function showMoveToast(type, text) {
+        // 完全OFFモード時は採点トーストも出さない
+        if (getHintMode() === "off") return;
+
         const toast = document.getElementById("moveToast");
         if (!toast) return;
 
@@ -1727,6 +1704,7 @@
         isBusy = true;
         clearHint();
 
+        // プレイヤー着手のクオリティ鑑定（好手・悪手）
         const emptyCount = getEmptyCount(board);
         const preScore = evaluateBoard(board, humanColor, emptyCount);
 
@@ -1738,10 +1716,11 @@
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const scoreDiff = postScore - preScore;
 
-        if (isCorner(row, col) || scoreDiff > 120) {
-            showMoveToast("brilliant", "⚜️ 妙手 (BRILLIANT)");
-        } else if (isDanger(row, col) || scoreDiff < -140) {
-            showMoveToast("blunder", "⚠️ 疑問手 (BLUNDER)");
+        // 【改修】好手・悪手の判定
+        if (isCorner(row, col) || scoreDiff > 110) {
+            showMoveToast("good", "⚜️ 好手 (GOOD)");
+        } else if (isDanger(row, col) || scoreDiff < -135) {
+            showMoveToast("bad", "⚠️ 悪手 (BAD)");
         }
 
         pendingAnimation = {
@@ -2379,5 +2358,4 @@
 
 </body>
 </html>
-
 
