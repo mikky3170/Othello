@@ -17,6 +17,7 @@
     - セリフの重層化（複数ランダム台詞＆大量反転検知）＆終盤クライマックス文字発光
     - 格ゲー風「押し合い綱引き」パワーバトルゲージ（中央激突スパーク・情勢バッジ）
     - 終局時のドラマチック王宮決着（VICTORY / DEFEAT）カットイン演出
+    - 【バグ修正】初期化呼び出し順序の整合＆安全ガード追加による起動時エラー解消
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -223,7 +224,7 @@
             100% { transform: scale(1.35, 1.25); opacity: 0; }
         }
 
-        /* 【改修】縦長オーバル額縁（横66px × 縦96px・カメオ風二重彫刻） */
+        /* カメオ風オーバル額縁（横66px × 縦96px） */
         .opponent-avatar-frame {
             width: clamp(58px, 15vw, 66px);
             height: clamp(84px, 22vw, 96px);
@@ -384,7 +385,7 @@
             border-right: 6px solid rgba(212, 167, 72, 0.6);
         }
 
-        /* 【新設】山場（クライマックス）時の文字発光演出 */
+        /* 山場（クライマックス）時の文字発光演出 */
         .opponent-speech-bubble.is-climax {
             border-color: var(--char-accent);
             box-shadow: 0 0 14px var(--char-glow);
@@ -674,7 +675,7 @@
         }
 
         /* ==========================================================================
-           ◆ 【大改修】格闘ゲーム風「押し合い綱引き」パワーバトルゲージ
+           ◆ 格闘ゲーム風「押し合い綱引き」パワーバトルゲージ
         ========================================================================== */
         .battle-gauge-container {
             width: min(92vw, 41dvh);
@@ -715,7 +716,6 @@
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
         }
 
-        /* 中央の基準線 */
         .battle-center-mark {
             position: absolute;
             left: 50%;
@@ -727,7 +727,6 @@
             transform: translateX(-50%);
         }
 
-        /* 黒の侵略パワー */
         .battle-power-black {
             height: 100%;
             background: linear-gradient(90deg, #101114 0%, #2b2e38 70%, #d4a748 100%);
@@ -735,7 +734,6 @@
             position: relative;
         }
 
-        /* 白の侵略パワー */
         .battle-power-white {
             height: 100%;
             flex: 1;
@@ -744,7 +742,6 @@
             position: relative;
         }
 
-        /* 激突点（スパーク閃光） */
         .battle-clash-spark {
             position: absolute;
             top: -2px;
@@ -987,7 +984,7 @@
         #hintMessage .hint-reason-list li { margin-bottom: 2px; }
 
         /* ==========================================================================
-           ◆ 【新設】王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン
+           ◆ 王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン
         ========================================================================== */
         .royal-result-modal {
             display: none;
@@ -1366,7 +1363,7 @@
                 <div class="voice-wave-ring wave-1"></div>
                 <div class="voice-wave-ring wave-2"></div>
 
-                <!-- 【改修】カメオ風オーバル額縁（横66px×縦96px） -->
+                <!-- カメオ風オーバル額縁（横66px×縦96px） -->
                 <div class="opponent-avatar-frame" id="opponentAvatarFrame">
                     <div class="avatar-img-box" id="avatarImgBox"></div>
                 </div>
@@ -1406,7 +1403,7 @@
                 <div id="board"></div>
             </div>
 
-            <!-- 【改修】格闘ゲーム風「押し合い綱引き」パワーバトルゲージ -->
+            <!-- 格闘ゲーム風「押し合い綱引き」パワーバトルゲージ -->
             <div class="battle-gauge-container">
                 <div class="battle-gauge-header">
                     <span id="battleStatBlack">⚫ 50%</span>
@@ -1475,9 +1472,7 @@
 
     </div>
 
-    <!-- ==============================================================
-         ◆ 【新設】王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン
-    ============================================================== -->
+    <!-- 王宮決着（VICTORY / DEFEAT）ドラマチック・カットイン -->
     <div id="royalResultModal" class="royal-result-modal">
         <div class="royal-result-card">
             <div class="result-crown-icon" id="resultCrownIcon">👑</div>
@@ -1584,7 +1579,7 @@
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.5.0</span><span class="chronicle-date">2026/09/07</span>
-                    <div class="chronicle-desc">【決定版】オーバル額縁（横66px×縦96px）、格ゲー綱引きバトルゲージ、キャラ別王室テーマカラー、山場発光、王宮決着カットイン実装。</div>
+                    <div class="chronicle-desc">【決定版】オーバル額縁（横66px×縦96px）、格ゲー綱引きバトルゲージ、キャラ別王室テーマカラー、山場発光、王宮決着カットイン実装。初期化順序正常化による安定性向上。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 4.4.0</span><span class="chronicle-date">2026/09/06</span>
@@ -1600,7 +1595,7 @@
 
 <script>
     /* ==========================================
-       ROYAL OTHELLO ENGINE (Ver 4.5.0 決定版)
+       ROYAL OTHELLO ENGINE (Ver 4.5.0 決定版・修正版)
     ========================================== */
     const boardSize = 8;
     const BLACK = 1;
@@ -1639,7 +1634,7 @@
         [ 120, -20,  20,   5,   5,  20, -20, 120]
     ];
 
-    /* --- 【新設】キャラ別王室テーマカラー＆重層的セリフ辞書 --- */
+    /* --- キャラ別王室テーマカラー＆重層的セリフ辞書 --- */
     const CHARACTERS = {
         1: {
             id: 1,
@@ -1648,7 +1643,7 @@
             icon: "🃏",
             image: "images/char1.png",
             imgFocus: "center 26%",
-            themeColor: "#e63946", // 真鍮赤
+            themeColor: "#e63946",
             themeGlow: "rgba(230, 57, 70, 0.65)",
             depth: 0,
             exact: 0,
@@ -1674,7 +1669,7 @@
             icon: "🎀",
             image: "images/char2.png",
             imgFocus: "center 20%",
-            themeColor: "#2a9d8f", // 宮廷エメラルド
+            themeColor: "#2a9d8f",
             themeGlow: "rgba(42, 157, 143, 0.65)",
             depth: 1,
             exact: 0,
@@ -1700,7 +1695,7 @@
             icon: "⚔️",
             image: "images/char3.png",
             imgFocus: "center 22%",
-            themeColor: "#2b6cb0", // ロイヤルブルー
+            themeColor: "#2b6cb0",
             themeGlow: "rgba(43, 108, 176, 0.65)",
             depth: 3,
             exact: 0,
@@ -1726,7 +1721,7 @@
             icon: "🌹",
             image: "images/char4.png",
             imgFocus: "center 22%",
-            themeColor: "#9b111e", // ルビーワイン
+            themeColor: "#9b111e",
             themeGlow: "rgba(155, 17, 30, 0.65)",
             depth: 5,
             exact: 0,
@@ -1752,7 +1747,7 @@
             icon: "📜",
             image: "images/char5.png",
             imgFocus: "center 24%",
-            themeColor: "#4a154b", // 紫紺
+            themeColor: "#4a154b",
             themeGlow: "rgba(74, 21, 75, 0.7)",
             depth: 6,
             exact: 10,
@@ -1778,7 +1773,7 @@
             icon: "👑",
             image: "images/char6.png",
             imgFocus: "center 20%",
-            themeColor: "#ffd700", // インペリアル純金
+            themeColor: "#ffd700",
             themeGlow: "rgba(255, 215, 0, 0.8)",
             depth: 8,
             exact: 14,
@@ -2024,7 +2019,7 @@
         };
     }
 
-    /* --- 【新設】セリフ発話＆キャラ色オーラ＆山場文字発光 --- */
+    /* --- 【安全ガード付き】セリフ発話＆キャラ色オーラ＆山場文字発光 --- */
     let talkingTimeout = null;
     function setOpponentQuote(category) {
         const char = getCurrentCharacter();
@@ -2037,8 +2032,8 @@
         const avatarFrame = document.getElementById("opponentAvatarFrame");
         const avatarWrap = document.querySelector(".opponent-avatar-wrap");
 
-        // 山場判定（残り12マス以下 または 決戦時）
-        const emptyCount = getEmptyCount(board);
+        // 安全に盤面空きマス数を取得（未初期化時は60と判定）
+        const emptyCount = (board && Array.isArray(board)) ? getEmptyCount(board) : 60;
         const isClimax = (emptyCount <= 12) || category === "climax" || category === "win" || category === "lose";
 
         if (speechEl && speechTextEl) {
@@ -2094,8 +2089,10 @@
         setOpponentQuote("start");
     }
 
-    /* --- 【大改修】格闘ゲーム風「綱引きバトルゲージ」計算 --- */
+    /* --- 格闘ゲーム風「綱引きバトルゲージ」計算 --- */
     function updateBalanceGauge() {
+        if (!board || !Array.isArray(board)) return;
+
         const emptyCount = getEmptyCount(board);
         const evalScore = evaluateBoard(board, BLACK, emptyCount);
         const winrateBlack = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 180))) * 100)));
@@ -2112,7 +2109,6 @@
         if (statB) statB.textContent = `⚫ ${winrateBlack}%`;
         if (statW) statW.textContent = `${winrateWhite}% ⚪`;
 
-        // 直感的な戦況バッジのテキスト判定
         if (badge) {
             if (winrateBlack >= 75) badge.textContent = "⚫ 黒 圧倒的優勢！";
             else if (winrateBlack >= 58) badge.textContent = "⚫ 黒 押し込み中！";
@@ -2251,7 +2247,7 @@
     function isInside(row, col) { return row >= 0 && row < boardSize && col >= 0 && col < boardSize; }
 
     function getFlippableStones(row, col, player = currentPlayer, targetBoard = board) {
-        if (targetBoard[row][col] !== 0) return [];
+        if (!targetBoard || targetBoard[row][col] !== 0) return [];
         const opponent = player === BLACK ? WHITE : BLACK;
         const flippable = [];
 
@@ -2318,7 +2314,6 @@
         const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const scoreDiff = postScore - preScore;
 
-        // セリフ分岐（角、大量反転、好手、悪手、山場）
         if (isCorner(row, col)) {
             showMoveToast("good", "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerCorner");
@@ -2406,10 +2401,15 @@
     function isCorner(r, c) { return cornerSquares.some(([cr, cc]) => cr === r && cc === c); }
     function isDanger(r, c) { return dangerSquares.some(([dr, dc]) => dr === r && dc === c); }
 
+    /* 【安全ガード付き】空きマス数取得 */
     function getEmptyCount(targetBoard) {
+        if (!targetBoard || !Array.isArray(targetBoard)) return 60;
         let count = 0;
         for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) if (targetBoard[r][c] === 0) count++;
+            if (!targetBoard[r]) continue;
+            for (let c = 0; c < 8; c++) {
+                if (targetBoard[r][c] === 0) count++;
+            }
         }
         return count;
     }
@@ -2830,10 +2830,12 @@
 
     function countStones() {
         let black = 0, white = 0;
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                if (board[row][col] === BLACK) black++;
-                else if (board[row][col] === WHITE) white++;
+        if (board && Array.isArray(board)) {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if (board[row][col] === BLACK) black++;
+                    else if (board[row][col] === WHITE) white++;
+                }
             }
         }
         return { black, white };
@@ -2851,7 +2853,7 @@
         if (plScoreEl) plScoreEl.textContent = humanStones;
     }
 
-    /* --- 【新設】ドラマチック王宮決着（VICTORY / DEFEAT）演出 --- */
+    /* --- ドラマチック王宮決着（VICTORY / DEFEAT）演出 --- */
     function endGame() {
         gameOver = true;
         isBusy = false;
@@ -2929,7 +2931,6 @@
 
     const charSelect = document.getElementById("characterSelect");
     charSelect.addEventListener("change", () => {
-        updateOpponentStageUI();
         startGame();
     });
 
@@ -3044,11 +3045,11 @@
         }
     });
 
-    // 初期化実行
+    /* --- 初期化実行（安全な起動順序） --- */
     initCoordLabels();
-    updateOpponentStageUI();
     startGame();
 </script>
 
 </body>
 </html>
+
