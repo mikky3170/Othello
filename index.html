@@ -3,12 +3,11 @@
   【オセロプログラム バージョン管理・変更履歴】
   
   [Ver 4.1.0] 2026/09/03 :
-    - 【不具合修正】JS参照エラー（null addEventListener）を解消し、
-      マス目・初期石・金箔座標ラベルが正常描画されない問題を完全解決。
-    - 【盤面極大化】スマホ縦長（20:9）画面に合わせ、盤面サイズを
-      min(88vw, 42dvh) から min(92vw, 48dvh) へ大幅拡大。
-    - 全画面表示（Fullscreen API）、消音トグル、手番選択、
-      待った（Undo）、金箔座標ラベル（A〜H/1〜8）の完全統合。
+    - 【BGM導入】「the king's entry1.mp3」の自動ループ再生＆消音トグル完全連動
+    - 【フォント刷新】西洋王朝の世界観に調和するクラシック明朝体「しっぽり明朝」を採用
+    - 【ステータス演出強化】「あなたの番」の金箔ブレスオーラ、勝利（王冠黄金発光）、
+      惜敗（ロイヤル・バーガンディ）の格調高いステージングを実装
+    - スマホ（20:9）特大盤面＆スクロール完全ゼロ設計の維持
 ========================================== -->
 
 <!DOCTYPE html>
@@ -18,10 +17,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Othello 2026 AI先生 - Royal Dynasty Edition</title>
 
-    <!-- 高品位クラシック欧文フォント -->
+    <!-- 高品位フォント：Cinzel（欧文彫刻）＋ しっぽり明朝（クラシック高級明朝） -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         * {
@@ -32,16 +31,16 @@
         }
 
         :root {
-            --royal-gold: linear-gradient(135deg, #fff7de 0%, #ecd08c 25%, #c5973e 50%, #8c6218 75%, #f7e6ba 100%);
+            --royal-gold: linear-gradient(135deg, #fff9e6 0%, #ecd08c 25%, #c5973e 50%, #8c6218 75%, #f7e6ba 100%);
             --royal-gold-bright: linear-gradient(135deg, #ffffff 0%, #fae6b2 40%, #d4a748 80%, #aa7a22 100%);
             --gold-border: rgba(212, 167, 72, 0.45);
-            --gold-glow: rgba(212, 167, 72, 0.28);
+            --gold-glow: rgba(212, 167, 72, 0.35);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
             --panel-bg: rgba(16, 19, 26, 0.88);
             --imperial-green: radial-gradient(circle at 45% 45%, #0f522e 0%, #093b20 55%, #042413 100%);
         }
 
-        /* 1画面完全収束（スクロール完全ゼロ） */
+        /* 1画面完全収束（スクロールゼロ） */
         html, body {
             width: 100%;
             height: 100%;
@@ -50,7 +49,8 @@
             overflow: hidden;
             background: var(--dynasty-bg);
             color: #f7eed8;
-            font-family: 'Inter', "Yu Gothic UI", "Yu Gothic", sans-serif;
+            /* 最高峰のクラシック明朝体をベースに設定 */
+            font-family: 'Shippori Mincho', "Yu Mincho", "Hiragino Mincho ProN", serif;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -63,7 +63,7 @@
             position: relative;
         }
 
-        /* 王宮ダマスク織調・微細パターン */
+        /* 王宮ダマスク織調パターン */
         body::before {
             content: "";
             position: fixed;
@@ -95,7 +95,7 @@
         }
 
         .main-header-title {
-            font-family: 'Cinzel Decorative', 'Cinzel', serif;
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
             font-size: clamp(16px, 4.2vw, 22px);
             font-weight: 900;
             letter-spacing: 0.16em;
@@ -159,7 +159,7 @@
             min-height: 0;
         }
 
-        /* --- 盤面エリア（スマホ 20:9 で最大化） --- */
+        /* --- 盤面エリア --- */
         .board-container {
             display: flex;
             justify-content: center;
@@ -180,7 +180,6 @@
                 inset 0 1px 1px rgba(255, 255, 255, 0.25);
         }
 
-        /* 四隅の飾り金具 */
         .corner-ornament {
             position: absolute;
             width: 14px;
@@ -193,7 +192,6 @@
         .corner-bl { bottom: 5px; left: 5px; border-right: none; border-top: none; }
         .corner-br { bottom: 5px; right: 5px; border-left: none; border-top: none; }
 
-        /* 金箔座標ラベル */
         .coord-label {
             position: absolute;
             font-family: 'Cinzel', serif;
@@ -207,7 +205,6 @@
             pointer-events: none;
         }
 
-        /* オセロ盤：スマホ（20:9）で画面幅と高さを限界まで活用 */
         #board {
             width: min(92vw, 48dvh);
             height: min(92vw, 48dvh);
@@ -412,17 +409,85 @@
             pointer-events: none;
         }
 
+        /* =======================================================
+           【新設】呼吸する金箔オーラ・ステータス演出
+        ======================================================= */
         #status {
-            font-size: 13.5px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            color: #fff2d1;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
             text-align: center;
             margin-bottom: 6px;
-            min-height: 18px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            padding: 2px 8px;
+            transition: all 0.3s ease;
+        }
+
+        /* あなたの番：金色浮き彫り＋呼吸するオーラ明滅 */
+        #status.status-human-turn {
+            background: var(--royal-gold-bright);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 14px var(--gold-glow);
+            animation: royal-breathe 2.4s ease-in-out infinite;
+        }
+
+        @keyframes royal-breathe {
+            0%, 100% {
+                filter: drop-shadow(0 0 2px rgba(212, 167, 72, 0.5));
+                transform: scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 10px rgba(255, 240, 190, 0.95)) drop-shadow(0 0 16px rgba(212, 167, 72, 0.7));
+                transform: scale(1.025);
+            }
+        }
+
+        /* CPU思考中：静謐なブロンズの微かな明滅 */
+        #status.status-cpu-turn {
+            color: #d1b888;
+            -webkit-text-fill-color: #d1b888;
+            opacity: 0.85;
+            animation: cpu-pulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes cpu-pulse {
+            0%, 100% { opacity: 0.65; }
+            50% { opacity: 1; }
+        }
+
+        /* 勝利時：王冠黄金発光 */
+        #status.status-win {
+            background: linear-gradient(135deg, #ffffff 0%, #fff2b8 35%, #ffd700 70%, #d4a748 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 15px;
+            font-weight: 900;
+            animation: win-glow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes win-glow {
+            from { filter: drop-shadow(0 0 4px #ffd700); transform: scale(1.02); }
+            to { filter: drop-shadow(0 0 14px #fff8d6) drop-shadow(0 0 20px #ffd700); transform: scale(1.05); }
+        }
+
+        /* 敗北時：ロイヤル・バーガンディ（深紅）の静寂 */
+        #status.status-lose {
+            color: #e59b9b;
+            -webkit-text-fill-color: #e59b9b;
+            font-size: 14.5px;
+            text-shadow: 0 0 10px rgba(220, 60, 60, 0.6);
+        }
+
+        /* 引き分け */
+        #status.status-draw {
+            color: #e0d8c8;
+            -webkit-text-fill-color: #e0d8c8;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
         }
 
         .scoreboard-row {
@@ -450,7 +515,7 @@
             gap: 5px;
         }
 
-        .score-box .label { font-size: 11px; font-weight: 600; color: #d1b888; }
+        .score-box .label { font-size: 11px; font-weight: 700; color: #d1b888; }
         .score-box .value {
             font-family: 'Cinzel', serif;
             font-size: 18px;
@@ -502,7 +567,7 @@
         select {
             font-family: inherit;
             font-size: 11.5px;
-            font-weight: 600;
+            font-weight: 700;
             padding: 5px 6px;
             border-radius: 6px;
             border: 1px solid var(--gold-border);
@@ -616,7 +681,7 @@
             color: #e5c378;
         }
 
-        /* --- タブレット（16:10）＆ PC 横画面レイアウト --- */
+        /* --- タブレット・横長PC対応 --- */
         @media (min-aspect-ratio: 1/1) {
             .app-container {
                 flex-direction: row;
@@ -637,7 +702,7 @@
             }
 
             .royal-card { padding: 12px 14px; }
-            #status { font-size: 14px; margin-bottom: 10px; }
+            #status { font-size: 14.5px; margin-bottom: 10px; }
             .action-grid-row1 { margin-bottom: 8px; }
             .action-grid-row2 { grid-template-columns: 1fr 1fr; gap: 6px; }
         }
@@ -705,6 +770,9 @@
 
 <body>
 
+    <!-- 王宮BGMオーディオ要素（同一フォルダの the king's entry1.mp3） -->
+    <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
+
     <header>
         <div class="header-title-wrap">
             <h1 class="main-header-title">Othello 2026 AI先生</h1>
@@ -723,7 +791,7 @@
     </header>
 
     <div class="app-container">
-        <!-- 王宮オセロ盤（画面高低差に合わせ最大化） -->
+        <!-- 王宮オセロ盤 -->
         <div class="board-container">
             <div class="dynasty-board-chassis" id="boardChassis">
                 <div class="corner-ornament corner-tl"></div>
@@ -738,7 +806,8 @@
         <div class="control-panel">
             <div id="hintMessage"></div>
             <div class="royal-card">
-                <div id="status">あなたの番です…</div>
+                <!-- 金箔オーラ演出付きステータス -->
+                <div id="status" class="status-human-turn">あなたの番です…</div>
                 
                 <div class="scoreboard-row">
                     <div class="scoreboard">
@@ -854,7 +923,21 @@
         [ 120, -20,  20,   5,   5,  20, -20, 120]
     ];
 
-    /* --- サウンドエンジン --- */
+    /* --- BGM再生エンジン --- */
+    const bgm = document.getElementById("bgmAudio");
+    bgm.volume = 0.32; // 上品で控えめな音量バランス
+
+    function tryPlayBgm() {
+        if (!isMuted && bgm.paused) {
+            bgm.play().catch(() => { /* 自動再生制限対応 */ });
+        }
+    }
+
+    // 最初のユーザー操作でBGMフェードイン再生
+    document.addEventListener("click", tryPlayBgm, { once: true });
+    document.addEventListener("touchstart", tryPlayBgm, { once: true });
+
+    /* --- サウンドエンジン（効果音） --- */
     let audioCtx = null;
     function getAudioContext() {
         if (audioCtx === null) {
@@ -972,7 +1055,7 @@
         [1, -1],  [1, 0],  [1, 1]
     ];
 
-    /* --- 金箔座標ラベルの配置 --- */
+    /* --- 金箔座標ラベル --- */
     function initCoordLabels() {
         const chassis = document.getElementById("boardChassis");
         const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -1027,6 +1110,14 @@
         }
     }
 
+    /* --- ステータス演出ヘルパー --- */
+    function setStatus(type, text) {
+        const statusEl = document.getElementById("status");
+        statusEl.className = "";
+        statusEl.classList.add(`status-${type}`);
+        statusEl.textContent = text;
+    }
+
     function saveHistory() {
         historyStack.push({
             board: cloneBoard(board),
@@ -1034,6 +1125,7 @@
             lastComputerMove: lastComputerMove ? [...lastComputerMove] : null,
             blackElapsed: blackElapsed,
             whiteElapsed: whiteElapsed,
+            statusClass: document.getElementById("status").className,
             statusText: document.getElementById("status").textContent
         });
         updateUndoButtonState();
@@ -1066,7 +1158,7 @@
             whiteElapsed = targetState.whiteElapsed;
             pendingAnimation = null;
 
-            document.getElementById("status").textContent = "手を一手戻しました。";
+            setStatus("human-turn", "手を一手戻しました。あなたの番です…");
             updateTimerDisplay();
             drawBoard();
             maybeAutoHint();
@@ -1077,6 +1169,8 @@
     }
 
     function startGame() {
+        tryPlayBgm();
+
         board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
         board[3][3] = WHITE; board[3][4] = BLACK;
         board[4][3] = BLACK; board[4][4] = WHITE;
@@ -1102,10 +1196,10 @@
         drawBoard();
 
         if (humanColor === BLACK) {
-            document.getElementById("status").textContent = "あなたの番です…";
+            setStatus("human-turn", "あなたの番です…");
             maybeAutoHint();
         } else {
-            document.getElementById("status").textContent = "CPU（黒）が先手です。考え中...";
+            setStatus("cpu-turn", "CPU（黒）が先手です。思考中...");
             setTimeout(computerMove, 500);
         }
     }
@@ -1229,10 +1323,10 @@
             drawBoard();
 
             if (currentPlayer === humanColor) {
-                document.getElementById("status").textContent = "CPUがパスしました。あなたの番です…";
+                setStatus("human-turn", "CPUがパスしました。あなたの番です…");
                 maybeAutoHint();
             } else {
-                document.getElementById("status").textContent = "置ける場所がないためパスです。";
+                setStatus("cpu-turn", "置ける場所がないためパスです。");
                 setTimeout(computerMove, 600);
             }
             updateUndoButtonState();
@@ -1240,7 +1334,7 @@
         }
 
         if (currentPlayer === humanColor) {
-            document.getElementById("status").textContent = "あなたの番です…";
+            setStatus("human-turn", "あなたの番です…");
             drawBoard();
             maybeAutoHint();
             updateUndoButtonState();
@@ -1317,7 +1411,7 @@
         clearHint();
         isBusy = true;
         updateUndoButtonState();
-        document.getElementById("status").textContent = "コンピュータが考え中...";
+        setStatus("cpu-turn", "AIが思考を巡らせています…");
 
         await sleep(350);
         if (gameOver) return;
@@ -1358,13 +1452,13 @@
                 endGame();
                 return;
             }
-            document.getElementById("status").textContent = "置ける場所がないためパスです。";
+            setStatus("cpu-turn", "置ける場所がないためパスです。");
             currentPlayer = cpuColor;
             setTimeout(computerMove, 600);
             return;
         }
 
-        document.getElementById("status").textContent = "あなたの番です…";
+        setStatus("human-turn", "あなたの番です…");
         drawBoard();
         maybeAutoHint();
         updateUndoButtonState();
@@ -1691,9 +1785,13 @@
         const humanStones = (humanColor === BLACK) ? stones.black : stones.white;
         const cpuStones = (cpuColor === BLACK) ? stones.black : stones.white;
 
-        let message = humanStones > cpuStones ? "ゲーム終了！ あなたの勝利です！ 👑" :
-                      cpuStones > humanStones ? "ゲーム終了！ CPUの勝利です。" : "ゲーム終了！ 引き分けです。";
-        document.getElementById("status").textContent = message;
+        if (humanStones > cpuStones) {
+            setStatus("win", "👑 栄光の勝利！ あなたの勝ちです！");
+        } else if (cpuStones > humanStones) {
+            setStatus("lose", "🥀 惜敗… コンピュータの勝利です。");
+        } else {
+            setStatus("draw", "⚖️ ゲーム終了！ 格式高き引き分けです。");
+        }
     }
 
     /* --- イベントリスナー設定 --- */
@@ -1746,22 +1844,29 @@
     document.addEventListener("fullscreenchange", updateFullscreenUI);
     document.addEventListener("webkitfullscreenchange", updateFullscreenUI);
 
-    // 音声ミュートトグル
+    // 音声ミュートトグル（効果音＋BGM完全連動）
     const soundToggleBtn = document.getElementById("soundToggleBtn");
     const soundIcon = document.getElementById("soundIcon");
     const soundText = document.getElementById("soundText");
 
     soundToggleBtn.addEventListener("click", () => {
         isMuted = !isMuted;
-        soundIcon.textContent = isMuted ? "🔇" : "🔔";
-        soundText.textContent = isMuted ? "OFF" : "ON";
+        if (isMuted) {
+            bgm.pause();
+            soundIcon.textContent = "🔇";
+            soundText.textContent = "OFF";
+        } else {
+            bgm.play().catch(() => {});
+            soundIcon.textContent = "🔔";
+            soundText.textContent = "ON";
+        }
     });
 
     const hintModeSelect = document.getElementById("hintMode");
     hintModeSelect.addEventListener("change", updateHintModeUI);
     updateHintModeUI();
 
-    // モーダル設定（存在チェック付きで安全に登録）
+    // モーダル設定
     const guideButton = document.getElementById("guideButton");
     const guideOverlay = document.getElementById("guideOverlay");
     const guideCloseButton = document.getElementById("guideCloseButton");
@@ -1778,12 +1883,10 @@
         }
     });
 
-    // 初期化実行（確実に実行されるように末尾に配置）
+    // 初期化実行
     initCoordLabels();
     startGame();
 </script>
 
 </body>
 </html>
-
-
