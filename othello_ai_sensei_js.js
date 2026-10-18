@@ -2,19 +2,24 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.6.0 (2026/10/20)
+  バージョン: Ver 6.7.0 (2026/10/21)
   
-  [Ver 6.6.0] 2026/10/20 更新内容:
-  - 【勝てるヒントAI数理刷新】序盤の辺奪取厳罰化・中割り＆開放度抑制の徹底により指南通りの必勝性を確立
-  - 【開局バリエーションエンジン】序盤〜中盤の確率的有力手選択（ソフトマックス）により一本道マンネリ対局を完全解消
-  - 【バージョン一元管理システム】HTMLフッターおよび年代記へのJS動的描画導入により、次回以降のHTML再出力を廃止
-  - 【全パイプラインデグレ防止】ゼロ遅延操作・115msスムーズ反転・人間味思考ウェイト・戦績録との完全整合
+  [Ver 6.7.0] 2026/10/21 更新内容:
+  - 【主客レイアウト完全正常化】横画面表示時に「左側＝プレイヤー、中央＝盤面、右側＝対戦相手」となるよう主客の配置を正常化
+  - 【視認性大幅強化】先手黒・後手白ボタンを拡大＆極太ボールド（font-weight: 900）化。相手称号・サロン名バッジを拡大
+  - 【バロック調美術刷新】思案所・戦績録・各カードに金彩二重飾り額縁、ダマスク紋様、立体エンボス金箔リボン装飾を導入
+  - 【戦績録UI調律】キャラ肖像を1.4倍拡大し「Lv.X 名前」をインライン一体化。ツールバー「履歴初期化」を2段目右端へ固定
+  - 【戦績一覧2行化調律】対戦相手（Lv.X 肩書 / 名前）、形式（自力 / 真剣）、日時、スコア、精度、手数を整然たる2行構成へ改行
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.6.0",
-    date: "2026/10/20",
+    version: "Ver 6.7.0",
+    date: "2026/10/21",
     history: [
+        {
+            ver: "Ver 6.7.0", date: "2026/10/21",
+            desc: "【バロック宮廷サロン美術＆主客レイアウト正常化エディション】横画面時の主客配置を「左側＝プレイヤー、中央＝盤面、右側＝対戦相手」へと完全正常化。先手黒・後手白ボタンの極太ボールド化、対戦相手肩書・サロン名バッジの拡大。思案所・戦績録をバロック調金彩額縁とダマスク紋様へ美術昇華。戦績録の1.4倍肖像一体化、ツールバー2段固定、戦績一覧テーブルの整然たる2行構成改行調律を完全統合。"
+        },
         {
             ver: "Ver 6.6.0", date: "2026/10/20",
             desc: "【勝てるヒントAI数理刷新＆開局バリエーションエディション】序盤の辺奪取厳罰化と中割り優先ロジックにより、指南通りに打つことで確実に勝てる強固なヒントエンジンを確立。序盤〜中盤の確率的有力手選択（ソフトマックス）を導入し、同じ相手でも毎回違う展開になる多彩な対局を実現。バージョン一元管理によりHTML自動描画に対応。"
@@ -170,8 +175,6 @@ const FLIP_ANIMATION_DURATION_MS = 680;
 
 /* ==========================================================================
   【オセロプロ理論に基づく静的マスマップ】
-  - 序盤〜中盤の辺（Aマス・Bマス）はプラスではなく 0〜マイナスにして安易な外周奪取を抑止
-  - 角（120）は圧倒的最高評価、Xマス（-160）・Cマス（-60）は角を献上する危険マスとして厳罰化
 ========================================================================== */
 const baseStaticWeights = [
     [ 120, -60,  -5,  -5,  -5,  -5, -60, 120],
@@ -465,7 +468,6 @@ function initCoordLabels() {
 
 /* ==========================================================================
   【バージョン情報＆年代記の一元自動同期システム】
-  HTMLを直接編集せずとも、本JSの SYSTEM_VERSION_INFO からフッターと年代記を自動生成
 ========================================================================== */
 function renderSystemVersionInfo() {
     if (DOM.versionBadge) {
@@ -878,8 +880,6 @@ function countFrontierStones(targetBoard, player) {
 
 /* ==========================================================================
   【オセロプロ監修：勝てる真の評価関数】
-  - 序盤〜中盤：中割り（フロンティア削減）・着手可能数（モビリティ）・危険マス回避を徹底
-  - 終盤：石数差・確定石・パリティ（偶数理論）で確実に勝ち切る
 ========================================================================== */
 function evaluateBoard(targetBoard, player, emptyCount) {
     const opponent = opposite(player);
@@ -919,13 +919,10 @@ function evaluateBoard(targetBoard, player, emptyCount) {
 
     let score = 0;
     if (emptyCount > 35) {
-        // 序盤：モビリティと中割り（フロンティア最少）が最重要。石は絶対に増やさない。
         score = (mobilityScore * 35) + (frontierScore * 30) + (myPosScore - oppPosScore) * 1.8 - (myStones - oppStones) * 15;
     } else if (emptyCount > 14) {
-        // 中盤：確定石の基盤、相手の選択肢制限、マスマップ
         score = (mobilityScore * 25) + (frontierScore * 20) + (stableDiff * 65) + (myPosScore - oppPosScore) * 2.2;
     } else {
-        // 終盤：確定石と石数差、パリティ理論（偶数奇数）
         score = (myStones - oppStones) * 45 + (stableDiff * 80) + (mobilityScore * 12);
         if (emptyCount % 2 !== 0) score += 40;
     }
@@ -1045,7 +1042,7 @@ async function putStone(row, col) {
     const isDangerMove = isRealDanger(row, col, board);
     const hintMoveSnapshot = hintMove ? [...hintMove] : null;
 
-    // 描画とアニメーションを直ちに開始（ゼロ遅延）
+    // 描画とアニメーションを直ちに開始
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
     // アニメーションの裏側で非同期採点・ログ記録
@@ -1178,9 +1175,7 @@ async function processTurn() {
 }
 
 /* ==========================================================================
-  【開局バリエーション＆人間味ある着手選択エンジン】
-  - 序盤〜中盤：上位有力候補手から確率的に手を変え、毎回違う展開を生み出す
-  - 終盤：本来の深さで正確無比に詰める
+  【開局バリエーション＆着手選択エンジン】
 ========================================================================== */
 function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
@@ -1219,23 +1214,20 @@ function getComputerMove(targetBoard, player, charConfig) {
     scores.sort((a, b) => b.score - a.score);
     const bestScore = scores[0].score;
 
-    // 終盤（完全読みエリア）は最善手のみ
     if (charConfig.exact > 0 && emptyCount <= charConfig.exact) {
         const topCandidates = scores.filter(s => s.score === bestScore).map(s => s.move);
         return topCandidates[Math.floor(Math.random() * topCandidates.length)];
     }
 
-    // 序盤〜中盤のバリエーション許容マージン（上位手から多彩に分岐）
     let margin = 0;
     if (emptyCount >= 20) {
-        if (charConfig.id === 3) margin = 35;      // ローラン：広い手筋選択
-        else if (charConfig.id === 4) margin = 20; // エリザベート：適度なバリエーション
-        else if (charConfig.id === 5) margin = 10; // ヴォルフガング：高精度微差選択
-        else if (charConfig.id === 6) margin = 4;  // オルレアン：至高の定石分岐
+        if (charConfig.id === 3) margin = 35;
+        else if (charConfig.id === 4) margin = 20;
+        else if (charConfig.id === 5) margin = 10;
+        else if (charConfig.id === 6) margin = 4;
     }
 
     const eligible = scores.filter(s => (bestScore - s.score) <= margin);
-    // 確率重み付け：最善手に最も高い確率を与えつつ、次善手も選ぶ
     const weights = eligible.map((s, idx) => Math.max(1, 10 - idx * 3));
     const totalW = weights.reduce((a, b) => a + b, 0);
     let rand = Math.random() * totalW;
@@ -1353,7 +1345,6 @@ function buildHintReasons(chosen, allMoves) {
     return reasons;
 }
 
-/* 勝てるヒントエンジン（偶数深さ探索＆中割り評価） */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1362,7 +1353,6 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    // 偶数深さ（中盤深さ6手、終盤10手）により地平線効果を排除し本質的な優位手を提示
     const depth = emptyCount <= 10 ? emptyCount : (emptyCount > 40 ? 6 : 6);
     let bestScore = -Infinity, bestMoves = [];
 
@@ -1620,7 +1610,7 @@ function determineDramaTitle(isWin, isDraw, diff, playerStones, oppStones, minWi
 function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
     const logs = getArchiveLogs();
     const now = new Date();
-    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0 Bath")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     const totalMoves = playerMoveLogs.length;
     const bestCount = playerMoveLogs.filter(l => l.isObjectiveBest).length;
@@ -1694,19 +1684,24 @@ function renderArchiveView() {
     DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
     DOM.archStatBestRate.textContent = `${avgBestRate}%`;
 
+    // 6大豪傑 真剣勝負星取り表（1.4倍肖像＋インライン一体化）
     DOM.archiveCrownGrid.innerHTML = "";
     for (let i = 1; i <= 6; i++) {
         const char = CHARACTERS[i];
         const isConquered = logs.some(r => r.charId === i && r.isWin && r.isGenuine);
+        const nameParts = char.name.split(" ");
+        const charLastName = nameParts[1] || char.name;
 
         const item = document.createElement("div");
         item.className = `crown-item ${isConquered ? "conquered" : ""}`;
         item.innerHTML = `
             <div class="crown-item-avatar">
                 <img src="${char.image}" alt="${char.name}" onerror="this.src='';this.parentElement.textContent='${char.icon}'">
+                <div class="crown-item-overlay">
+                    <div class="crown-badge-mark">${isConquered ? "👑制覇" : `Lv.${i}`}</div>
+                    <div class="crown-item-name">${charLastName}</div>
+                </div>
             </div>
-            <div class="crown-badge-mark">${isConquered ? "👑制覇" : `Lv.${i}`}</div>
-            <div class="crown-item-name">${char.name.split(" ")[1] || char.name}</div>
         `;
         DOM.archiveCrownGrid.appendChild(item);
     }
@@ -1739,6 +1734,7 @@ function renderArchiveView() {
         return;
     }
 
+    // 戦績一覧テーブルの描画（各項目2行化調律）
     filtered.forEach(r => {
         const tr = document.createElement("tr");
 
@@ -1747,22 +1743,58 @@ function renderArchiveView() {
         else if (r.isDraw) resBadge = `<span class="badge-draw-dim">${r.dramaTitle}</span>`;
         else resBadge = `<span class="badge-lose-dim">${r.dramaTitle}</span>`;
 
+        // 形式（2行バッジ）
         const modeBadge = r.isGenuine
-            ? `<span class="badge-genuine-crown">⚔️ 自力真剣</span>`
-            : `<span class="badge-hinted">💡 指南受講</span>`;
+            ? `<div class="badge-genuine-crown"><span>⚔️ 自力</span><span>真剣</span></div>`
+            : `<div class="badge-hinted"><span>💡 指南</span><span>受講</span></div>`;
 
+        // 日時（日付 / 時刻 2行）
+        const [datePart, timePart] = (r.date || "").split(" ");
+
+        // 対戦相手（1行目: Lv.X 肩書 / 2行目: 名前）
+        const oppParts = (r.charName || "").split(" ");
+        const oppTitle = oppParts[0] || "";
+        const oppPersonalName = oppParts[1] || r.charName;
+
+        // 手番
         const pColorIcon = (r.playerColor === BLACK) ? "⚫ 先手" : "⚪ 後手";
-        const scoreStr = `${r.playerStones} vs ${r.cpuStones} (${r.playerStones >= r.cpuStones ? "+" : "-"}${r.diff})`;
+
+        // スコア（1行目: スコア / 2行目: 差分）
+        const scoreLine1 = `${r.playerStones} vs ${r.cpuStones}`;
+        const scoreLine2 = `(${r.playerStones >= r.cpuStones ? "+" : "-"}${r.diff})`;
+
+        // 精度（1行目: パーセント / 2行目: 最善悪手）
+        const bestRateLine1 = `🎯 ${r.bestRate || 0}%`;
+        const bestRateLine2 = `<span style="font-size:8px; color:#a89b80;">(最善${r.bestCount}/悪${r.badCount})</span>`;
+
+        // 時間 / 手数（1行目: 時間 / 2行目: 手数）
+        const timeLine1 = `⏱️ ${r.playerTimeStr}`;
+        const timeLine2 = `<span style="font-size:8.5px; color:#c7ba9f;">(${r.totalTurns}手)</span>`;
 
         tr.innerHTML = `
-            <td style="font-size:9.5px; color:#c7ba9f; white-space:nowrap;">${r.date}</td>
-            <td style="font-weight:700; white-space:nowrap;">Lv.${r.charId} ${r.charName}</td>
-            <td style="font-size:9.5px; white-space:nowrap;">${pColorIcon}</td>
-            <td>${resBadge}</td>
-            <td style="font-family:'Cinzel',serif; font-weight:800; white-space:nowrap;">${scoreStr}</td>
-            <td>${modeBadge}</td>
-            <td style="font-size:9.5px; white-space:nowrap;">🎯 ${r.bestRate || 0}% <span style="font-size:8px; color:#888;">(最善${r.bestCount}/悪${r.badCount})</span></td>
-            <td style="font-size:9.5px; color:#d1b888; white-space:nowrap;">⏱️ ${r.playerTimeStr} (${r.totalTurns}手)</td>
+            <td style="white-space:nowrap;">
+                <div style="font-size:9.5px; color:#c7ba9f;">${datePart}</div>
+                <div style="font-size:8.5px; color:#8e8474;">${timePart || ""}</div>
+            </td>
+            <td style="white-space:nowrap;">
+                <div style="font-size:10px; font-weight:800; color:#ecd08c;">Lv.${r.charId} ${oppTitle}</div>
+                <div style="font-size:11px; font-weight:900; color:#fff4bd;">${oppPersonalName}</div>
+            </td>
+            <td style="font-size:9.5px; white-space:nowrap; vertical-align:middle;">${pColorIcon}</td>
+            <td style="vertical-align:middle;">${resBadge}</td>
+            <td style="font-family:'Cinzel',serif; font-weight:800; white-space:nowrap;">
+                <div style="font-size:11.5px; color:#fff4bd;">${scoreLine1}</div>
+                <div style="font-size:9px; color:#ecd08c;">${scoreLine2}</div>
+            </td>
+            <td style="vertical-align:middle;">${modeBadge}</td>
+            <td style="white-space:nowrap;">
+                <div style="font-size:10px; font-weight:800; color:#ffd700;">${bestRateLine1}</div>
+                <div>${bestRateLine2}</div>
+            </td>
+            <td style="white-space:nowrap;">
+                <div style="font-size:10px; color:#d1b888;">${timeLine1}</div>
+                <div>${timeLine2}</div>
+            </td>
         `;
         DOM.archiveTableBody.appendChild(tr);
     });
@@ -2126,4 +2158,5 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
+
 

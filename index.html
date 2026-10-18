@@ -1,3 +1,4 @@
+
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -32,9 +33,11 @@
   [Ver 6.4.0] 2026/10/19 : 【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】
   [Ver 6.5.0] 2026/10/20 : 【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】
   [Ver 6.6.0] 2026/10/20 : 【勝てるヒントAI数理刷新＆開局バリエーションエディション】
-    - 【勝てるヒントAI】序盤の辺奪取厳罰化と中割り（フロンティア削減）を徹底し、指南通りに打つことで確実に勝てる強固なオセロ理論を注入。
-    - 【開局バリエーションエンジン】序盤〜中盤の有力候補手から確率的選択を行い、同じ相手でも毎回違う展開になる対局の多様性を実現。
-    - 【バージョン一元管理】フッターおよび年代記モーダルをJSからの自動描画プレースホルダーに移行し、次回以降のHTML再出力を廃止。
+  [Ver 6.7.0] 2026/10/21 : 【バロック宮廷サロン美術＆主客レイアウト正常化エディション】
+    - 【主客配置完全正常化】横画面時に「左＝プレイヤー、中央＝盤面、右＝対戦相手」となるよう主客の左右逆転を是正。
+    - 【視認性大幅強化】「先手(黒)」「後手(白)」ボタンを拡大＆極太ボールド（font-weight: 900）化。相手称号・サロン名バッジを拡大。
+    - 【バロック調美術刷新】思案所・戦績録・各カードに金彩二重飾り額縁、ダマスク紋様、立体エンボス金箔リボン装飾を全面導入。
+    - 【戦績録UI調律】キャラ肖像画を1.4倍拡大し「Lv.X 名前」を一体化。ツールバーの「履歴初期化」を2段目右端へ固定。戦績一覧を整然たる2行構成へ改行調律。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -47,7 +50,7 @@
     <!-- 高品位フォント：Cinzel ＋ しっぽり明朝 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -64,6 +67,10 @@
             --char-accent: #e63946;
             --char-glow: rgba(230, 57, 70, 0.65);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
+
+            /* バロック宮廷ダマスクパターン（標準） */
+            --damask-pattern: radial-gradient(circle at 50% 50%, rgba(212, 167, 72, 0.08) 2px, transparent 2.5px),
+                               linear-gradient(45deg, rgba(212, 167, 72, 0.04) 25%, transparent 25%, transparent 75%, rgba(212, 167, 72, 0.04) 75%);
 
             /* ステージ動的バインド変数（デフォルト：Lv.1） */
             --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
@@ -259,14 +266,16 @@
         }
         .header-subtitle { font-family: 'Cinzel', serif; font-size: 8.5px; font-weight: 700; letter-spacing: 0.2em; color: #cca45b; text-transform: uppercase; }
         .header-actions { display: flex; gap: 5px; align-items: center; justify-content: flex-end; flex-shrink: 0; }
+        
+        /* ヘッダーボタン：全枠線を気品あるアンバーゴールド（共通仕様）に統一 */
         .header-btn {
-            background: linear-gradient(135deg, rgba(34, 38, 50, 0.9) 0%, rgba(18, 20, 28, 0.9) 100%);
+            background: linear-gradient(135deg, rgba(34, 38, 50, 0.92) 0%, rgba(18, 20, 28, 0.95) 100%);
             border: 1px solid var(--gold-border); border-radius: 14px; padding: 2.5px 7px;
-            font-size: 9.5px; font-weight: 700; color: #faebd0; display: flex; align-items: center;
-            gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: all 0.2s ease;
+            font-size: 9.5px; font-weight: 800; color: #faebd0; display: flex; align-items: center;
+            gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 215, 0, 0.2);
+            transition: all 0.2s ease;
         }
-        .header-btn:hover { border-color: #f7e6ba; box-shadow: 0 2px 8px var(--gold-glow); transform: translateY(-1px); }
-        .header-btn-archive { border-color: #ffd700; color: #fff4bd; }
+        .header-btn:hover { border-color: #ffd700; box-shadow: 0 2px 10px var(--gold-glow); transform: translateY(-1px); color: #fff4bd; }
 
         @media (max-width: 620px) {
             header { flex-direction: column; align-items: stretch; gap: 2px; padding: 2px 6px 1px 6px; margin-bottom: 2px; }
@@ -350,16 +359,18 @@
         .opponent-info-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2.5px; }
         .opponent-header-row { display: flex; align-items: center; justify-content: space-between; }
         .opponent-name-group { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
-        .opponent-name { font-size: 13px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
-        .opponent-title { font-size: 8.5px; color: #cca45b; font-weight: 700; }
+        .opponent-name { font-size: 13.5px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
+        
+        /* 拡大：対戦相手の称号・サロン名バッジ */
+        .opponent-title { font-size: 11px; color: #e0be75; font-weight: 800; letter-spacing: 0.02em; }
 
         .stage-material-badge {
-            font-size: 8.5px; font-weight: 700; color: #dfcaa2; background: rgba(0, 0, 0, 0.55);
-            border: 1px solid rgba(212, 167, 72, 0.35); border-radius: 4px; padding: 1.5px 6px;
+            font-size: 10.5px; font-weight: 800; color: #f2e3c6; background: rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(212, 167, 72, 0.45); border-radius: 5px; padding: 2px 7px;
             display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 1px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,0.5);
         }
-        .stage-material-badge span { color: #ffd700; font-weight: 800; }
+        .stage-material-badge span { color: #ffd700; font-weight: 900; }
 
         .opponent-stats-group { display: flex; align-items: center; gap: 5px; }
         .opponent-timer { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; color: #d1b888; display: flex; align-items: center; gap: 2px; }
@@ -610,15 +621,20 @@
         }
         .player-timer { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; color: #d1b888; display: flex; align-items: center; gap: 2px; }
 
-        .color-selector { display: flex; background: rgba(8, 10, 14, 0.85); border: 1px solid var(--gold-border); border-radius: 6px; padding: 2px; gap: 2px; }
+        /* 【拡大＆ボールド化】先手黒・後手白のセレクター */
+        .color-selector {
+            display: flex; background: rgba(8, 10, 14, 0.9); border: 1.5px solid var(--gold-border);
+            border-radius: 8px; padding: 2px; gap: 4px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+        }
         .color-btn {
-            font-family: inherit; font-size: 9px; font-weight: 700; padding: 2.5px 6px;
-            border-radius: 4px; border: 1px solid transparent; background: transparent; color: #aa9c80;
-            cursor: pointer; transition: all 0.2s ease;
+            font-family: inherit; font-size: 11.5px; font-weight: 900; padding: 3px 8px;
+            border-radius: 6px; border: 1px solid rgba(212, 167, 72, 0.3); background: rgba(255, 255, 255, 0.05);
+            color: #d1c3a7; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.04em;
         }
         .color-btn.active {
             background: var(--pure-gold-btn) !important; color: #1a1204 !important; border: 1px solid #ffffff !important;
-            font-weight: 900; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.85); transform: translateY(-1px);
+            font-weight: 900; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 14px rgba(255, 215, 0, 0.95);
+            transform: translateY(-1px);
         }
 
         .action-grid-row1 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 4px; margin-bottom: 3px; }
@@ -787,153 +803,198 @@
         .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
         .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
 
-        /* 王宮戦績録（Dynasty Archives）スタイル */
-        #archiveModal { max-width: 680px; max-height: 90dvh; display: flex; flex-direction: column; }
+        /* ==========================================================================
+          【バロック調・西洋宮廷美術モーダルスタイル】
+        ========================================================================== */
+        .dynasty-overlay { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; padding: 16px 12px; background: rgba(4, 5, 8, 0.88); backdrop-filter: blur(8px); }
+        .dynasty-overlay.show { display: flex; }
+        
+        .dynasty-modal {
+            width: 100%; max-width: 620px; max-height: 88dvh; overflow-y: auto; text-align: left; color: #f7eed8;
+            background: linear-gradient(160deg, #181c26 0%, #0e1017 60%, #07080c 100%);
+            border: 2px solid #d4a748; border-radius: 14px; padding: 18px 16px;
+            box-shadow: 0 0 35px rgba(212, 167, 72, 0.35), 0 20px 60px rgba(0, 0, 0, 0.95);
+            position: relative;
+        }
+        /* バロック金彩二重飾り額縁の再現 */
+        .dynasty-modal::before {
+            content: ""; position: absolute; inset: 4px; border: 1px dashed rgba(255, 215, 0, 0.4);
+            border-radius: 10px; pointer-events: none; z-index: 1;
+        }
+
+        .guide-header {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 1.5px solid rgba(212, 167, 72, 0.45); position: relative; z-index: 2;
+        }
+        .guide-header h2 {
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif;
+            font-size: 16px; font-weight: 900; letter-spacing: 0.08em;
+            background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(255, 215, 0, 0.4);
+        }
+        .modal-close-btn {
+            width: 28px; height: 28px; font-size: 13px; font-weight: 800; cursor: pointer; color: #f7eed8;
+            background: linear-gradient(135deg, rgba(40, 45, 60, 0.9) 0%, rgba(20, 22, 30, 0.95) 100%);
+            border: 1.5px solid var(--gold-border); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8); transition: all 0.2s ease;
+        }
+        .modal-close-btn:hover { border-color: #ffd700; color: #fff; transform: scale(1.08); }
+
+        .manual-tabs { display: flex; gap: 5px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; }
+        .manual-tab-btn {
+            flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 800; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 167, 72, 0.25); color: #c9ba9f; border-radius: 6px; transition: all 0.2s ease;
+        }
+        .manual-tab-btn.active {
+            background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #1a1204;
+            border-color: #ffffff; font-weight: 900; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 215, 0, 0.6);
+        }
+        .manual-tab-content { display: none; }
+        .manual-tab-content.active { display: block; }
+
+        .manual-card {
+            border: 1.5px solid rgba(212, 167, 72, 0.35); background: linear-gradient(135deg, rgba(30, 34, 46, 0.7) 0%, rgba(15, 17, 24, 0.85) 100%);
+            border-radius: 10px; padding: 11px 13px; margin-bottom: 10px; font-size: 11.5px; line-height: 1.6;
+            box-shadow: inset 0 1px 4px rgba(255, 215, 0, 0.1), 0 3px 8px rgba(0,0,0,0.5);
+        }
+        .manual-card-title { font-size: 12.5px; font-weight: 900; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        
+        .manual-char-card {
+            display: flex; gap: 12px; align-items: center; border: 1.5px solid rgba(212, 167, 72, 0.35);
+            background: linear-gradient(135deg, rgba(30, 34, 46, 0.75) 0%, rgba(15, 17, 24, 0.9) 100%);
+            border-radius: 10px; padding: 9px 11px; margin-bottom: 9px;
+            box-shadow: inset 0 1px 4px rgba(255, 215, 0, 0.1), 0 3px 10px rgba(0,0,0,0.6);
+        }
+        .manual-char-avatar-mini {
+            width: 54px; height: 72px; border-radius: 8px; border: 2px solid #d4a748;
+            overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 0 0 8px rgba(212, 167, 72, 0.4);
+        }
+        .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
+        .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; color: #ffd700; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.45); padding: 1.5px 6px; border-radius: 4px; }
+        .manual-strength-tag { font-size: 10px; color: #ffd700; font-weight: 800; margin-left: 6px; }
+
+        /* ==========================================================================
+          【王宮戦績録（Dynasty Archives）調律スタイル】
+        ========================================================================== */
+        #archiveModal { max-width: 700px; max-height: 90dvh; display: flex; flex-direction: column; }
         .archive-summary-container {
-            display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
-            background: linear-gradient(135deg, rgba(30, 24, 15, 0.85) 0%, rgba(15, 12, 8, 0.95) 100%);
-            border: 1px solid rgba(212, 167, 72, 0.4); border-radius: 10px; padding: 10px 12px;
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
+            background: linear-gradient(135deg, rgba(32, 26, 16, 0.9) 0%, rgba(16, 13, 8, 0.96) 100%);
+            border: 1.5px solid rgba(212, 167, 72, 0.5); border-radius: 12px; padding: 10px 12px;
+            box-shadow: inset 0 1px 8px rgba(255, 215, 0, 0.15), 0 4px 12px rgba(0,0,0,0.7);
         }
         .archive-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
         @media (max-width: 520px) {
             .archive-stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
         .archive-stat-box {
-            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.25);
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(212, 167, 72, 0.35);
             border-radius: 6px; padding: 6px 4px; display: flex; flex-direction: column; gap: 2px;
         }
         .archive-stat-lbl { font-size: 9px; color: #d4c09b; font-weight: 700; }
         .archive-stat-val { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 900; color: #ffd700; }
 
+        /* 【1.4倍拡大＆インライン一体化】6大豪傑 肖像星取り表 */
         .archive-crown-grid {
             display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
-            padding: 8px 6px 4px 6px; background: rgba(0,0,0,0.3); border-radius: 8px;
-            border: 1px solid rgba(212, 167, 72, 0.2);
+            padding: 8px 6px 6px 6px; background: rgba(0,0,0,0.45); border-radius: 10px;
+            border: 1px solid rgba(212, 167, 72, 0.3);
         }
-        .crown-item { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+        .crown-item { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
 
         .crown-item-avatar {
-            width: 40px; height: 52px; border-radius: 8px; border: 1.5px solid #555;
-            overflow: hidden; background: #111; position: relative; filter: grayscale(0.85) opacity(0.6);
-            transition: all 0.3s ease; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            width: 100%; max-width: 58px; aspect-ratio: 1 / 1.32; border-radius: 8px; border: 2px solid #555;
+            overflow: hidden; background: #111; position: relative; filter: grayscale(0.85) opacity(0.55);
+            transition: all 0.3s ease; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
         }
         .crown-item.conquered .crown-item-avatar {
             border-color: #ffd700; filter: none; opacity: 1;
-            box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+            box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 4px 10px rgba(0,0,0,0.8);
         }
-        .crown-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .crown-item-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        /* 肖像画下部への「Lv.X 名前」インライン一体化帯 */
+        .crown-item-overlay {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.85) 40%, rgba(0, 0, 0, 0.98) 100%);
+            padding: 1px 2px 2px 2px; text-align: center; z-index: 4;
+        }
         .crown-badge-mark {
             font-size: 8px; font-weight: 900; padding: 0.5px 3px; border-radius: 3px;
-            background: #2a2a2a; color: #888;
+            background: #2a2a2a; color: #aaa; display: inline-block; line-height: 1.1; margin-bottom: 1px;
         }
         .crown-item.conquered .crown-badge-mark { background: #ffd700; color: #121008; font-weight: 900; box-shadow: 0 0 6px #ffd700; }
-        .crown-item-name { font-size: 8px; color: #ded6c2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48px; }
+        .crown-item-name { font-size: 8px; font-weight: 800; color: #f2e9d2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+        /* 【2段固定ツールバー】スマホ時も初期化ボタンを2段目右端に固定 */
         .archive-toolbar {
-            display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between;
-            margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
+            display: flex; flex-direction: column; gap: 6px;
+            margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.3);
         }
-        .archive-filters-group { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-        .archive-toolbar select { font-size: 9.5px; padding: 2px 5px; width: auto; }
+        .archive-toolbar-row1 { display: flex; gap: 6px; align-items: center; }
+        .archive-toolbar-row1 select { flex: 1; font-size: 10px; padding: 3px 5px; }
+
+        .archive-toolbar-row2 { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+        .archive-toolbar-row2-left { display: flex; gap: 6px; flex: 1; }
+        .archive-toolbar-row2-left select { flex: 1; font-size: 10px; padding: 3px 5px; }
+
         .btn-clear-archive {
-            font-size: 9.5px; padding: 2.5px 6px; border-radius: 4px;
-            background: rgba(180, 40, 40, 0.2); border: 1px solid #ff6b6b; color: #ffa8a8;
-            cursor: pointer; transition: all 0.2s ease;
+            font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px;
+            background: linear-gradient(180deg, #441818 0%, #200a0a 100%); border: 1px solid #ff6b6b; color: #ffd0d0;
+            cursor: pointer; transition: all 0.2s ease; white-space: nowrap; flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.6);
         }
-        .btn-clear-archive:hover { background: rgba(180, 40, 40, 0.4); color: #fff; }
+        .btn-clear-archive:hover { background: #662020; color: #fff; }
 
         .archive-table-wrap {
-            flex: 1; overflow-y: auto; overflow-x: auto; border: 1px solid rgba(212, 167, 72, 0.3);
-            border-radius: 8px; background: rgba(10, 12, 16, 0.8); min-height: 180px;
+            flex: 1; overflow-y: auto; overflow-x: auto; border: 1.5px solid rgba(212, 167, 72, 0.4);
+            border-radius: 8px; background: rgba(8, 10, 14, 0.85); min-height: 180px;
         }
         .archive-table {
-            width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: left;
-            min-width: 560px;
+            width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: left; min-width: 580px;
         }
         .archive-table th {
-            position: sticky; top: 0; background: linear-gradient(180deg, #252835 0%, #151722 100%);
-            color: #ffd700; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800;
-            padding: 6px 8px; border-bottom: 1.5px solid var(--gold-border); white-space: nowrap; z-index: 5;
+            position: sticky; top: 0; background: linear-gradient(180deg, #2b3040 0%, #171a24 100%);
+            color: #ffd700; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900;
+            padding: 6px 8px; border-bottom: 2px solid var(--gold-border); white-space: nowrap; z-index: 5;
         }
         .archive-table td {
             padding: 6px 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.15); color: #f2ead8; vertical-align: middle;
+            line-height: 1.35;
         }
-        .archive-table tr:hover { background: rgba(255, 215, 0, 0.05); }
+        .archive-table tr:hover { background: rgba(255, 215, 0, 0.06); }
 
         .badge-win-gold {
-            font-family: inherit; font-size: 9.5px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px;
+            font-family: inherit; font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
             background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #ffffff;
             border: 1px solid #ffd700; box-shadow: 0 1px 4px rgba(0,0,0,0.6); display: inline-flex; align-items: center; gap: 3px;
         }
         .badge-lose-dim {
-            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 1.5px 6px; border-radius: 4px;
+            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
             background: rgba(180, 40, 40, 0.3); color: #ffadad; border: 1px solid rgba(255, 100, 100, 0.4);
             display: inline-flex; align-items: center; gap: 3px;
         }
         .badge-draw-dim {
-            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 1.5px 6px; border-radius: 4px;
+            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
             background: rgba(100, 100, 120, 0.3); color: #d0d0e0; border: 1px solid rgba(160, 160, 180, 0.4);
             display: inline-flex; align-items: center; gap: 3px;
         }
+        
+        /* 均整の取れた形式2行バッジ */
         .badge-genuine-crown {
-            font-size: 8.5px; font-weight: 800; padding: 1px 4px; border-radius: 3px;
+            font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px;
             background: linear-gradient(135deg, #ffd700 0%, #b38600 100%); color: #121008;
-            border: 1px solid #fff; box-shadow: 0 0 5px rgba(255, 215, 0, 0.8); display: inline-flex; align-items: center; gap: 2px;
+            border: 1px solid #fff; box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
+            display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.15;
         }
         .badge-hinted {
-            font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
-            background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.3);
+            font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4);
+            display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.15;
         }
 
-        .archive-empty-placeholder {
-            text-align: center; padding: 40px 10px; color: #8c8272; font-style: italic; font-size: 11px;
-        }
-
-        footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0; }
-        .bottom-safe-space { width: 100%; height: clamp(6px, 1.2dvh, 12px); flex-shrink: 0; }
-        .footer-brand { display: flex; align-items: center; gap: 4px; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .footer-version { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px; }
-        .footer-version:hover { color: #ffffff; background: rgba(212, 167, 72, 0.2); text-shadow: 0 0 8px var(--gold-glow); }
-
-        @media (min-aspect-ratio: 1.05/1) and (min-width: 768px) {
-            .app-container { flex-direction: row; justify-content: center; align-items: center; gap: clamp(8px, 1.8vw, 24px); padding: 0 8px; }
-            .board-zone { margin: 0; width: auto; }
-            #board { width: min(72dvh, 45vw); height: min(72dvh, 45vw); }
-            .battle-gauge-container { width: min(72dvh, 45vw); margin-top: 0; }
-            .opponent-zone { width: clamp(280px, 24vw, 360px); }
-            .player-control-zone { width: clamp(290px, 25vw, 370px); }
-            .opponent-avatar-frame { width: clamp(74px, 7.5vw, 86px); height: clamp(98px, 10vw, 114px); }
-        }
-
-        .dynasty-overlay { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; padding: 16px 12px; background: rgba(4, 5, 8, 0.88); backdrop-filter: blur(8px); }
-        .dynasty-overlay.show { display: flex; }
-        .dynasty-modal {
-            width: 100%; max-width: 580px; max-height: 86dvh; overflow-y: auto; text-align: left; color: #f7eed8;
-            background: linear-gradient(160deg, #1b1e28 0%, #101218 100%); border: 1px solid var(--gold-border);
-            border-radius: 12px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
-        }
-        .guide-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25); }
-        .guide-header h2 { font-size: 15px; font-weight: 800; color: #e5c378; }
-        .modal-close-btn { width: 26px; height: 26px; font-size: 13px; cursor: pointer; color: #f7eed8; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 50%; }
-
-        .manual-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; }
-        .manual-tab-btn { flex: 1; padding: 5px 3px; font-size: 11px; font-weight: 700; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.2); color: #c9ba9f; border-radius: 6px; }
-        .manual-tab-btn.active { background: linear-gradient(135deg, #c5973e 0%, #8c6218 100%); color: #ffffff; border-color: #ffd700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
-        .manual-tab-content { display: none; }
-        .manual-tab-content.active { display: block; }
-
-        .manual-card { border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6; }
-        .manual-card-title { font-size: 12.5px; font-weight: 800; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        
-        .manual-char-card { display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
-        .manual-char-avatar-mini {
-            width: 50px; height: 68px; border-radius: 8px; border: 2px solid var(--gold-border);
-            overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
-        }
-        .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
-        .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800; color: #ffd700; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.35); padding: 1px 5px; border-radius: 3px; }
-        .manual-strength-tag { font-size: 9.5px; color: #ffd700; font-weight: 800; margin-left: 6px; }
+        .archive-empty-placeholder { text-align: center; padding: 40px 10px; color: #8c8272; font-style: italic; font-size: 11px; }
 
         .chronicle-timeline { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
         .chronicle-item { position: relative; padding-left: 18px; border-left: 2px solid rgba(212, 167, 72, 0.35); font-size: 11px; line-height: 1.45; }
@@ -941,6 +1002,28 @@
         .chronicle-version { font-family: 'Cinzel', serif; font-weight: 800; color: #fff4bd; font-size: 11.5px; }
         .chronicle-date { font-size: 9.5px; color: #baa070; margin-left: 6px; }
         .chronicle-desc { color: #ded6c2; margin-top: 2px; }
+
+        footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0; }
+        .bottom-safe-space { width: 100%; height: clamp(6px, 1.2dvh, 12px); flex-shrink: 0; }
+        .footer-brand { display: flex; align-items: center; gap: 4px; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; background: var(--royal-gold); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .footer-version { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px; }
+        .footer-version:hover { color: #ffffff; background: rgba(212, 167, 72, 0.2); text-shadow: 0 0 8px var(--gold-glow); }
+
+        /* ==========================================================================
+          【横画面（PC・タブレット）主客配置完全正常化】
+          左側＝プレイヤー操作枠（order: 1）
+          中央＝盤面ゾーン（order: 2）
+          右側＝対戦相手ゾーン（order: 3）
+        ========================================================================== */
+        @media (min-aspect-ratio: 1.05/1) and (min-width: 768px) {
+            .app-container { flex-direction: row; justify-content: center; align-items: center; gap: clamp(8px, 1.8vw, 24px); padding: 0 8px; }
+            .player-control-zone { order: 1; width: clamp(290px, 25vw, 370px); }
+            .board-zone { order: 2; margin: 0; width: auto; }
+            #board { width: min(72dvh, 45vw); height: min(72dvh, 45vw); }
+            .battle-gauge-container { width: min(72dvh, 45vw); margin-top: 0; }
+            .opponent-zone { order: 3; width: clamp(280px, 24vw, 360px); }
+            .opponent-avatar-frame { width: clamp(74px, 7.5vw, 86px); height: clamp(98px, 10vw, 114px); }
+        }
     </style>
 </head>
 
@@ -955,7 +1038,7 @@
             <span class="header-subtitle">Royal Dynasty</span>
         </div>
         <div class="header-actions">
-            <button id="archiveOpenBtn" class="header-btn header-btn-archive" type="button" aria-label="戦績録を開く">
+            <button id="archiveOpenBtn" class="header-btn" type="button" aria-label="戦績録を開く">
                 <span>📜</span>
                 <span>戦績</span>
             </button>
@@ -972,7 +1055,7 @@
 
     <div class="app-container">
         
-        <!-- ゾーン①：対戦相手ゾーン（盤面テーマ色とシンクロする太枠） -->
+        <!-- ゾーン①：対戦相手ゾーン（横画面時は右側へ配置） -->
         <div class="opponent-zone" id="opponentZone">
             <div class="opponent-avatar-wrap" id="opponentAvatarWrap">
                 <div class="voice-wave-ring wave-1"></div>
@@ -1006,7 +1089,7 @@
             </div>
         </div>
 
-        <!-- ゾーン②：盤面ゾーン -->
+        <!-- ゾーン②：盤面ゾーン（中央） -->
         <div class="board-zone">
             <div class="battle-gauge-container">
                 <div class="battle-gauge-header">
@@ -1044,7 +1127,7 @@
             </div>
         </div>
 
-        <!-- ゾーン③：操作ゾーン（盤面テーマ色とシンクロする太枠） -->
+        <!-- ゾーン③：操作ゾーン（横画面時は左側へ配置） -->
         <div class="player-control-zone">
             <div class="royal-card" id="normalControlCard">
                 <div class="player-status-banner">
@@ -1258,8 +1341,8 @@
                     </div>
                 </div>
 
-                <!-- 6大豪傑 真剣勝負制覇 星取り表 -->
-                <div style="font-size:9.5px; font-weight:800; color:#ffd700; margin-top:2px;">
+                <!-- 6大豪傑 真剣勝負制覇 星取り表（1.4倍肖像＋インライン一体化） -->
+                <div style="font-size:10px; font-weight:800; color:#ffd700; margin-top:2px;">
                     ⚔️ 6大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
                 </div>
                 <div class="archive-crown-grid" id="archiveCrownGrid">
@@ -1267,9 +1350,9 @@
                 </div>
             </div>
 
-            <!-- 操作ツールバー（フィルター＆ソート） -->
+            <!-- 【2段固定】操作ツールバー（スマホ時も初期化ボタンが2段目右端） -->
             <div class="archive-toolbar">
-                <div class="archive-filters-group">
+                <div class="archive-toolbar-row1">
                     <select id="archFilterOpponent" aria-label="対戦相手フィルター">
                         <option value="all">全対戦相手</option>
                         <option value="1">Lv.1 ピエロ</option>
@@ -1285,22 +1368,26 @@
                         <option value="genuine">⚔️ 真剣勝負のみ</option>
                         <option value="hinted">💡 指南受講のみ</option>
                     </select>
-
-                    <select id="archFilterResult" aria-label="結果フィルター">
-                        <option value="all">全勝敗</option>
-                        <option value="win">👑 勝利のみ</option>
-                        <option value="lose">🥀 敗北のみ</option>
-                    </select>
-
-                    <select id="archSortOrder" aria-label="ソート順">
-                        <option value="date-desc">日時：新しい順 ▼</option>
-                        <option value="date-asc">日時：古い順 ▲</option>
-                        <option value="diff-desc">石差：大差順 ▼</option>
-                        <option value="best-desc">精度：最善手率順 ▼</option>
-                    </select>
                 </div>
 
-                <button type="button" class="btn-clear-archive" id="btnArchiveClear">🗑️ 履歴初期化</button>
+                <div class="archive-toolbar-row2">
+                    <div class="archive-toolbar-row2-left">
+                        <select id="archFilterResult" aria-label="結果フィルター">
+                            <option value="all">全勝敗</option>
+                            <option value="win">👑 勝利のみ</option>
+                            <option value="lose">🥀 敗北のみ</option>
+                        </select>
+
+                        <select id="archSortOrder" aria-label="ソート順">
+                            <option value="date-desc">日時：新しい順 ▼</option>
+                            <option value="date-asc">日時：古い順 ▲</option>
+                            <option value="diff-desc">石差：大差順 ▼</option>
+                            <option value="best-desc">精度：最善手率順 ▼</option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn-clear-archive" id="btnArchiveClear">🗑️ 履歴初期化</button>
+                </div>
             </div>
 
             <!-- 戦績一覧テーブル -->
@@ -1326,7 +1413,7 @@
         </div>
     </div>
 
-    <!-- 思案所モーダル -->
+    <!-- 思案所モーダル（バロック宮廷風デザイン） -->
     <div id="guideOverlay" class="dynasty-overlay">
         <div id="guideModal" class="dynasty-modal">
             <div class="guide-header">
@@ -1341,7 +1428,7 @@
             <div id="tab-ops" class="manual-tab-content active">
                 <div class="manual-card">
                     <div class="manual-card-title">👑 宮廷対面コロシアム構図</div>
-                    <div>画面上部に「相手の肖像画・セリフ・消費時間・持ち石」、画面下部に「あなた自身の手番・消費時間・石数」を対面配置。直前に打たれた最新手には気品ある金の光枠が灯ります。</div>
+                    <div>横画面（PC・タブレット）では左側に「あなた」、中央に「盤面」、右側に「対戦相手」を整然と配置。直前に打たれた最新手には気品ある金の光枠が灯ります。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">🏛️ 宮廷サロン・盤面・美術石の劇的昇華</div>
@@ -1426,7 +1513,7 @@
     <!-- フッター（バージョン表記はJS側から自動同期） -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.6.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.7.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1435,5 +1522,4 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
-
 
