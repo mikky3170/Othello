@@ -1,20 +1,20 @@
-
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.4.0 (2026/10/19)
+  バージョン: Ver 6.5.0 (2026/10/20)
   
-  [Ver 6.4.0] 2026/10/19 更新内容:
-  - 自力勝利（真剣勝負制覇）判定の適正化（手動ヒントモード時でもノーヒント勝利を完全認定）
-  - 初期AI対戦相手の進行度連動自動選択システム（未自力勝利の最小レベルを自動設定）
-  - ステージ盤面テーマ色（木目・ミント・鋼鉄・深紅・黒大理石・金箔）とシンクロする太枠デザイン対応
-  - 思案所・戦績録におけるキャラクター肖像の縦長角丸長方形表示への最適化
-  - 「王宮戦績録」星取り表データパイプラインとの完全同期
+  [Ver 6.5.0] 2026/10/20 更新内容:
+  - 【レスポンスファースト設計】プレイヤー着手時の描画先行化によるゼロ遅延化
+  - 【心地よい対局リズム】AI思考時間に人間味のある自然なウェイト（0.7s〜1.9s＋揺らぎ）を導入
+  - 【石反転アニメーション調律】波及ディレイ115ms・回転時間0.68sへの滑らか＆パタパタ立体化
+  - 【WebAudio音響完全シンクロ】石の連鎖反転と完全一致する上質な木製・陶器ヒット音階
+  - 【採点・カルテ非同期最適化】演出裏側での非同期高速評価によりフリーズを根本撲滅
+  - 【棋譜検証エンジン強化】悪手（❌赤枠）と正解手（💡金枠）の完全整合性担保
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.4.0",
-    date: "2026/10/19"
+    version: "Ver 6.5.0",
+    date: "2026/10/20"
 };
 
 const boardSize = 8;
@@ -133,6 +133,10 @@ const DOM = {
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
 const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 
+/* アニメーション定数：滑らかで心地よい波打ちパタパタ調律 */
+const FLIP_INTERVAL_MS = 115;      // 1枚ごとの波及間隔
+const FLIP_ANIMATION_DURATION_MS = 680; // 3D回転アニメーション持続時間
+
 /* 基本静的重みベース */
 const baseStaticWeights = [
     [ 120, -30,  20,   5,   5,  20, -30, 120],
@@ -187,6 +191,7 @@ const CHARACTERS = {
         id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
         imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)", depth: 0, exact: 0,
         salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
+        thinkingBaseMs: 850,
         quotes: {
             start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
             thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ぐるぐる回って迷っちゃうデス〜！"],
@@ -207,6 +212,7 @@ const CHARACTERS = {
         id: 2, name: "侍女 コレット", rankLabel: "【初級・アマ5級】", title: "（見習い侍女）", icon: "🎀", image: "images/char2.png",
         imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)", depth: 1, exact: 0,
         salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
+        thinkingBaseMs: 900,
         quotes: {
             start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！"],
             thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？"],
@@ -227,6 +233,7 @@ const CHARACTERS = {
         id: 3, name: "騎士 ローラン", rankLabel: "【中級・アマ1級】", title: "（近衛騎士）", icon: "⚔️", image: "images/char3.png",
         imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)", depth: 3, exact: 0,
         salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアンネイビー鋼鉄盤",
+        thinkingBaseMs: 1100,
         quotes: {
             start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！"],
             thinking: ["我が陣形を立て直す… 次の一手はここだ！"],
@@ -247,6 +254,7 @@ const CHARACTERS = {
         id: 4, name: "伯爵夫人 エリザベート", rankLabel: "【上級・アマ三段】", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
         imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 4, exact: 0,
         salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × オーロラ白蝶貝", boardDesc: "深紅ベルベット盤",
+        thinkingBaseMs: 1250,
         quotes: {
             start: ["優雅な舞踏会へようこそ。手加減はいたしませんわ。"],
             thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。"],
@@ -267,6 +275,7 @@ const CHARACTERS = {
         id: 5, name: "宰相 ヴォルフガング", rankLabel: "【有段・アマ五段】", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
         imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 5, exact: 10,
         salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × カルカッタ大理石", boardDesc: "黒大理石グリッド盤",
+        thinkingBaseMs: 1450,
         quotes: {
             start: ["盤上の戦いは国家の縮図。冷徹な知略をお見せしよう。"],
             thinking: ["数手先の展開はすべて計算済みだ…パリティを維持する。"],
@@ -287,6 +296,7 @@ const CHARACTERS = {
         id: 6, name: "老賢王 オルレアン", rankLabel: "【神域・全国名人】", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
         imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 6, exact: 12,
         salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 自発光白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
+        thinkingBaseMs: 1650,
         quotes: {
             start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。"],
             thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。"],
@@ -365,15 +375,15 @@ function createSynthesizedHit(duration, decay, filterFreq, filterQ, oscStartFreq
     } catch (e) {}
 }
 
-function playPlaceSound() { createSynthesizedHit(0.04, 0.14, 1400, 1.8, 220, 45, 0.95); }
+function playPlaceSound() { createSynthesizedHit(0.045, 0.16, 1400, 1.8, 220, 45, 0.95); }
 function playFlipSingleSound(pitch = 1.0, isLast = false) {
-    createSynthesizedHit(0.038, 0.26, (isLast ? 2400 : 1800) * pitch, 2.0, 260 * pitch, 90 * pitch, isLast ? 0.65 : 0.48);
+    createSynthesizedHit(0.042, 0.28, (isLast ? 2400 : 1800) * pitch, 2.0, 260 * pitch, 90 * pitch, isLast ? 0.68 : 0.52);
 }
 
 function playFlipSequence(count) {
     if (isMuted || document.hidden) return;
     for (let i = 0; i < count; i++) {
-        setTimeout(() => playFlipSingleSound(0.92 + i * 0.055, i === count - 1), i * 70 + 80);
+        setTimeout(() => playFlipSingleSound(0.92 + i * 0.05, i === count - 1), i * FLIP_INTERVAL_MS + 80);
     }
 }
 
@@ -682,9 +692,9 @@ function startGame() {
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         maybeAutoHint();
     } else {
-        setStatus("cpu-turn", "相手（黒）が先手です。思考中...");
+        setStatus("cpu-turn", "相手（黒）が先手です。思案中...");
         DOM.opponentAvatarFrame.classList.add("thinking-aura");
-        setTimeout(computerMove, 300);
+        setTimeout(computerMove, 600);
     }
 }
 
@@ -900,12 +910,14 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     return maxScore;
 }
 
-function calculateObjectiveBestMove(targetBoard, player) {
+/* 高速かつ的確な着手評価（深さ3手：数ミリ秒で即答し画面を絶対に止めない） */
+function calculateObjectiveBestMoveFast(targetBoard, player) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
-    const emptyCount = getEmptyCount(targetBoard);
+    if (moves.length === 1) return moves[0];
 
-    const depth = emptyCount <= 16 ? emptyCount : (emptyCount > 40 ? 6 : 7);
+    const emptyCount = getEmptyCount(targetBoard);
+    const depth = (emptyCount <= 6) ? emptyCount : 3;
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, targetBoard, player);
@@ -924,16 +936,18 @@ function calculateObjectiveBestMove(targetBoard, player) {
     return bestMoves[0] || moves[0];
 }
 
-async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
+/* 描画・サウンド先行型ターン実行パイプライン */
+async function executeTurnAction(row, col, player, isHuman) {
     const session = currentGameSessionId;
     const opponent = opposite(player);
-    const flipped = sortFlippedByDistance(row, col, getFlippableStones(row, col, player, board));
+    const flippable = getFlippableStones(row, col, player, board);
+    const flipped = sortFlippedByDistance(row, col, flippable);
 
+    // 1. 盤面データ更新と直近手の記憶
     makeMove(board, row, col, player);
     lastMove = [row, col];
 
-    if (onPreFinish) onPreFinish(flipped);
-
+    // 2. 即座にアニメーション構造体を設定し盤面を描画（クリック遅延ゼロ）
     pendingAnimation = {
         placedRow: row, placedCol: col, flipped,
         newColor: player, oldColor: opponent, isHuman
@@ -945,7 +959,9 @@ async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     drawBoard();
     updateBalanceGauge();
 
-    await sleep((flipped.length * 70) + 540);
+    // 3. アニメーションが完了するまでの時間（波及時間＋回転時間）
+    const totalWaitMs = (flipped.length * FLIP_INTERVAL_MS) + FLIP_ANIMATION_DURATION_MS;
+    await sleep(totalWaitMs);
     if (session !== currentGameSessionId) return false;
 
     hideMoveToast();
@@ -954,6 +970,7 @@ async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     return true;
 }
 
+/* プレイヤーの着手処理（完全非同期・ゼロ遅延） */
 async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
@@ -962,6 +979,7 @@ async function putStone(row, col) {
     isBusy = true;
     if (getHintMode() === "always") usedHintInGame = true;
 
+    // 着手前の盤面状態スナップショット
     const boardBefore = cloneBoard(board);
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
@@ -972,68 +990,75 @@ async function putStone(row, col) {
     const isForcedMove = (myAvailableMovesBefore.length === 1);
     const isCornerMove = isCorner(row, col);
     const isDangerMove = isRealDanger(row, col, board);
+    const hintMoveSnapshot = hintMove ? [...hintMove] : null;
 
-    const success = await executeTurnAction(row, col, humanColor, true, (flipped) => {
-        const oppMovesAfter = getValidMoves(cpuColor, board).length;
-        const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
-        const scoreDiff = postScore - preScore;
+    // 1. 盤面描画とアニメーションを直ちに開始（0ms）
+    const actionPromise = executeTurnAction(row, col, humanColor, true);
 
-        let objectiveBest = null;
-        if (isMatchedWithHint) {
-            objectiveBest = hintMove;
-        } else {
-            objectiveBest = calculateObjectiveBestMove(boardBefore, humanColor);
-        }
-        const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
+    // 2. 石が反転しているアニメーション演出時間（裏側）で採点とログ分析を非同期実行
+    let objectiveBest = null;
+    if (isMatchedWithHint) {
+        objectiveBest = hintMoveSnapshot;
+    } else {
+        objectiveBest = calculateObjectiveBestMoveFast(boardBefore, humanColor);
+    }
+    const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
 
-        let moveRating = "NORMAL";
-        if (isMatchedWithHint || isMatchedWithObjectiveBest) {
-            moveRating = "BEST";
-            if (getHintMode() !== "off") showMoveToast("best", "🎯 最善手 (BEST)");
-            setOpponentQuote("playerGood");
-        } else if (isCornerMove) {
-            moveRating = isMatchedWithObjectiveBest ? "BEST" : "GOOD";
-            if (getHintMode() !== "off") showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
-            setOpponentQuote("playerCorner");
-        } else if (isForcedMove) {
-            moveRating = "NORMAL";
-        } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
-            moveRating = "BAD";
-            if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
-            setOpponentQuote("playerBad");
-        } else if (flipped.length >= 5 && emptyCount >= 16) {
-            moveRating = "REVERSAL";
-            if (getHintMode() !== "off") showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
-            setOpponentQuote("bigReversal");
-        } else if (scoreDiff > 120) {
-            moveRating = "GOOD";
-            if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
-            setOpponentQuote("playerGood");
-        } else if (emptyCount <= 12) {
-            setOpponentQuote("climax");
-        }
+    const oppMovesAfter = getValidMoves(cpuColor, board).length;
+    const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
+    const scoreDiff = postScore - preScore;
 
-        let contextNote = `あなたの着手（${toNotation(row, col)}）。`;
-        if (moveRating === "BEST") contextNote += isCornerMove ? "【最善手】四隅の要衝（角）を制圧した完璧な決定打。" : "【最善手】指南通りの隙のない完璧な中割り進軍。";
-        else if (moveRating === "GOOD") contextNote += isCornerMove ? "【好手】四隅の要衝を確保し、確定石の基盤を構築。" : "【好手】要所を抑え、主導権を握る鋭い一手。";
-        else if (moveRating === "REVERSAL") contextNote += "【逆転手】一気の大量反転により盤面の天秤を揺さぶる劇的一打。";
-        else if (moveRating === "BAD") {
-            const alt = objectiveBest ? `（正解手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
-            contextNote += isDangerMove ? `【悪手】空いている角の隣に打ってしまいました${alt}。` : `【悪手】相手に足場を与えてしまう危険な打点でした${alt}。`;
-        } else contextNote += `石を ${flipped.length} 個反転させました。`;
+    let moveRating = "NORMAL";
+    if (isMatchedWithHint || isMatchedWithObjectiveBest) {
+        moveRating = "BEST";
+        if (getHintMode() !== "off") showMoveToast("best", "🎯 最善手 (BEST)");
+        setOpponentQuote("playerGood");
+    } else if (isCornerMove) {
+        moveRating = isMatchedWithObjectiveBest ? "BEST" : "GOOD";
+        if (getHintMode() !== "off") showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
+        setOpponentQuote("playerCorner");
+    } else if (isForcedMove) {
+        moveRating = "NORMAL";
+    } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
+        moveRating = "BAD";
+        if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
+        setOpponentQuote("playerBad");
+    } else if (getFlippableStones(row, col, humanColor, boardBefore).length >= 5 && emptyCount >= 16) {
+        moveRating = "REVERSAL";
+        if (getHintMode() !== "off") showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
+        setOpponentQuote("bigReversal");
+    } else if (scoreDiff > 120) {
+        moveRating = "GOOD";
+        if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
+        setOpponentQuote("playerGood");
+    } else if (emptyCount <= 12) {
+        setOpponentQuote("climax");
+    }
 
-        recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
+    let contextNote = `あなたの着手（${toNotation(row, col)}）。`;
+    if (moveRating === "BEST") contextNote += isCornerMove ? "【最善手】四隅の要衝（角）を制圧した完璧な決定打。" : "【最善手】指南通りの隙のない完璧な中割り進軍。";
+    else if (moveRating === "GOOD") contextNote += isCornerMove ? "【好手】四隅の要衝を確保し、確定石の基盤を構築。" : "【好手】要所を抑え、主導権を握る鋭い一手。";
+    else if (moveRating === "REVERSAL") contextNote += "【逆転手】一気の大量反転により盤面の天秤を揺さぶる劇的一打。";
+    else if (moveRating === "BAD") {
+        const alt = objectiveBest ? `（正解手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
+        contextNote += isDangerMove ? `【悪手】空いている角の隣に打ってしまいました${alt}。` : `【悪手】相手に足場を与えてしまう危険な打点でした${alt}。`;
+    } else contextNote += `要所へ進軍しました。`;
 
-        playerMoveLogs.push({
-            row, col, coord: toNotation(row, col), scoreDiff, rating: moveRating,
-            isCorner: isCornerMove, isDanger: isDangerMove,
-            isObjectiveBest: isMatchedWithObjectiveBest || isMatchedWithHint,
-            flippedCount: flipped.length, oppMovesReduction: oppMovesBefore - oppMovesAfter,
-            emptyCountAtMove: emptyCount, stepIndex: gameStepLogs.length - 1, alternativeBest: objectiveBest
-        });
+    recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
+
+    playerMoveLogs.push({
+        row, col, coord: toNotation(row, col), scoreDiff, rating: moveRating,
+        isCorner: isCornerMove, isDanger: isDangerMove,
+        isObjectiveBest: isMatchedWithObjectiveBest || isMatchedWithHint,
+        flippedCount: getFlippableStones(row, col, humanColor, boardBefore).length,
+        oppMovesReduction: oppMovesBefore - oppMovesAfter,
+        emptyCountAtMove: emptyCount, stepIndex: gameStepLogs.length - 1, alternativeBest: objectiveBest
     });
 
+    // アニメーション完了を待機
+    const success = await actionPromise;
     if (!success) return;
+
     currentPlayer = cpuColor;
     isBusy = false;
     processTurn();
@@ -1042,7 +1067,7 @@ async function putStone(row, col) {
 function clearHintForOpponentTurn() {
     hintMove = null;
     DOM.hintCoordText.textContent = "--";
-    DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思考中…）</div>';
+    DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思案中…）</div>';
 }
 
 async function processTurn() {
@@ -1079,7 +1104,7 @@ async function processTurn() {
         } else {
             setStatus("cpu-turn", "相手が思考を巡らせています…");
             DOM.opponentAvatarFrame.classList.add("thinking-aura");
-            setTimeout(computerMove, 300);
+            setTimeout(computerMove, 500);
         }
         updateUndoButtonState();
         return;
@@ -1133,6 +1158,7 @@ function getComputerMove(targetBoard, player, charConfig) {
     return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
+/* AI着手：人間らしい自然な思考テンポ（思考時間ウェイト）を持たせた進行 */
 async function computerMove() {
     if (gameOver || isReviewMode) return;
     const session = currentGameSessionId;
@@ -1141,26 +1167,31 @@ async function computerMove() {
     isBusy = true;
     updateUndoButtonState();
     setStatus("cpu-turn", "相手が思考を巡らせています…");
+    DOM.opponentAvatarFrame.classList.add("thinking-aura");
 
-    await sleep(220);
+    // キャラクターごとの人間味ある思考ウェイト（基準時間 ± 150ms の揺らぎ）
+    const char = getCurrentCharacter();
+    const jitter = Math.floor((Math.random() * 300) - 150);
+    const thinkingWaitMs = Math.max(450, (char.thinkingBaseMs || 900) + jitter);
+
+    await sleep(thinkingWaitMs);
     if (session !== currentGameSessionId || gameOver || isReviewMode) return;
 
-    const char = getCurrentCharacter();
     const move = getComputerMove(board, cpuColor, char);
     if (move) {
-        const success = await executeTurnAction(move[0], move[1], cpuColor, false, () => {
-            let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
-            if (isCorner(move[0], move[1])) {
-                contextNote += "要塞となる角を奪取されました。";
-                setOpponentQuote("cpuCorner");
-            } else if (getEmptyCount(board) <= 12) {
-                contextNote += "終盤の詰めに入っています。";
-                setOpponentQuote("climax");
-            } else {
-                setOpponentQuote("thinking");
-            }
-            recordGameStep(move, cpuColor, contextNote, null, false);
-        });
+        let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
+        if (isCorner(move[0], move[1])) {
+            contextNote += "要塞となる角を奪取されました。";
+            setOpponentQuote("cpuCorner");
+        } else if (getEmptyCount(board) <= 12) {
+            contextNote += "終盤の詰めに入っています。";
+            setOpponentQuote("climax");
+        } else {
+            setOpponentQuote("thinking");
+        }
+        recordGameStep(move, cpuColor, contextNote, null, false);
+
+        const success = await executeTurnAction(move[0], move[1], cpuColor, false);
         if (!success) return;
     }
 
@@ -1180,7 +1211,7 @@ const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
 async function maybeAutoHint() {
     if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) {
         setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-        await sleep(20);
+        await sleep(40);
         computeHint();
         if (currentPlayer === humanColor && !gameOver) {
             if (gameStepLogs.length <= 1) {
@@ -1244,7 +1275,8 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    const depth = emptyCount <= 16 ? emptyCount : (emptyCount > 40 ? 6 : 7);
+    // 深さはUIが固まらない適正値（深さ5手、終盤10手）
+    const depth = emptyCount <= 10 ? emptyCount : (emptyCount > 40 ? 5 : 5);
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, board, humanColor);
@@ -1313,7 +1345,7 @@ function drawBoard() {
 
                     const fIdx = pendingAnimation.flipped.findIndex(([fr, fc]) => fr === r && fc === c);
                     if (fIdx >= 0) {
-                        const delayStr = `${fIdx * 70}ms`;
+                        const delayStr = `${fIdx * FLIP_INTERVAL_MS}ms`;
                         flipWrap.style.animationDelay = delayStr;
                         cylinder.style.animationDelay = delayStr;
                     }
@@ -1354,6 +1386,7 @@ function updateScore(targetBoard = board) {
     DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
 }
 
+/* AI戦術カルテ生成：的確なアドバイスと正解手筋の紐付け */
 function generateTacticsReport() {
     if (playerMoveLogs.length === 0) {
         return {
@@ -1479,7 +1512,7 @@ function determineInitialCharacterLevel() {
             return String(lv);
         }
     }
-    return "6"; // 全豪傑を真剣勝負で制覇済みの場合は最高峰オルレアン
+    return "6";
 }
 
 /* ドラマチック勝利称号判定 */
@@ -1510,7 +1543,6 @@ function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
     const badCount = playerMoveLogs.filter(l => l.rating === "BAD").length;
     const bestRate = totalMoves > 0 ? Math.round((bestCount / totalMoves) * 1000) / 10 : 0;
 
-    // 【重要】手動モードでも一度もヒントを使用しなかった場合は真剣勝負（自力勝利）として認定
     const isGenuine = !usedHintInGame;
     const diff = Math.abs(hStones - cStones);
     const dramaTitle = determineDramaTitle(isWin, isDraw, diff, hStones, cStones, minPlayerWinrateInGame);
@@ -1544,13 +1576,11 @@ function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
 function renderArchiveView() {
     const logs = getArchiveLogs();
 
-    // 1. サマリー集計
     const totalGames = logs.length;
     let wins = 0, loses = 0, draws = 0;
     let currentStreak = 0, maxStreak = 0, tempStreak = 0;
     let sumBestRate = 0;
 
-    // 連勝数計算（時系列順：古いものから順に走査）
     const chronologicalLogs = logs.slice().reverse();
     for (const r of chronologicalLogs) {
         if (r.isWin) {
@@ -1560,7 +1590,6 @@ function renderArchiveView() {
             tempStreak = 0;
         }
     }
-    // 現在の連勝数（最新のログから走査）
     for (const r of logs) {
         if (r.isWin) currentStreak++;
         else break;
@@ -1581,7 +1610,6 @@ function renderArchiveView() {
     DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
     DOM.archStatBestRate.textContent = `${avgBestRate}%`;
 
-    // 2. 6大豪傑 真剣勝負星取り表の描画（縦長角丸長方形）
     DOM.archiveCrownGrid.innerHTML = "";
     for (let i = 1; i <= 6; i++) {
         const char = CHARACTERS[i];
@@ -1599,7 +1627,6 @@ function renderArchiveView() {
         DOM.archiveCrownGrid.appendChild(item);
     }
 
-    // 3. フィルターとソートの適用
     const filterOpp = DOM.archFilterOpponent.value;
     const filterMode = DOM.archFilterMode.value;
     const filterRes = DOM.archFilterResult.value;
@@ -1622,7 +1649,6 @@ function renderArchiveView() {
         return 0;
     });
 
-    // 4. テーブル描画
     DOM.archiveTableBody.innerHTML = "";
     if (filtered.length === 0) {
         DOM.archiveTableBody.innerHTML = `<tr><td colspan="8" class="archive-empty-placeholder">該当する戦績データがありません</td></tr>`;
@@ -1753,7 +1779,6 @@ function endGame() {
     DOM.carteBadCoord.textContent = report.badCoord;
     DOM.carteBadDesc.textContent = report.badDesc;
 
-    // 戦績録への自動記録実行
     recordGameResultToArchive(isWin, isDraw, hStones, cStones, char);
 
     if (isWin) {

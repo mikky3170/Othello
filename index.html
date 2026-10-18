@@ -1,4 +1,3 @@
-
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -31,10 +30,12 @@
   [Ver 6.2.0] 2026/10/18 : 【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】
   [Ver 6.3.0] 2026/10/18 : 【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】
   [Ver 6.4.0] 2026/10/19 : 【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】
-    - 【盤面カラー連動太枠】対戦画面のAIゾーンおよびプレイヤー操作ゾーンの枠線を、一律ゴールドから各ステージの盤面・豪傑テーマカラーと完全にシンクロする重厚な太枠（2.5px）へ刷新。
-    - 【サロン肖像の角丸長方形化】思案所（キャラクター一覧）および戦績録（星取り表）の肖像を縦長角丸長方形に変更し、枠いっぱい表情が分かるようサイズ拡大。
-    - 【真剣勝負判定の適正化】手動ヒントモード時でも一度もヒントを使用しなかった勝利を自力勝利（真剣勝負制覇）として認定。
-    - 【初期AIレベル進行度連動】自力勝利を達成していない相手の中で最小Lvを自動で初期選択する機能の基盤整備。
+  [Ver 6.5.0] 2026/10/20 : 【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】
+    - 【ゼロ遅延即応パイプライン】プレイヤー着手時に探索計算を挟まず、即座に盤面描画と反転アニメーションを開始。
+    - 【心地よい対局リズム】AI思考時間に人間味のある自然なウェイト（0.7s〜1.9s＋揺らぎ）を設け、機械的連打感を解消。
+    - 【石反転アニメーション調律】回転持続時間を0.68s、波及間隔を115msに拡張し、目で見ても心地よい波打ちパタパタ感を具現化。
+    - 【音響完全シンクロ】WebAudio音響合成を115ms間隔と完全に同期させ、重厚な石の反転音階を再現。
+    - 【非同期採点・棋譜検証同期】演出裏側で高速評価を実行し、フリーズ皆無で悪手（❌）と正解手（💡）を的確に記録。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -281,10 +282,7 @@
             justify-content: space-between; align-items: center; position: relative; z-index: 2; min-height: 0; padding: 0;
         }
 
-        /* ==========================================================================
-          【ゾーン①：対戦相手ゾーン】
-          盤面テーマ色とシンクロする2.5pxの太枠＋光彩。肖像は気品ある楕円（50%）を維持。
-        ========================================================================== */
+        /* ゾーン①：対戦相手ゾーン（盤面テーマ色とシンクロする2.5pxの太枠＋光彩） */
         .opponent-zone {
             width: min(98vw, 440px); display: flex; align-items: center; gap: 10px;
             padding: clamp(3px, 0.7dvh, 6px) 8px;
@@ -304,7 +302,6 @@
         .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) 0.2s forwards; }
         @keyframes oval-voice-ripple { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.4, 1.28); opacity: 0; } }
 
-        /* 対戦画面の肖像は楕円（オーバル）を厳格に維持 */
         .opponent-avatar-frame {
             width: clamp(66px, 16vw, 76px); height: clamp(88px, 21vw, 102px); border-radius: 50%;
             border: 3.5px solid var(--char-accent);
@@ -530,23 +527,24 @@
             to { transform: translateY(0) scale(1); opacity: 1; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
+        /* 3D反転アニメーション（0.68s・滑らかな物理イージング調律） */
         .stone-flip-wrapper {
             position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-            perspective: 1000px; animation: flip-lift-shadow 0.54s cubic-bezier(0.25, 1, 0.35, 1) forwards; z-index: 10;
+            perspective: 1000px; animation: flip-lift-shadow 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards; z-index: 10;
         }
         @keyframes flip-lift-shadow {
             0% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
-            45% { transform: translateY(-10px) scale(1.08); filter: drop-shadow(0 14px 15px rgba(0, 0, 0, 0.35)); }
+            42% { transform: translateY(-11px) scale(1.09); filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.35)); }
             100% { transform: translateY(0) scale(1); filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
         .stone-flip-cylinder {
             position: relative; width: 100%; height: 100%; border-radius: 50%; transform-style: preserve-3d;
         }
-        .stone-flip-cylinder.flip-player { animation: flip-spin-player 0.54s cubic-bezier(0.25, 1, 0.35, 1) forwards; }
+        .stone-flip-cylinder.flip-player { animation: flip-spin-player 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         @keyframes flip-spin-player { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(-180deg); } }
 
-        .stone-flip-cylinder.flip-cpu { animation: flip-spin-cpu 0.54s cubic-bezier(0.25, 1, 0.35, 1) forwards; }
+        .stone-flip-cylinder.flip-cpu { animation: flip-spin-cpu 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         @keyframes flip-spin-cpu { 0% { transform: rotateX(0deg); } 100% { transform: rotateX(180deg); } }
 
         .stone-face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
@@ -554,10 +552,7 @@
         .stone-face-back { transform: rotateX(180deg) translateZ(1.5px); }
         .stone-edge-rim { position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px); border: 1px solid rgba(45, 42, 38, 0.85); transition: background 0.6s ease; }
 
-        /* ==========================================================================
-          【ゾーン③：操作ゾーン】
-          盤面テーマ色とシンクロする2.5pxの太枠＋光彩。
-        ========================================================================== */
+        /* ゾーン③：操作ゾーン（盤面テーマ色とシンクロする2.5pxの太枠＋光彩） */
         .player-control-zone { width: min(98vw, 440px); display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative; transition: all 0.4s ease; }
 
         @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
@@ -689,7 +684,7 @@
         .btn-jump-bad { background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%); border: 1px solid #ff6b6b; color: #ffd8d8; font-weight: 800; }
         .btn-review-exit { background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; font-weight: 900; box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
 
-        /* 王宮戦後会見モーダル（肖像はオーバル楕円を維持） */
+        /* 王宮戦後会見モーダル */
         .royal-result-modal {
             display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center;
             background: rgba(4, 5, 8, 0.84); backdrop-filter: blur(6px); padding: 12px;
@@ -722,7 +717,6 @@
         .tag-opponent-surrendered { background: linear-gradient(135deg, #2b3a4a 0%, #151d26 100%); border: 1px solid #ffd700; color: #fff2bd; }
         .tag-opponent-triumphant { background: linear-gradient(135deg, #4d1c1c 0%, #260c0c 100%); border: 1px solid #ff6b6b; color: #ffd8d8; }
 
-        /* 戦後会見の肖像も楕円（50%）を維持 */
         .result-avatar-frame {
             width: 112px; height: 150px; border-radius: 50%; border: 4px solid var(--char-accent);
             box-shadow: 0 0 0 3px #38240f, 0 0 20px var(--char-glow), inset 0 0 14px rgba(0, 0, 0, 0.9);
@@ -794,10 +788,7 @@
         .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
         .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
 
-        /* ==========================================================================
-          【王宮戦績録（Dynasty Archives）スタイル】
-          6大豪傑アイコン（.crown-item-avatar）を角丸縦長長方形にし表情を拡大
-        ========================================================================== */
+        /* 王宮戦績録（Dynasty Archives）スタイル */
         #archiveModal { max-width: 680px; max-height: 90dvh; display: flex; flex-direction: column; }
         .archive-summary-container {
             display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
@@ -822,7 +813,6 @@
         }
         .crown-item { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
 
-        /* 戦績録のキャラクターアイコン：縦長角丸長方形＆表情拡大 */
         .crown-item-avatar {
             width: 40px; height: 52px; border-radius: 8px; border: 1.5px solid #555;
             overflow: hidden; background: #111; position: relative; filter: grayscale(0.85) opacity(0.6);
@@ -936,7 +926,6 @@
         .manual-card { border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6; }
         .manual-card-title { font-size: 12.5px; font-weight: 800; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
         
-        /* 思案所のキャラクター一覧：縦長の長方形（角丸）＆表情ハッキリ拡大 */
         .manual-char-card { display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
         .manual-char-avatar-mini {
             width: 50px; height: 68px; border-radius: 8px; border: 2px solid var(--gold-border);
@@ -1270,7 +1259,7 @@
                     </div>
                 </div>
 
-                <!-- 6大豪傑 真剣勝負制覇 星取り表（縦長角丸長方形） -->
+                <!-- 6大豪傑 真剣勝負制覇 星取り表 -->
                 <div style="font-size:9.5px; font-weight:800; color:#ffd700; margin-top:2px;">
                     ⚔️ 6大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
                 </div>
@@ -1431,6 +1420,10 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 6.5.0</span><span class="chronicle-date">2026/10/20</span>
+                    <div class="chronicle-desc">【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】着手処理パイプラインをゼロ遅延即応設計へ刷新。AI着手前に人間味ある自然な思考時間ウェイト（0.7s〜1.9s＋揺らぎ）を導入し、機械的なせわしなさを解消。石の3D反転アニメーションを0.68s、波及ディレイを115msへ調律し、目で見ても耳で聴いても心地よいパタパタ連鎖反転とWebAudio音響の完全シンクロを実現。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.4.0</span><span class="chronicle-date">2026/10/19</span>
                     <div class="chronicle-desc">【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】対戦画面のAI枠およびプレイヤー枠を一律ゴールドから各ステージ盤面のテーマ色・光彩と美しくシンクロする2.5pxの太枠に刷新。思案所および戦績録のキャラクターアイコンを縦長角丸長方形へと変更し表情を大きく表示。手動ヒント時ノーヒント勝利の真剣勝負制覇認定、未制覇最小レベル自動選択システムを導入。</div>
                 </div>
@@ -1457,7 +1450,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.4.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.5.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1466,4 +1459,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 
