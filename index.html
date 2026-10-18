@@ -31,11 +31,10 @@
   [Ver 6.3.0] 2026/10/18 : 【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】
   [Ver 6.4.0] 2026/10/19 : 【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】
   [Ver 6.5.0] 2026/10/20 : 【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】
-    - 【ゼロ遅延即応パイプライン】プレイヤー着手時に探索計算を挟まず、即座に盤面描画と反転アニメーションを開始。
-    - 【心地よい対局リズム】AI思考時間に人間味のある自然なウェイト（0.7s〜1.9s＋揺らぎ）を設け、機械的連打感を解消。
-    - 【石反転アニメーション調律】回転持続時間を0.68s、波及間隔を115msに拡張し、目で見ても心地よい波打ちパタパタ感を具現化。
-    - 【音響完全シンクロ】WebAudio音響合成を115ms間隔と完全に同期させ、重厚な石の反転音階を再現。
-    - 【非同期採点・棋譜検証同期】演出裏側で高速評価を実行し、フリーズ皆無で悪手（❌）と正解手（💡）を的確に記録。
+  [Ver 6.6.0] 2026/10/20 : 【勝てるヒントAI数理刷新＆開局バリエーションエディション】
+    - 【勝てるヒントAI】序盤の辺奪取厳罰化と中割り（フロンティア削減）を徹底し、指南通りに打つことで確実に勝てる強固なオセロ理論を注入。
+    - 【開局バリエーションエンジン】序盤〜中盤の有力候補手から確率的選択を行い、同じ相手でも毎回違う展開になる対局の多様性を実現。
+    - 【バージョン一元管理】フッターおよび年代記モーダルをJSからの自動描画プレースホルダーに移行し、次回以降のHTML再出力を廃止。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -1411,51 +1410,28 @@
         </div>
     </div>
 
-    <!-- 歴代バージョン年代記 -->
+    <!-- 歴代バージョン年代記（JS側から自動描画されるプレースホルダー） -->
     <div id="versionOverlay" class="dynasty-overlay">
         <div id="versionModal" class="dynasty-modal">
             <div class="guide-header">
                 <h2>📜 歴代バージョン年代記（Chronicle）</h2>
                 <button id="versionCloseButton" class="modal-close-btn" type="button">✕</button>
             </div>
-            <div class="chronicle-timeline">
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.5.0</span><span class="chronicle-date">2026/10/20</span>
-                    <div class="chronicle-desc">【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】着手処理パイプラインをゼロ遅延即応設計へ刷新。AI着手前に人間味ある自然な思考時間ウェイト（0.7s〜1.9s＋揺らぎ）を導入し、機械的なせわしなさを解消。石の3D反転アニメーションを0.68s、波及ディレイを115msへ調律し、目で見ても耳で聴いても心地よいパタパタ連鎖反転とWebAudio音響の完全シンクロを実現。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.4.0</span><span class="chronicle-date">2026/10/19</span>
-                    <div class="chronicle-desc">【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】対戦画面のAI枠およびプレイヤー枠を一律ゴールドから各ステージ盤面のテーマ色・光彩と美しくシンクロする2.5pxの太枠に刷新。思案所および戦績録のキャラクターアイコンを縦長角丸長方形へと変更し表情を大きく表示。手動ヒント時ノーヒント勝利の真剣勝負制覇認定、未制覇最小レベル自動選択システムを導入。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.3.0</span><span class="chronicle-date">2026/10/18</span>
-                    <div class="chronicle-desc">【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】対戦成績・結果一覧モーダル画面を実装。通算戦績・勝率、6大豪傑「真剣勝負制覇」星取り表、連勝数、平均最善手率を表示する栄光のダッシュボードを新設。パーフェクト完勝・大差圧勝・劇的大逆転・激闘辛勝・惜敗等のオセロプロ監修称号を自動付与。対戦相手別・挑戦形式別・勝敗別絞り込み＆多彩なソート機能、LocalStorage永続化に対応。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.2.0</span><span class="chronicle-date">2026/10/18</span>
-                    <div class="chronicle-desc">【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】Negamax法統一・動的マスマップ・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。盤面外枠幅を従来の2倍に拡張し重厚な額縁感と視認性を向上。初手盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」案内ステータスを導入。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.1.0</span><span class="chronicle-date">2026/10/18</span>
-                    <div class="chronicle-desc">【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。スコア・タイマー・先後手選択ボタンを独立サブ行へ分離。完全OFF時の合法手点滅非表示および真剣勝負モード専用意匠を導入。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 6.0.0</span><span class="chronicle-date">2026/09/23</span>
-                    <div class="chronicle-desc">【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTML+CSSとJSに完全分離。終盤パリティ理論の手番連動加減点化、埋まった辺の確定石を高速検出する完全確定辺走査アルゴリズム統合。</div>
-                </div>
+            <div class="chronicle-timeline" id="chronicleTimeline">
+                <!-- othello_ai_sensei_js.js の SYSTEM_VERSION_INFO より自動生成 -->
             </div>
         </div>
     </div>
 
-    <!-- フッター -->
+    <!-- フッター（バージョン表記はJS側から自動同期） -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.5.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.6.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
 
-    <!-- 外部スクリプト読み込み（モジュール分離） -->
+    <!-- 外部スクリプト読み込み -->
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>

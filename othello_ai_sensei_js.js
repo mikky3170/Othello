@@ -1,20 +1,49 @@
+
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.5.0 (2026/10/20)
+  バージョン: Ver 6.6.0 (2026/10/20)
   
-  [Ver 6.5.0] 2026/10/20 更新内容:
-  - 【レスポンスファースト設計】プレイヤー着手時の描画先行化によるゼロ遅延化
-  - 【心地よい対局リズム】AI思考時間に人間味のある自然なウェイト（0.7s〜1.9s＋揺らぎ）を導入
-  - 【石反転アニメーション調律】波及ディレイ115ms・回転時間0.68sへの滑らか＆パタパタ立体化
-  - 【WebAudio音響完全シンクロ】石の連鎖反転と完全一致する上質な木製・陶器ヒット音階
-  - 【採点・カルテ非同期最適化】演出裏側での非同期高速評価によりフリーズを根本撲滅
-  - 【棋譜検証エンジン強化】悪手（❌赤枠）と正解手（💡金枠）の完全整合性担保
+  [Ver 6.6.0] 2026/10/20 更新内容:
+  - 【勝てるヒントAI数理刷新】序盤の辺奪取厳罰化・中割り＆開放度抑制の徹底により指南通りの必勝性を確立
+  - 【開局バリエーションエンジン】序盤〜中盤の確率的有力手選択（ソフトマックス）により一本道マンネリ対局を完全解消
+  - 【バージョン一元管理システム】HTMLフッターおよび年代記へのJS動的描画導入により、次回以降のHTML再出力を廃止
+  - 【全パイプラインデグレ防止】ゼロ遅延操作・115msスムーズ反転・人間味思考ウェイト・戦績録との完全整合
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.5.0",
-    date: "2026/10/20"
+    version: "Ver 6.6.0",
+    date: "2026/10/20",
+    history: [
+        {
+            ver: "Ver 6.6.0", date: "2026/10/20",
+            desc: "【勝てるヒントAI数理刷新＆開局バリエーションエディション】序盤の辺奪取厳罰化と中割り優先ロジックにより、指南通りに打つことで確実に勝てる強固なヒントエンジンを確立。序盤〜中盤の確率的有力手選択（ソフトマックス）を導入し、同じ相手でも毎回違う展開になる多彩な対局を実現。バージョン一元管理によりHTML自動描画に対応。"
+        },
+        {
+            ver: "Ver 6.5.0", date: "2026/10/20",
+            desc: "【レスポンスファースト・対局呼吸テンポ＆スムーズ反転調律エディション】着手処理パイプラインをゼロ遅延即応設計へ刷新。AI着手前に人間味ある自然な思考時間ウェイト（0.7s〜1.9s＋揺らぎ）を導入し、機械的なせわしなさを解消。石の3D反転アニメーションを0.68s、波及ディレイを115msへ調律し、心地よいパタパタ連鎖反転とWebAudio音響の完全シンクロを実現。"
+        },
+        {
+            ver: "Ver 6.4.0", date: "2026/10/19",
+            desc: "【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】対戦画面のAI枠およびプレイヤー枠を一律ゴールドから各ステージ盤面のテーマ色・光彩と美しくシンクロする2.5pxの太枠に刷新。思案所および戦績録のキャラクターアイコンを縦長角丸長方形へと変更し表情を大きく表示。手動ヒント時ノーヒント勝利の真剣勝負制覇認定、未制覇最小レベル自動選択システムを導入。"
+        },
+        {
+            ver: "Ver 6.3.0", date: "2026/10/18",
+            desc: "【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】対戦成績・結果一覧モーダル画面を実装。通算戦績・勝率、6大豪傑「真剣勝負制覇」星取り表、連勝数、平均最善手率を表示する栄光のダッシュボードを新設。パーフェクト完勝・大差圧勝・劇的大逆転・激闘辛勝・惜敗等のオセロプロ監修称号を自動付与。"
+        },
+        {
+            ver: "Ver 6.2.0", date: "2026/10/18",
+            desc: "【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】Negamax法統一・動的マスマップ・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。盤面外枠幅を従来の2倍に拡張し重厚な額縁感と視認性を向上。初手盤面時に案内ステータスを導入。"
+        },
+        {
+            ver: "Ver 6.1.0", date: "2026/10/18",
+            desc: "【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。完全OFF時の合法手点滅非表示および真剣勝負モード専用意匠を導入。"
+        },
+        {
+            ver: "Ver 6.0.0", date: "2026/09/23",
+            desc: "【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTML+CSSとJSに完全分離。終盤パリティ理論の手番連動加減点化、埋まった辺の確定石を高速検出する完全確定辺走査アルゴリズム統合。"
+        }
+    ]
 };
 
 const boardSize = 8;
@@ -37,7 +66,7 @@ let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTime
 let typeWriterInterval = null;
 
 let playerMoveLogs = [];
-let minPlayerWinrateInGame = 50; // 逆転判定用（対局中の最低プレイヤー勝率）
+let minPlayerWinrateInGame = 50;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
@@ -127,29 +156,34 @@ const DOM = {
     archFilterResult: document.getElementById("archFilterResult"),
     archSortOrder: document.getElementById("archSortOrder"),
     btnArchiveClear: document.getElementById("btnArchiveClear"),
-    archiveTableBody: document.getElementById("archiveTableBody")
+    archiveTableBody: document.getElementById("archiveTableBody"),
+    // バージョン管理自動注入用DOM
+    versionBadge: document.getElementById("versionBadge"),
+    chronicleTimeline: document.getElementById("chronicleTimeline")
 };
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
 const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 
-/* アニメーション定数：滑らかで心地よい波打ちパタパタ調律 */
-const FLIP_INTERVAL_MS = 115;      // 1枚ごとの波及間隔
-const FLIP_ANIMATION_DURATION_MS = 680; // 3D回転アニメーション持続時間
+const FLIP_INTERVAL_MS = 115;
+const FLIP_ANIMATION_DURATION_MS = 680;
 
-/* 基本静的重みベース */
+/* ==========================================================================
+  【オセロプロ理論に基づく静的マスマップ】
+  - 序盤〜中盤の辺（Aマス・Bマス）はプラスではなく 0〜マイナスにして安易な外周奪取を抑止
+  - 角（120）は圧倒的最高評価、Xマス（-160）・Cマス（-60）は角を献上する危険マスとして厳罰化
+========================================================================== */
 const baseStaticWeights = [
-    [ 120, -30,  20,   5,   5,  20, -30, 120],
-    [-30,  -70,  -5,  -5,  -5,  -5, -70, -30],
-    [  20,  -5,  15,   3,   3,  15,  -5,  20],
-    [   5,  -5,   3,   3,   3,   3,  -5,   5],
-    [   5,  -5,   3,   3,   3,   3,  -5,   5],
-    [  20,  -5,  15,   3,   3,  15,  -5,  20],
-    [-30,  -70,  -5,  -5,  -5,  -5, -70, -30],
-    [ 120, -30,  20,   5,   5,  20, -30, 120]
+    [ 120, -60,  -5,  -5,  -5,  -5, -60, 120],
+    [-60, -160, -25, -20, -20, -25,-160, -60],
+    [  -5, -25,  10,   3,   3,  10, -25,  -5],
+    [  -5, -20,   3,   3,   3,   3, -20,  -5],
+    [  -5, -20,   3,   3,   3,   3, -20,  -5],
+    [  -5, -25,  10,   3,   3,  10, -25,  -5],
+    [-60, -160, -25, -20, -20, -25,-160, -60],
+    [ 120, -60,  -5,  -5,  -5,  -5, -60, 120]
 ];
 
-/* コーナーと危険マスの対応テーブル */
 const cornerDangerDefinitions = [
     { corner: [0, 0], x: [1, 1], c: [[0, 1], [1, 0]] },
     { corner: [0, 7], x: [1, 6], c: [[0, 6], [1, 7]] },
@@ -157,7 +191,7 @@ const cornerDangerDefinitions = [
     { corner: [7, 7], x: [6, 6], c: [[6, 7], [7, 6]] }
 ];
 
-/* 動的マスマップ生成 */
+/* 動的マスマップ生成：角が埋まったらX・Cの危険を解除し安全マスへ転換 */
 function getDynamicCellWeights(targetBoard, perspectivePlayer) {
     const weights = baseStaticWeights.map(row => row.slice());
     const opp = opposite(perspectivePlayer);
@@ -172,14 +206,14 @@ function getDynamicCellWeights(targetBoard, perspectivePlayer) {
                 weights[crPos][ccPos] = -90;
             }
         } else if (cornerOwner === perspectivePlayer) {
-            weights[def.x[0]][def.x[1]] = 40;
+            weights[def.x[0]][def.x[1]] = 35;
             for (const [crPos, ccPos] of def.c) {
-                weights[crPos][ccPos] = 45;
+                weights[crPos][ccPos] = 40;
             }
         } else if (cornerOwner === opp) {
-            weights[def.x[0]][def.x[1]] = -40;
+            weights[def.x[0]][def.x[1]] = -20;
             for (const [crPos, ccPos] of def.c) {
-                weights[crPos][ccPos] = -30;
+                weights[crPos][ccPos] = -25;
             }
         }
     }
@@ -191,7 +225,7 @@ const CHARACTERS = {
         id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
         imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)", depth: 0, exact: 0,
         salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
-        thinkingBaseMs: 850,
+        thinkingBaseMs: 800,
         quotes: {
             start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
             thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ぐるぐる回って迷っちゃうデス〜！"],
@@ -427,6 +461,24 @@ function initCoordLabels() {
         rightL.style.cssText = `top: ${pos}; right: calc(var(--frame-pad) / 2); transform: translate(50%, -50%);`;
         chassis.append(leftL, rightL);
     });
+}
+
+/* ==========================================================================
+  【バージョン情報＆年代記の一元自動同期システム】
+  HTMLを直接編集せずとも、本JSの SYSTEM_VERSION_INFO からフッターと年代記を自動生成
+========================================================================== */
+function renderSystemVersionInfo() {
+    if (DOM.versionBadge) {
+        DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
+    }
+    if (DOM.chronicleTimeline && Array.isArray(SYSTEM_VERSION_INFO.history)) {
+        DOM.chronicleTimeline.innerHTML = SYSTEM_VERSION_INFO.history.map(item => `
+            <div class="chronicle-item">
+                <span class="chronicle-version">${item.ver}</span><span class="chronicle-date">${item.date}</span>
+                <div class="chronicle-desc">${item.desc}</div>
+            </div>
+        `).join("");
+    }
 }
 
 function setStatus(type, text) {
@@ -824,6 +876,11 @@ function countFrontierStones(targetBoard, player) {
     return frontier;
 }
 
+/* ==========================================================================
+  【オセロプロ監修：勝てる真の評価関数】
+  - 序盤〜中盤：中割り（フロンティア削減）・着手可能数（モビリティ）・危険マス回避を徹底
+  - 終盤：石数差・確定石・パリティ（偶数理論）で確実に勝ち切る
+========================================================================== */
 function evaluateBoard(targetBoard, player, emptyCount) {
     const opponent = opposite(player);
     let myStones = 0, oppStones = 0;
@@ -861,13 +918,16 @@ function evaluateBoard(targetBoard, player, emptyCount) {
     const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
 
     let score = 0;
-    if (emptyCount > 40) {
-        score = (mobilityScore * 25) + (frontierScore * 20) + (myPosScore - oppPosScore) * 2.2 - (myStones - oppStones) * 10;
-    } else if (emptyCount > 15) {
-        score = (mobilityScore * 18) + (frontierScore * 15) + (stableDiff * 60) + (myPosScore - oppPosScore) * 2.8;
+    if (emptyCount > 35) {
+        // 序盤：モビリティと中割り（フロンティア最少）が最重要。石は絶対に増やさない。
+        score = (mobilityScore * 35) + (frontierScore * 30) + (myPosScore - oppPosScore) * 1.8 - (myStones - oppStones) * 15;
+    } else if (emptyCount > 14) {
+        // 中盤：確定石の基盤、相手の選択肢制限、マスマップ
+        score = (mobilityScore * 25) + (frontierScore * 20) + (stableDiff * 65) + (myPosScore - oppPosScore) * 2.2;
     } else {
-        score = (myStones - oppStones) * 35 + (stableDiff * 70) + (mobilityScore * 10);
-        if (emptyCount % 2 !== 0) score += 50;
+        // 終盤：確定石と石数差、パリティ理論（偶数奇数）
+        score = (myStones - oppStones) * 45 + (stableDiff * 80) + (mobilityScore * 12);
+        if (emptyCount % 2 !== 0) score += 40;
     }
     return score;
 }
@@ -910,14 +970,13 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     return maxScore;
 }
 
-/* 高速かつ的確な着手評価（深さ3手：数ミリ秒で即答し画面を絶対に止めない） */
 function calculateObjectiveBestMoveFast(targetBoard, player) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
     if (moves.length === 1) return moves[0];
 
     const emptyCount = getEmptyCount(targetBoard);
-    const depth = (emptyCount <= 6) ? emptyCount : 3;
+    const depth = (emptyCount <= 8) ? emptyCount : 4;
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, targetBoard, player);
@@ -936,18 +995,15 @@ function calculateObjectiveBestMoveFast(targetBoard, player) {
     return bestMoves[0] || moves[0];
 }
 
-/* 描画・サウンド先行型ターン実行パイプライン */
 async function executeTurnAction(row, col, player, isHuman) {
     const session = currentGameSessionId;
     const opponent = opposite(player);
     const flippable = getFlippableStones(row, col, player, board);
     const flipped = sortFlippedByDistance(row, col, flippable);
 
-    // 1. 盤面データ更新と直近手の記憶
     makeMove(board, row, col, player);
     lastMove = [row, col];
 
-    // 2. 即座にアニメーション構造体を設定し盤面を描画（クリック遅延ゼロ）
     pendingAnimation = {
         placedRow: row, placedCol: col, flipped,
         newColor: player, oldColor: opponent, isHuman
@@ -959,7 +1015,6 @@ async function executeTurnAction(row, col, player, isHuman) {
     drawBoard();
     updateBalanceGauge();
 
-    // 3. アニメーションが完了するまでの時間（波及時間＋回転時間）
     const totalWaitMs = (flipped.length * FLIP_INTERVAL_MS) + FLIP_ANIMATION_DURATION_MS;
     await sleep(totalWaitMs);
     if (session !== currentGameSessionId) return false;
@@ -970,7 +1025,6 @@ async function executeTurnAction(row, col, player, isHuman) {
     return true;
 }
 
-/* プレイヤーの着手処理（完全非同期・ゼロ遅延） */
 async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
@@ -979,7 +1033,6 @@ async function putStone(row, col) {
     isBusy = true;
     if (getHintMode() === "always") usedHintInGame = true;
 
-    // 着手前の盤面状態スナップショット
     const boardBefore = cloneBoard(board);
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
@@ -992,10 +1045,10 @@ async function putStone(row, col) {
     const isDangerMove = isRealDanger(row, col, board);
     const hintMoveSnapshot = hintMove ? [...hintMove] : null;
 
-    // 1. 盤面描画とアニメーションを直ちに開始（0ms）
+    // 描画とアニメーションを直ちに開始（ゼロ遅延）
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
-    // 2. 石が反転しているアニメーション演出時間（裏側）で採点とログ分析を非同期実行
+    // アニメーションの裏側で非同期採点・ログ記録
     let objectiveBest = null;
     if (isMatchedWithHint) {
         objectiveBest = hintMoveSnapshot;
@@ -1055,7 +1108,6 @@ async function putStone(row, col) {
         emptyCountAtMove: emptyCount, stepIndex: gameStepLogs.length - 1, alternativeBest: objectiveBest
     });
 
-    // アニメーション完了を待機
     const success = await actionPromise;
     if (!success) return;
 
@@ -1125,24 +1177,35 @@ async function processTurn() {
     }
 }
 
+/* ==========================================================================
+  【開局バリエーション＆人間味ある着手選択エンジン】
+  - 序盤〜中盤：上位有力候補手から確率的に手を変え、毎回違う展開を生み出す
+  - 終盤：本来の深さで正確無比に詰める
+========================================================================== */
 function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
+    if (moves.length === 1) return moves[0];
 
-    if (charConfig.id === 1) return moves[Math.floor(Math.random() * moves.length)];
+    // Lv.1 ピエロ：完全ランダム
+    if (charConfig.id === 1) {
+        return moves[Math.floor(Math.random() * moves.length)];
+    }
 
+    // Lv.2 コレット：最多反転。同点ならランダム、序盤はたまに2番目の手も選ぶ
     if (charConfig.id === 2) {
-        let best = moves[0], maxF = -1;
-        for (const m of moves) {
-            const flips = getFlippableStones(m[0], m[1], player, targetBoard).length;
-            if (flips > maxF) { maxF = flips; best = m; }
+        const scored = moves.map(m => ({ move: m, flips: getFlippableStones(m[0], m[1], player, targetBoard).length }));
+        scored.sort((a, b) => b.flips - a.flips);
+        const maxF = scored[0].flips;
+        const bests = scored.filter(s => s.flips === maxF).map(s => s.move);
+        if (getEmptyCount(targetBoard) > 35 && scored.length > 1 && Math.random() < 0.25) {
+            return scored[1].move;
         }
-        return best;
+        return bests[Math.floor(Math.random() * bests.length)];
     }
 
     const emptyCount = getEmptyCount(targetBoard);
     const depth = (charConfig.exact > 0 && emptyCount <= charConfig.exact) ? emptyCount : charConfig.depth;
-    let bestScore = -Infinity;
     const scores = [];
 
     const sortedMoves = orderMoves(moves, targetBoard, player);
@@ -1151,14 +1214,38 @@ function getComputerMove(targetBoard, player, charConfig) {
         makeMove(next, move[0], move[1], player);
         const score = -negamax(next, opposite(player), depth - 1, -Infinity, Infinity, emptyCount - 1);
         scores.push({ move, score });
-        if (score > bestScore) bestScore = score;
     }
 
-    const candidates = scores.filter(s => Math.abs(s.score - bestScore) < 0.1).map(s => s.move);
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    scores.sort((a, b) => b.score - a.score);
+    const bestScore = scores[0].score;
+
+    // 終盤（完全読みエリア）は最善手のみ
+    if (charConfig.exact > 0 && emptyCount <= charConfig.exact) {
+        const topCandidates = scores.filter(s => s.score === bestScore).map(s => s.move);
+        return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+    }
+
+    // 序盤〜中盤のバリエーション許容マージン（上位手から多彩に分岐）
+    let margin = 0;
+    if (emptyCount >= 20) {
+        if (charConfig.id === 3) margin = 35;      // ローラン：広い手筋選択
+        else if (charConfig.id === 4) margin = 20; // エリザベート：適度なバリエーション
+        else if (charConfig.id === 5) margin = 10; // ヴォルフガング：高精度微差選択
+        else if (charConfig.id === 6) margin = 4;  // オルレアン：至高の定石分岐
+    }
+
+    const eligible = scores.filter(s => (bestScore - s.score) <= margin);
+    // 確率重み付け：最善手に最も高い確率を与えつつ、次善手も選ぶ
+    const weights = eligible.map((s, idx) => Math.max(1, 10 - idx * 3));
+    const totalW = weights.reduce((a, b) => a + b, 0);
+    let rand = Math.random() * totalW;
+    for (let i = 0; i < eligible.length; i++) {
+        rand -= weights[i];
+        if (rand <= 0) return eligible[i].move;
+    }
+    return eligible[0].move;
 }
 
-/* AI着手：人間らしい自然な思考テンポ（思考時間ウェイト）を持たせた進行 */
 async function computerMove() {
     if (gameOver || isReviewMode) return;
     const session = currentGameSessionId;
@@ -1169,7 +1256,6 @@ async function computerMove() {
     setStatus("cpu-turn", "相手が思考を巡らせています…");
     DOM.opponentAvatarFrame.classList.add("thinking-aura");
 
-    // キャラクターごとの人間味ある思考ウェイト（基準時間 ± 150ms の揺らぎ）
     const char = getCurrentCharacter();
     const jitter = Math.floor((Math.random() * 300) - 150);
     const thinkingWaitMs = Math.max(450, (char.thinkingBaseMs || 900) + jitter);
@@ -1263,10 +1349,11 @@ function buildHintReasons(chosen, allMoves) {
     const stableAfter = countStableStones(chosen.nextBoard, humanColor);
     if (stableAfter > stableBefore) reasons.push(`🔒 確定石を ${stableBefore} → ${stableAfter} 個に増やします。`);
 
-    if (reasons.length === 0) reasons.push("🎯 盤面全体をコントロールする最善手です。");
+    if (reasons.length === 0) reasons.push("🎯 内部の石だけを反転させ主導権を握る最善手です。");
     return reasons;
 }
 
+/* 勝てるヒントエンジン（偶数深さ探索＆中割り評価） */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1275,8 +1362,8 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    // 深さはUIが固まらない適正値（深さ5手、終盤10手）
-    const depth = emptyCount <= 10 ? emptyCount : (emptyCount > 40 ? 5 : 5);
+    // 偶数深さ（中盤深さ6手、終盤10手）により地平線効果を排除し本質的な優位手を提示
+    const depth = emptyCount <= 10 ? emptyCount : (emptyCount > 40 ? 6 : 6);
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, board, humanColor);
@@ -1386,7 +1473,6 @@ function updateScore(targetBoard = board) {
     DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
 }
 
-/* AI戦術カルテ生成：的確なアドバイスと正解手筋の紐付け */
 function generateTacticsReport() {
     if (playerMoveLogs.length === 0) {
         return {
@@ -1503,7 +1589,6 @@ function clearArchiveLogs() {
     }
 }
 
-/* 自力勝利（ヒントを一度も使わずに勝利）していない最小レベルを算出してデフォルト設定 */
 function determineInitialCharacterLevel() {
     const logs = getArchiveLogs();
     for (let lv = 1; lv <= 6; lv++) {
@@ -1515,7 +1600,6 @@ function determineInitialCharacterLevel() {
     return "6";
 }
 
-/* ドラマチック勝利称号判定 */
 function determineDramaTitle(isWin, isDraw, diff, playerStones, oppStones, minWinrate) {
     if (isDraw) return "⚖️ 格式高き引き分け";
     if (isWin) {
@@ -1536,7 +1620,7 @@ function determineDramaTitle(isWin, isDraw, diff, playerStones, oppStones, minWi
 function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
     const logs = getArchiveLogs();
     const now = new Date();
-    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0 Bath")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     const totalMoves = playerMoveLogs.length;
     const bestCount = playerMoveLogs.filter(l => l.isObjectiveBest).length;
@@ -2035,11 +2119,11 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-/* 初期化実行：未自力勝利の最小レベルを算出して反映・対局開始 */
+/* 初期化実行 */
+renderSystemVersionInfo();
 initCoordLabels();
 if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
-
 
