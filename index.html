@@ -29,9 +29,12 @@
   [Ver 6.0.0] 2026/09/23 : 【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】
   [Ver 6.1.0] 2026/10/18 : 【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】
   [Ver 6.2.0] 2026/10/18 : 【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】
-    - 【ヒント・AI思考全面再構築】Negamax法統一・動的マスマップ・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。自滅マス推奨を完全根絶し全AIへの必勝性を確立。
-    - 【盤面外枠の倍増拡張】アルファベット・数字が配置される外枠幅（--frame-pad）を従来の2倍に拡張し重厚な額縁意匠と視認性を両立。
-    - 【初手ガイダンスの導入】ゲーム開始直後に「先手(黒)か後手(白)を選択して対局を開始してください」と明示する親切UIを導入。
+  [Ver 6.3.0] 2026/10/18 : 【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】
+  [Ver 6.4.0] 2026/10/19 : 【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】
+    - 【盤面カラー連動太枠】対戦画面のAIゾーンおよびプレイヤー操作ゾーンの枠線を、一律ゴールドから各ステージの盤面・豪傑テーマカラーと完全にシンクロする重厚な太枠（2.5px）へ刷新。
+    - 【サロン肖像の角丸長方形化】思案所（キャラクター一覧）および戦績録（星取り表）の肖像を縦長角丸長方形に変更し、枠いっぱい表情が分かるようサイズ拡大。
+    - 【真剣勝負判定の適正化】手動ヒントモード時でも一度もヒントを使用しなかった勝利を自力勝利（真剣勝負制覇）として認定。
+    - 【初期AIレベル進行度連動】自力勝利を達成していない相手の中で最小Lvを自動で初期選択する機能の基盤整備。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -57,10 +60,9 @@
             --gold-glow: rgba(212, 167, 72, 0.35);
             --panel-bg: rgba(16, 19, 26, 0.94);
             --amber-accent: #e5b842;
-            /* Ver 6.2.0 外枠の太さを倍増拡張 */
             --frame-pad: clamp(8px, 2.2vw, 16px);
-            --char-accent: #ffd700;
-            --char-glow: rgba(255, 215, 0, 0.6);
+            --char-accent: #e63946;
+            --char-glow: rgba(230, 57, 70, 0.65);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
 
             /* ステージ動的バインド変数（デフォルト：Lv.1） */
@@ -256,7 +258,7 @@
             text-shadow: 0 2px 8px rgba(197, 151, 62, 0.45); white-space: nowrap;
         }
         .header-subtitle { font-family: 'Cinzel', serif; font-size: 8.5px; font-weight: 700; letter-spacing: 0.2em; color: #cca45b; text-transform: uppercase; }
-        .header-actions { display: flex; gap: 5px; align-items: center; justify-content: flex-end; width: clamp(50px, 12vw, 84px); flex-shrink: 0; }
+        .header-actions { display: flex; gap: 5px; align-items: center; justify-content: flex-end; flex-shrink: 0; }
         .header-btn {
             background: linear-gradient(135deg, rgba(34, 38, 50, 0.9) 0%, rgba(18, 20, 28, 0.9) 100%);
             border: 1px solid var(--gold-border); border-radius: 14px; padding: 2.5px 7px;
@@ -264,11 +266,12 @@
             gap: 3px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: all 0.2s ease;
         }
         .header-btn:hover { border-color: #f7e6ba; box-shadow: 0 2px 8px var(--gold-glow); transform: translateY(-1px); }
+        .header-btn-archive { border-color: #ffd700; color: #fff4bd; }
 
         @media (max-width: 620px) {
             header { flex-direction: column; align-items: stretch; gap: 2px; padding: 2px 6px 1px 6px; margin-bottom: 2px; }
             .header-left-space { display: none; }
-            .header-actions { width: 100%; justify-content: flex-end; gap: 6px; order: 1; }
+            .header-actions { width: 100%; justify-content: flex-end; gap: 5px; order: 1; }
             .header-title-wrap { width: 100%; justify-content: center; order: 2; margin-top: -1px; }
             .main-header-title { font-size: 15px; }
         }
@@ -278,14 +281,17 @@
             justify-content: space-between; align-items: center; position: relative; z-index: 2; min-height: 0; padding: 0;
         }
 
-        /* 対戦相手ゾーン */
+        /* ==========================================================================
+          【ゾーン①：対戦相手ゾーン】
+          盤面テーマ色とシンクロする2.5pxの太枠＋光彩。肖像は気品ある楕円（50%）を維持。
+        ========================================================================== */
         .opponent-zone {
             width: min(98vw, 440px); display: flex; align-items: center; gap: 10px;
             padding: clamp(3px, 0.7dvh, 6px) 8px;
             background: linear-gradient(135deg, rgba(22, 26, 36, 0.92) 0%, rgba(10, 12, 18, 0.96) 100%);
-            border: 1px solid var(--gold-border); border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);
-            z-index: 10; flex-shrink: 0; transition: all 0.4s ease;
+            border: 2.5px solid var(--char-accent); border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 12px var(--char-glow);
+            backdrop-filter: blur(10px); z-index: 10; flex-shrink: 0; transition: all 0.5s ease;
         }
 
         @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
@@ -298,6 +304,7 @@
         .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) 0.2s forwards; }
         @keyframes oval-voice-ripple { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.4, 1.28); opacity: 0; } }
 
+        /* 対戦画面の肖像は楕円（オーバル）を厳格に維持 */
         .opponent-avatar-frame {
             width: clamp(66px, 16vw, 76px); height: clamp(88px, 21vw, 102px); border-radius: 50%;
             border: 3.5px solid var(--char-accent);
@@ -547,7 +554,10 @@
         .stone-face-back { transform: rotateX(180deg) translateZ(1.5px); }
         .stone-edge-rim { position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px); border: 1px solid rgba(45, 42, 38, 0.85); transition: background 0.6s ease; }
 
-        /* 操作ゾーン */
+        /* ==========================================================================
+          【ゾーン③：操作ゾーン】
+          盤面テーマ色とシンクロする2.5pxの太枠＋光彩。
+        ========================================================================== */
         .player-control-zone { width: min(98vw, 440px); display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; position: relative; transition: all 0.4s ease; }
 
         @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
@@ -555,12 +565,14 @@
         }
 
         .royal-card {
-            background: var(--panel-bg); border: 1px solid var(--gold-border); border-radius: 12px;
-            padding: clamp(3px, 0.8dvh, 6px) 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px); position: relative; transition: box-shadow 0.4s ease;
+            background: var(--panel-bg);
+            border: 2.5px solid var(--char-accent); border-radius: 12px;
+            padding: clamp(3px, 0.8dvh, 6px) 8px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), 0 0 12px var(--char-glow);
+            backdrop-filter: blur(10px); position: relative; transition: all 0.5s ease;
         }
-        .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2); border-radius: 10px; pointer-events: none; }
-        .royal-card.turn-notify-pulse { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important; border-color: #ffd700 !important; }
+        .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.15); border-radius: 10px; pointer-events: none; }
+        .royal-card.turn-notify-pulse { box-shadow: 0 0 24px var(--char-glow), 0 8px 24px rgba(0, 0, 0, 0.7) !important; border-color: #ffd700 !important; }
 
         .player-status-banner {
             width: 100%; display: flex; align-items: center; justify-content: center;
@@ -677,6 +689,7 @@
         .btn-jump-bad { background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%); border: 1px solid #ff6b6b; color: #ffd8d8; font-weight: 800; }
         .btn-review-exit { background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; font-weight: 900; box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
 
+        /* 王宮戦後会見モーダル（肖像はオーバル楕円を維持） */
         .royal-result-modal {
             display: none; position: fixed; inset: 0; z-index: 2000; align-items: center; justify-content: center;
             background: rgba(4, 5, 8, 0.84); backdrop-filter: blur(6px); padding: 12px;
@@ -709,6 +722,7 @@
         .tag-opponent-surrendered { background: linear-gradient(135deg, #2b3a4a 0%, #151d26 100%); border: 1px solid #ffd700; color: #fff2bd; }
         .tag-opponent-triumphant { background: linear-gradient(135deg, #4d1c1c 0%, #260c0c 100%); border: 1px solid #ff6b6b; color: #ffd8d8; }
 
+        /* 戦後会見の肖像も楕円（50%）を維持 */
         .result-avatar-frame {
             width: 112px; height: 150px; border-radius: 50%; border: 4px solid var(--char-accent);
             box-shadow: 0 0 0 3px #38240f, 0 0 20px var(--char-glow), inset 0 0 14px rgba(0, 0, 0, 0.9);
@@ -775,10 +789,116 @@
         }
         .ending-tribute-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 14px 0; }
         .tribute-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
-        .tribute-img { width: 38px; height: 48px; border-radius: 50%; border: 1.5px solid #ffd700; overflow: hidden; background: #111; }
+        .tribute-img { width: 42px; height: 56px; border-radius: 8px; border: 1.5px solid #ffd700; overflow: hidden; background: #111; box-shadow: 0 2px 6px rgba(0,0,0,0.7); }
         .tribute-img img { width: 100%; height: 100%; object-fit: cover; }
         .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
         .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
+
+        /* ==========================================================================
+          【王宮戦績録（Dynasty Archives）スタイル】
+          6大豪傑アイコン（.crown-item-avatar）を角丸縦長長方形にし表情を拡大
+        ========================================================================== */
+        #archiveModal { max-width: 680px; max-height: 90dvh; display: flex; flex-direction: column; }
+        .archive-summary-container {
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(30, 24, 15, 0.85) 0%, rgba(15, 12, 8, 0.95) 100%);
+            border: 1px solid rgba(212, 167, 72, 0.4); border-radius: 10px; padding: 10px 12px;
+        }
+        .archive-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+        @media (max-width: 520px) {
+            .archive-stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        }
+        .archive-stat-box {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.25);
+            border-radius: 6px; padding: 6px 4px; display: flex; flex-direction: column; gap: 2px;
+        }
+        .archive-stat-lbl { font-size: 9px; color: #d4c09b; font-weight: 700; }
+        .archive-stat-val { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 900; color: #ffd700; }
+
+        .archive-crown-grid {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+            padding: 8px 6px 4px 6px; background: rgba(0,0,0,0.3); border-radius: 8px;
+            border: 1px solid rgba(212, 167, 72, 0.2);
+        }
+        .crown-item { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+
+        /* 戦績録のキャラクターアイコン：縦長角丸長方形＆表情拡大 */
+        .crown-item-avatar {
+            width: 40px; height: 52px; border-radius: 8px; border: 1.5px solid #555;
+            overflow: hidden; background: #111; position: relative; filter: grayscale(0.85) opacity(0.6);
+            transition: all 0.3s ease; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+        }
+        .crown-item.conquered .crown-item-avatar {
+            border-color: #ffd700; filter: none; opacity: 1;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+        }
+        .crown-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .crown-badge-mark {
+            font-size: 8px; font-weight: 900; padding: 0.5px 3px; border-radius: 3px;
+            background: #2a2a2a; color: #888;
+        }
+        .crown-item.conquered .crown-badge-mark { background: #ffd700; color: #121008; font-weight: 900; box-shadow: 0 0 6px #ffd700; }
+        .crown-item-name { font-size: 8px; color: #ded6c2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48px; }
+
+        .archive-toolbar {
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between;
+            margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
+        }
+        .archive-filters-group { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .archive-toolbar select { font-size: 9.5px; padding: 2px 5px; width: auto; }
+        .btn-clear-archive {
+            font-size: 9.5px; padding: 2.5px 6px; border-radius: 4px;
+            background: rgba(180, 40, 40, 0.2); border: 1px solid #ff6b6b; color: #ffa8a8;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .btn-clear-archive:hover { background: rgba(180, 40, 40, 0.4); color: #fff; }
+
+        .archive-table-wrap {
+            flex: 1; overflow-y: auto; overflow-x: auto; border: 1px solid rgba(212, 167, 72, 0.3);
+            border-radius: 8px; background: rgba(10, 12, 16, 0.8); min-height: 180px;
+        }
+        .archive-table {
+            width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: left;
+            min-width: 560px;
+        }
+        .archive-table th {
+            position: sticky; top: 0; background: linear-gradient(180deg, #252835 0%, #151722 100%);
+            color: #ffd700; font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800;
+            padding: 6px 8px; border-bottom: 1.5px solid var(--gold-border); white-space: nowrap; z-index: 5;
+        }
+        .archive-table td {
+            padding: 6px 8px; border-bottom: 1px solid rgba(212, 167, 72, 0.15); color: #f2ead8; vertical-align: middle;
+        }
+        .archive-table tr:hover { background: rgba(255, 215, 0, 0.05); }
+
+        .badge-win-gold {
+            font-family: inherit; font-size: 9.5px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px;
+            background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #ffffff;
+            border: 1px solid #ffd700; box-shadow: 0 1px 4px rgba(0,0,0,0.6); display: inline-flex; align-items: center; gap: 3px;
+        }
+        .badge-lose-dim {
+            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 1.5px 6px; border-radius: 4px;
+            background: rgba(180, 40, 40, 0.3); color: #ffadad; border: 1px solid rgba(255, 100, 100, 0.4);
+            display: inline-flex; align-items: center; gap: 3px;
+        }
+        .badge-draw-dim {
+            font-family: inherit; font-size: 9.5px; font-weight: 700; padding: 1.5px 6px; border-radius: 4px;
+            background: rgba(100, 100, 120, 0.3); color: #d0d0e0; border: 1px solid rgba(160, 160, 180, 0.4);
+            display: inline-flex; align-items: center; gap: 3px;
+        }
+        .badge-genuine-crown {
+            font-size: 8.5px; font-weight: 800; padding: 1px 4px; border-radius: 3px;
+            background: linear-gradient(135deg, #ffd700 0%, #b38600 100%); color: #121008;
+            border: 1px solid #fff; box-shadow: 0 0 5px rgba(255, 215, 0, 0.8); display: inline-flex; align-items: center; gap: 2px;
+        }
+        .badge-hinted {
+            font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+            background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.3);
+        }
+
+        .archive-empty-placeholder {
+            text-align: center; padding: 40px 10px; color: #8c8272; font-style: italic; font-size: 11px;
+        }
 
         footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; padding: 2px 8px; font-size: 9px; color: #b59f78; z-index: 10; flex-shrink: 0; }
         .bottom-safe-space { width: 100%; height: clamp(6px, 1.2dvh, 12px); flex-shrink: 0; }
@@ -815,8 +935,13 @@
 
         .manual-card { border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; font-size: 11.5px; line-height: 1.6; }
         .manual-card-title { font-size: 12.5px; font-weight: 800; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+        
+        /* 思案所のキャラクター一覧：縦長の長方形（角丸）＆表情ハッキリ拡大 */
         .manual-char-card { display: flex; gap: 10px; align-items: center; border: 1px solid rgba(212, 167, 72, 0.25); background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
-        .manual-char-avatar-mini { width: 44px; height: 58px; border-radius: 50%; border: 2px solid var(--gold-border); overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
+        .manual-char-avatar-mini {
+            width: 50px; height: 68px; border-radius: 8px; border: 2px solid var(--gold-border);
+            overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+        }
         .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
         .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 800; color: #ffd700; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.35); padding: 1px 5px; border-radius: 3px; }
@@ -842,6 +967,10 @@
             <span class="header-subtitle">Royal Dynasty</span>
         </div>
         <div class="header-actions">
+            <button id="archiveOpenBtn" class="header-btn header-btn-archive" type="button" aria-label="戦績録を開く">
+                <span>📜</span>
+                <span>戦績</span>
+            </button>
             <button id="fullscreenBtn" class="header-btn" type="button" aria-label="全画面切替">
                 <span id="fsIcon">⛶</span>
                 <span id="fsText">全画面</span>
@@ -855,7 +984,7 @@
 
     <div class="app-container">
         
-        <!-- ゾーン①：対戦相手ゾーン -->
+        <!-- ゾーン①：対戦相手ゾーン（盤面テーマ色とシンクロする太枠） -->
         <div class="opponent-zone" id="opponentZone">
             <div class="opponent-avatar-wrap" id="opponentAvatarWrap">
                 <div class="voice-wave-ring wave-1"></div>
@@ -927,7 +1056,7 @@
             </div>
         </div>
 
-        <!-- ゾーン③：操作ゾーン -->
+        <!-- ゾーン③：操作ゾーン（盤面テーマ色とシンクロする太枠） -->
         <div class="player-control-zone">
             <div class="royal-card" id="normalControlCard">
                 <div class="player-status-banner">
@@ -1059,6 +1188,7 @@
                     </button>
                 </div>
                 <button type="button" class="result-btn-dark" id="btnStartReview">🔍 盤面をじっくり検証する（棋譜再生）</button>
+                <button type="button" class="result-btn-dark" id="btnResultArchive" style="border-color:#ffd700; color:#fff4bd;">📜 王宮戦績録を開く（成績一覧）</button>
             </div>
         </div>
     </div>
@@ -1111,13 +1241,102 @@
         </div>
     </div>
 
-    <!-- フッター -->
-    <footer class="app-footer">
-        <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.2.0</div>
-    </footer>
+    <!-- 王宮戦績録（Dynasty Archives）モーダル -->
+    <div id="archiveOverlay" class="dynasty-overlay">
+        <div id="archiveModal" class="dynasty-modal">
+            <div class="guide-header">
+                <h2>📜 王宮戦績録（Dynasty Archives）</h2>
+                <button id="archiveCloseButton" class="modal-close-btn" type="button">✕</button>
+            </div>
 
-    <div class="bottom-safe-space"></div>
+            <!-- サマリーダッシュボード -->
+            <div class="archive-summary-container">
+                <div class="archive-stats-row">
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">通算戦績（勝率）</span>
+                        <span class="archive-stat-val" id="archStatWinrate">0戦 0%</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">勝-敗-分</span>
+                        <span class="archive-stat-val" id="archStatWld">0-0-0</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">現在 / 最高連勝</span>
+                        <span class="archive-stat-val" id="archStatStreak">0 / 0連勝</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">平均最善手率</span>
+                        <span class="archive-stat-val" id="archStatBestRate">0.0%</span>
+                    </div>
+                </div>
+
+                <!-- 6大豪傑 真剣勝負制覇 星取り表（縦長角丸長方形） -->
+                <div style="font-size:9.5px; font-weight:800; color:#ffd700; margin-top:2px;">
+                    ⚔️ 6大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
+                </div>
+                <div class="archive-crown-grid" id="archiveCrownGrid">
+                    <!-- JSにて動的生成 -->
+                </div>
+            </div>
+
+            <!-- 操作ツールバー（フィルター＆ソート） -->
+            <div class="archive-toolbar">
+                <div class="archive-filters-group">
+                    <select id="archFilterOpponent" aria-label="対戦相手フィルター">
+                        <option value="all">全対戦相手</option>
+                        <option value="1">Lv.1 ピエロ</option>
+                        <option value="2">Lv.2 コレット</option>
+                        <option value="3">Lv.3 ローラン</option>
+                        <option value="4">Lv.4 エリザベート</option>
+                        <option value="5">Lv.5 ヴォルフガング</option>
+                        <option value="6">Lv.6 オルレアン</option>
+                    </select>
+
+                    <select id="archFilterMode" aria-label="形式フィルター">
+                        <option value="all">全挑戦形式</option>
+                        <option value="genuine">⚔️ 真剣勝負のみ</option>
+                        <option value="hinted">💡 指南受講のみ</option>
+                    </select>
+
+                    <select id="archFilterResult" aria-label="結果フィルター">
+                        <option value="all">全勝敗</option>
+                        <option value="win">👑 勝利のみ</option>
+                        <option value="lose">🥀 敗北のみ</option>
+                    </select>
+
+                    <select id="archSortOrder" aria-label="ソート順">
+                        <option value="date-desc">日時：新しい順 ▼</option>
+                        <option value="date-asc">日時：古い順 ▲</option>
+                        <option value="diff-desc">石差：大差順 ▼</option>
+                        <option value="best-desc">精度：最善手率順 ▼</option>
+                    </select>
+                </div>
+
+                <button type="button" class="btn-clear-archive" id="btnArchiveClear">🗑️ 履歴初期化</button>
+            </div>
+
+            <!-- 戦績一覧テーブル -->
+            <div class="archive-table-wrap">
+                <table class="archive-table">
+                    <thead>
+                        <tr>
+                            <th>対局日時</th>
+                            <th>対戦相手</th>
+                            <th>手番</th>
+                            <th>勝敗・称号</th>
+                            <th>スコア</th>
+                            <th>形式</th>
+                            <th>精度（AI一致率）</th>
+                            <th>時間 / 手数</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archiveTableBody">
+                        <!-- JSにて動的生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <!-- 思案所モーダル -->
     <div id="guideOverlay" class="dynasty-overlay">
@@ -1212,24 +1431,36 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 6.4.0</span><span class="chronicle-date">2026/10/19</span>
+                    <div class="chronicle-desc">【盤面シンクロ・テーマ連動太枠＆サロン肖像角丸長方形エディション】対戦画面のAI枠およびプレイヤー枠を一律ゴールドから各ステージ盤面のテーマ色・光彩と美しくシンクロする2.5pxの太枠に刷新。思案所および戦績録のキャラクターアイコンを縦長角丸長方形へと変更し表情を大きく表示。手動ヒント時ノーヒント勝利の真剣勝負制覇認定、未制覇最小レベル自動選択システムを導入。</div>
+                </div>
+                <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 6.3.0</span><span class="chronicle-date">2026/10/18</span>
+                    <div class="chronicle-desc">【王宮戦績録（Dynasty Archives）＆ドラマチック称号エディション】対戦成績・結果一覧モーダル画面を実装。通算戦績・勝率、6大豪傑「真剣勝負制覇」星取り表、連勝数、平均最善手率を表示する栄光のダッシュボードを新設。パーフェクト完勝・大差圧勝・劇的大逆転・激闘辛勝・惜敗等のオセロプロ監修称号を自動付与。対戦相手別・挑戦形式別・勝敗別絞り込み＆多彩なソート機能、LocalStorage永続化に対応。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.2.0</span><span class="chronicle-date">2026/10/18</span>
-                    <div class="chronicle-desc">【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】Negamax法統一・動的マスマップ（Dynamic Position Matrix）・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。不用意な自滅マス推奨を完全根絶し全AIへの必勝性を確立。盤面外枠幅を従来の2倍（--frame-pad倍増）に拡張し重厚な額縁感と視認性を向上。初手盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」案内ステータスを導入。</div>
+                    <div class="chronicle-desc">【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】Negamax法統一・動的マスマップ・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。盤面外枠幅を従来の2倍に拡張し重厚な額縁感と視認性を向上。初手盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」案内ステータスを導入。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.1.0</span><span class="chronicle-date">2026/10/18</span>
-                    <div class="chronicle-desc">【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。スコア・タイマー・先後手選択ボタンを独立サブ行へ分離。完全OFF時の合法手点滅非表示および「⚔️ 真剣勝負モード（指南封印中）」専用意匠を導入。パス発生時の特大トーストカットイン、決着時の余韻拡大および背景盤面の視認性向上を実施。</div>
+                    <div class="chronicle-desc">【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。スコア・タイマー・先後手選択ボタンを独立サブ行へ分離。完全OFF時の合法手点滅非表示および真剣勝負モード専用意匠を導入。</div>
                 </div>
                 <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.0.0</span><span class="chronicle-date">2026/09/23</span>
-                    <div class="chronicle-desc">【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTML+CSS（othello_ai_sensei.html）とJS（othello_ai_sensei_js.js）に完全分離。終盤パリティ理論の手番連動加減点化、埋まった辺の確定石を高速検出する完全確定辺走査アルゴリズム統合、序盤・中盤・終盤のヒント探索深さ動的配分による応答2.5倍高速化、合法手判定の枝刈り最適化を実施。</div>
-                </div>
-                <div class="chronicle-item">
-                    <span class="chronicle-version">Ver 5.9.0</span><span class="chronicle-date">2026/09/22</span>
-                    <div class="chronicle-desc">【生命感キャラクター・対面3D反転・10:16/16:10タブレットワイド調律エディション】スマホヘッダー分離、盤面幅いっぱい最大化。呼吸常時微動＋発話アクティブパルス＋タイピングセリフ。キャラクター肖像特大化。手番連動対面3D反転アニメーション実装。</div>
+                    <div class="chronicle-desc">【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTML+CSSとJSに完全分離。終盤パリティ理論の手番連動加減点化、埋まった辺の確定石を高速検出する完全確定辺走査アルゴリズム統合。</div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- フッター -->
+    <footer class="app-footer">
+        <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.4.0</div>
+    </footer>
+
+    <div class="bottom-safe-space"></div>
 
     <!-- 外部スクリプト読み込み（モジュール分離） -->
     <script src="othello_ai_sensei_js.js"></script>

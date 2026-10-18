@@ -2,19 +2,19 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.2.0 (2026/10/18)
+  バージョン: Ver 6.4.0 (2026/10/19)
   
-  [Ver 6.2.0] 2026/10/18 更新内容:
-  - AI思考・ヒントエンジンの全面再構築（Negamaxアルゴリズムへ統一し手番評価の反転バグを根絶）
-  - 動的マスマップ（Dynamic Position Matrix）の実装：角の制圧状況に応じX打ち・C打ちの価値を動的算出し、危険マスへの飛び込み自滅を完全封殺
-  - 中割り理論・開放度・着手可能数のフェーズ別正規化評価による「負けない手筋」の確立
-  - ヒント思考深度を深さ7手＋終盤16手完全読みに大幅強化（Lv.3ローラン・Lv.6オルレアンを含む全AIへの必勝性確立）
-  - ゲーム開始時の親切ガイダンス導入（初期盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」と明示）
+  [Ver 6.4.0] 2026/10/19 更新内容:
+  - 自力勝利（真剣勝負制覇）判定の適正化（手動ヒントモード時でもノーヒント勝利を完全認定）
+  - 初期AI対戦相手の進行度連動自動選択システム（未自力勝利の最小レベルを自動設定）
+  - ステージ盤面テーマ色（木目・ミント・鋼鉄・深紅・黒大理石・金箔）とシンクロする太枠デザイン対応
+  - 思案所・戦績録におけるキャラクター肖像の縦長角丸長方形表示への最適化
+  - 「王宮戦績録」星取り表データパイプラインとの完全同期
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.2.0",
-    date: "2026/10/18"
+    version: "Ver 6.4.0",
+    date: "2026/10/19"
 };
 
 const boardSize = 8;
@@ -37,6 +37,9 @@ let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTime
 let typeWriterInterval = null;
 
 let playerMoveLogs = [];
+let minPlayerWinrateInGame = 50; // 逆転判定用（対局中の最低プレイヤー勝率）
+
+const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -91,6 +94,7 @@ const DOM = {
     btnJumpBad: document.getElementById("btnJumpBad"),
     btnReviewExit: document.getElementById("btnReviewExit"),
     btnStartReview: document.getElementById("btnStartReview"),
+    btnResultArchive: document.getElementById("btnResultArchive"),
     royalResultModal: document.getElementById("royalResultModal"),
     resultMainTitle: document.getElementById("resultMainTitle"),
     opponentStatusTag: document.getElementById("opponentStatusTag"),
@@ -108,7 +112,22 @@ const DOM = {
     btnAdvanceIcon: document.getElementById("btnAdvanceIcon"),
     btnAdvanceText: document.getElementById("btnAdvanceText"),
     endingModal: document.getElementById("endingModal"),
-    btnRestartFromBeginning: document.getElementById("btnRestartFromBeginning")
+    btnRestartFromBeginning: document.getElementById("btnRestartFromBeginning"),
+    // 戦績録関連DOM
+    archiveOpenBtn: document.getElementById("archiveOpenBtn"),
+    archiveOverlay: document.getElementById("archiveOverlay"),
+    archiveCloseButton: document.getElementById("archiveCloseButton"),
+    archStatWinrate: document.getElementById("archStatWinrate"),
+    archStatWld: document.getElementById("archStatWld"),
+    archStatStreak: document.getElementById("archStatStreak"),
+    archStatBestRate: document.getElementById("archStatBestRate"),
+    archiveCrownGrid: document.getElementById("archiveCrownGrid"),
+    archFilterOpponent: document.getElementById("archFilterOpponent"),
+    archFilterMode: document.getElementById("archFilterMode"),
+    archFilterResult: document.getElementById("archFilterResult"),
+    archSortOrder: document.getElementById("archSortOrder"),
+    btnArchiveClear: document.getElementById("btnArchiveClear"),
+    archiveTableBody: document.getElementById("archiveTableBody")
 };
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
@@ -134,7 +153,7 @@ const cornerDangerDefinitions = [
     { corner: [7, 7], x: [6, 6], c: [[6, 7], [7, 6]] }
 ];
 
-/* 動的マスマップ生成：角の制圧状況に応じてリアルタイムに評価重みを適応 */
+/* 動的マスマップ生成 */
 function getDynamicCellWeights(targetBoard, perspectivePlayer) {
     const weights = baseStaticWeights.map(row => row.slice());
     const opp = opposite(perspectivePlayer);
@@ -144,19 +163,16 @@ function getDynamicCellWeights(targetBoard, perspectivePlayer) {
         const cornerOwner = targetBoard[cr][cc];
 
         if (cornerOwner === 0) {
-            // 角が空いている場合：X打ちは致命的、C打ちも極めて危険
             weights[def.x[0]][def.x[1]] = -180;
             for (const [crPos, ccPos] of def.c) {
                 weights[crPos][ccPos] = -90;
             }
         } else if (cornerOwner === perspectivePlayer) {
-            // 自分が角を確保している場合：X打ちもC打ちも絶対安全な確定石の延長
             weights[def.x[0]][def.x[1]] = 40;
             for (const [crPos, ccPos] of def.c) {
                 weights[crPos][ccPos] = 45;
             }
         } else if (cornerOwner === opp) {
-            // 相手が角を確保している場合：隣接マスは相手の確定石を増やすだけ
             weights[def.x[0]][def.x[1]] = -40;
             for (const [crPos, ccPos] of def.c) {
                 weights[crPos][ccPos] = -30;
@@ -520,6 +536,10 @@ function updateBalanceGauge(targetBoard = board) {
     const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 260))) * 100)));
     const winrateOpponent = 100 - winratePlayer;
 
+    if (!gameOver && !isReviewMode && winratePlayer < minPlayerWinrateInGame) {
+        minPlayerWinrateInGame = winratePlayer;
+    }
+
     DOM.battlePowerPlayer.style.width = `${winratePlayer}%`;
     DOM.battleClashSpark.style.left = `${winratePlayer}%`;
 
@@ -549,6 +569,7 @@ function saveHistory() {
         board: cloneBoard(board), currentPlayer,
         lastMove: lastMove ? [...lastMove] : null,
         elapsedSeconds, playerSeconds, cpuSeconds, usedHintInGame,
+        minPlayerWinrateInGame,
         playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs)),
         gameStepLogsLength: gameStepLogs.length
     });
@@ -579,6 +600,7 @@ async function undoMove() {
         playerSeconds = targetState.playerSeconds;
         cpuSeconds = targetState.cpuSeconds;
         usedHintInGame = targetState.usedHintInGame || false;
+        minPlayerWinrateInGame = targetState.minPlayerWinrateInGame || 50;
         playerMoveLogs = targetState.playerMoveLogs || [];
         gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
         pendingAnimation = null;
@@ -609,7 +631,6 @@ function recordGameStep(move, playerColor, contextNote = "", alternativeBest = n
     });
 }
 
-/* Ver 6.2.0 ゲーム開始処理（初手選択ガイダンス対応） */
 function startGame() {
     tryPlayBgm();
     exitReviewMode();
@@ -626,6 +647,7 @@ function startGame() {
     isAiThinkingHint = false;
     lastMove = null;
     usedHintInGame = (getHintMode() === "always");
+    minPlayerWinrateInGame = 50;
     pendingAnimation = null;
     historyStack = [];
     playerMoveLogs = [];
@@ -655,7 +677,6 @@ function startGame() {
     updateBalanceGauge();
 
     if (humanColor === BLACK) {
-        // 初手ガイダンス：先手後手を選択して対局開始を促す
         setStatus("human-turn", "👑 先手(黒)か後手(白)を選択して対局を開始してください");
         triggerTurnPulse();
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
@@ -746,7 +767,6 @@ function isRealDanger(r, c, targetBoard) {
     return false;
 }
 
-/* 確定石判定（四隅からの連続探索 ＋ 完全確定辺の高速走査） */
 function countStableStones(targetBoard, player) {
     const stable = new Set();
 
@@ -794,7 +814,6 @@ function countFrontierStones(targetBoard, player) {
     return frontier;
 }
 
-/* Ver 6.2.0 評価関数（動的マスマップ ＋ 中割り重視の正規化モデル） */
 function evaluateBoard(targetBoard, player, emptyCount) {
     const opponent = opposite(player);
     let myStones = 0, oppStones = 0;
@@ -815,42 +834,34 @@ function evaluateBoard(targetBoard, player, emptyCount) {
         }
     }
 
-    // 終盤完全決着時：石差×極大値
     if (emptyCount === 0) {
         return (myStones - oppStones) * 10000;
     }
 
-    // 着手可能数比率（Mobility）
     const myMoves = getValidMoves(player, targetBoard).length;
     const oppMoves = getValidMoves(opponent, targetBoard).length;
     const totalMoves = myMoves + oppMoves;
     const mobilityScore = (totalMoves > 0) ? (100 * (myMoves - oppMoves) / totalMoves) : 0;
 
-    // 開放度比率（Frontier：相手に足場を与えない）
     const myFrontier = countFrontierStones(targetBoard, player);
     const oppFrontier = countFrontierStones(targetBoard, opponent);
     const totalFrontier = myFrontier + oppFrontier;
     const frontierScore = (totalFrontier > 0) ? (-100 * (myFrontier - oppFrontier) / totalFrontier) : 0;
 
-    // 確定石差
     const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
 
     let score = 0;
     if (emptyCount > 40) {
-        // 序盤：石を少なく保つ＋着手可能数と開放度＋動的マス価値
         score = (mobilityScore * 25) + (frontierScore * 20) + (myPosScore - oppPosScore) * 2.2 - (myStones - oppStones) * 10;
     } else if (emptyCount > 15) {
-        // 中盤：確定石の確保＋動的マス価値＋着手可能数
         score = (mobilityScore * 18) + (frontierScore * 15) + (stableDiff * 60) + (myPosScore - oppPosScore) * 2.8;
     } else {
-        // 終盤：石差と確定石が最優先＋パリティ
         score = (myStones - oppStones) * 35 + (stableDiff * 70) + (mobilityScore * 10);
-        if (emptyCount % 2 !== 0) score += 50; // パリティボーナス
+        if (emptyCount % 2 !== 0) score += 50;
     }
     return score;
 }
 
-/* 着手ソート（枝刈り高速化） */
 function orderMoves(moves, targetBoard, player) {
     const dynamicWeights = getDynamicCellWeights(targetBoard, player);
     return moves.slice().sort((a, b) => {
@@ -860,7 +871,6 @@ function orderMoves(moves, targetBoard, player) {
     });
 }
 
-/* Ver 6.2.0 Negamaxアルゴリズム（評価反転ミスを完全根絶） */
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     if (emptyCount === 0 || depth <= 0) {
         return evaluateBoard(targetBoard, player, emptyCount);
@@ -871,10 +881,8 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         const opp = opposite(player);
         const oppMoves = getValidMoves(opp, targetBoard);
         if (oppMoves.length === 0) {
-            // 双方が打てない（対局終了）
             return evaluateBoard(targetBoard, player, 0);
         }
-        // パス：深さを1消費して相手手番の評価値を反転して返す
         return -negamax(targetBoard, opp, depth - 1, -beta, -alpha, emptyCount);
     }
 
@@ -887,18 +895,16 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         const score = -negamax(next, opposite(player), depth - 1, -beta, -alpha, emptyCount - 1);
         if (score > maxScore) maxScore = score;
         if (score > alpha) alpha = score;
-        if (alpha >= beta) break; // アルファベータ枝刈り
+        if (alpha >= beta) break;
     }
     return maxScore;
 }
 
-/* 最適手算出エンジン（ヒント・カルテ共通） */
 function calculateObjectiveBestMove(targetBoard, player) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
     const emptyCount = getEmptyCount(targetBoard);
 
-    // 終盤16手以下は完全読み、それ以外は奇数深度7手読み
     const depth = emptyCount <= 16 ? emptyCount : (emptyCount > 40 ? 6 : 7);
     let bestScore = -Infinity, bestMoves = [];
 
@@ -918,7 +924,6 @@ function calculateObjectiveBestMove(targetBoard, player) {
     return bestMoves[0] || moves[0];
 }
 
-/* 着手・対面3D反転・共通パイプライン */
 async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     const session = currentGameSessionId;
     const opponent = opposite(player);
@@ -949,7 +954,6 @@ async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     return true;
 }
 
-/* プレイヤー着手処理 */
 async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
@@ -1041,7 +1045,6 @@ function clearHintForOpponentTurn() {
     DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思考中…）</div>';
 }
 
-/* ターン進行およびパス処理 */
 async function processTurn() {
     if (gameOver || isReviewMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
@@ -1101,10 +1104,8 @@ function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
 
-    // Lv.1 ピエロ：完全ランダム
     if (charConfig.id === 1) return moves[Math.floor(Math.random() * moves.length)];
 
-    // Lv.2 コレット：貪欲法（その瞬間最も多く取れる手）
     if (charConfig.id === 2) {
         let best = moves[0], maxF = -1;
         for (const m of moves) {
@@ -1114,7 +1115,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         return best;
     }
 
-    // Lv.3〜Lv.6：設定された深さのNegamax探索
     const emptyCount = getEmptyCount(targetBoard);
     const depth = (charConfig.exact > 0 && emptyCount <= charConfig.exact) ? emptyCount : charConfig.depth;
     let bestScore = -Infinity;
@@ -1183,7 +1183,6 @@ async function maybeAutoHint() {
         await sleep(20);
         computeHint();
         if (currentPlayer === humanColor && !gameOver) {
-            // 初手でまだ1手も打たれていなければガイダンス、それ以降はあなたの番
             if (gameStepLogs.length <= 1) {
                 setStatus("human-turn", "👑 先手(黒)か後手(白)を選択して対局を開始してください");
             } else {
@@ -1237,7 +1236,6 @@ function buildHintReasons(chosen, allMoves) {
     return reasons;
 }
 
-/* Ver 6.2.0 ヒントエンジン（深さ7手＋終盤16手完全読み・全AI必勝化） */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1271,7 +1269,6 @@ function computeHint() {
     drawBoard();
 }
 
-/* 盤面描画 */
 function drawBoard() {
     DOM.board.querySelectorAll(".cell").forEach(cell => cell.remove());
     const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
@@ -1448,6 +1445,228 @@ function generateTacticsReport() {
     };
 }
 
+/* ==========================================================================
+  【王宮戦績録（Dynasty Archives）データ管理＆称号判定エンジン】
+========================================================================== */
+function getArchiveLogs() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY_ARCHIVES);
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveArchiveLogs(logs) {
+    try {
+        localStorage.setItem(STORAGE_KEY_ARCHIVES, JSON.stringify(logs.slice(0, 100)));
+    } catch (e) {}
+}
+
+function clearArchiveLogs() {
+    if (confirm("これまでに記録されたすべての戦績履歴を初期化しますか？\n（この操作は取り消せません）")) {
+        localStorage.removeItem(STORAGE_KEY_ARCHIVES);
+        renderArchiveView();
+    }
+}
+
+/* 自力勝利（ヒントを一度も使わずに勝利）していない最小レベルを算出してデフォルト設定 */
+function determineInitialCharacterLevel() {
+    const logs = getArchiveLogs();
+    for (let lv = 1; lv <= 6; lv++) {
+        const hasWonGenuinely = logs.some(r => r.charId === lv && r.isWin && r.isGenuine);
+        if (!hasWonGenuinely) {
+            return String(lv);
+        }
+    }
+    return "6"; // 全豪傑を真剣勝負で制覇済みの場合は最高峰オルレアン
+}
+
+/* ドラマチック勝利称号判定 */
+function determineDramaTitle(isWin, isDraw, diff, playerStones, oppStones, minWinrate) {
+    if (isDraw) return "⚖️ 格式高き引き分け";
+    if (isWin) {
+        if (oppStones === 0 || playerStones === 64) return "👑 完全勝利（パーフェクト）";
+        if (diff >= 40) return "👑 圧倒的完勝";
+        if (minWinrate <= 28) return "⚡ 劇的大逆転";
+        if (diff >= 20) return "⚜️ 大差圧勝";
+        if (diff <= 4) return "⚔️ 激闘辛勝";
+        return "👑 堂々勝利";
+    } else {
+        if (diff <= 4) return "🥀 惜敗（あと一歩）";
+        if (playerStones === 0) return "🥀 屈辱の全滅";
+        if (diff >= 36) return "🥀 大敗完敗";
+        return "🥀 無念の敗北";
+    }
+}
+
+function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
+    const logs = getArchiveLogs();
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    const totalMoves = playerMoveLogs.length;
+    const bestCount = playerMoveLogs.filter(l => l.isObjectiveBest).length;
+    const badCount = playerMoveLogs.filter(l => l.rating === "BAD").length;
+    const bestRate = totalMoves > 0 ? Math.round((bestCount / totalMoves) * 1000) / 10 : 0;
+
+    // 【重要】手動モードでも一度もヒントを使用しなかった場合は真剣勝負（自力勝利）として認定
+    const isGenuine = !usedHintInGame;
+    const diff = Math.abs(hStones - cStones);
+    const dramaTitle = determineDramaTitle(isWin, isDraw, diff, hStones, cStones, minPlayerWinrateInGame);
+
+    const record = {
+        id: Date.now(),
+        date: dateStr,
+        charId: char.id,
+        charName: char.name,
+        charTitle: char.rankLabel,
+        playerColor: humanColor,
+        isWin,
+        isDraw,
+        playerStones: hStones,
+        cpuStones: cStones,
+        diff,
+        isGenuine,
+        dramaTitle,
+        bestCount,
+        badCount,
+        bestRate,
+        totalMoves,
+        playerTimeStr: formatMinSec(playerSeconds),
+        totalTurns: gameStepLogs.length - 1
+    };
+
+    logs.unshift(record);
+    saveArchiveLogs(logs);
+}
+
+function renderArchiveView() {
+    const logs = getArchiveLogs();
+
+    // 1. サマリー集計
+    const totalGames = logs.length;
+    let wins = 0, loses = 0, draws = 0;
+    let currentStreak = 0, maxStreak = 0, tempStreak = 0;
+    let sumBestRate = 0;
+
+    // 連勝数計算（時系列順：古いものから順に走査）
+    const chronologicalLogs = logs.slice().reverse();
+    for (const r of chronologicalLogs) {
+        if (r.isWin) {
+            tempStreak++;
+            if (tempStreak > maxStreak) maxStreak = tempStreak;
+        } else if (!r.isDraw) {
+            tempStreak = 0;
+        }
+    }
+    // 現在の連勝数（最新のログから走査）
+    for (const r of logs) {
+        if (r.isWin) currentStreak++;
+        else break;
+    }
+
+    logs.forEach(r => {
+        if (r.isWin) wins++;
+        else if (r.isDraw) draws++;
+        else loses++;
+        sumBestRate += (r.bestRate || 0);
+    });
+
+    const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+    const avgBestRate = totalGames > 0 ? (sumBestRate / totalGames).toFixed(1) : "0.0";
+
+    DOM.archStatWinrate.textContent = `${totalGames}戦 ${winrate}%`;
+    DOM.archStatWld.textContent = `${wins}勝-${loses}敗-${draws}分`;
+    DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
+    DOM.archStatBestRate.textContent = `${avgBestRate}%`;
+
+    // 2. 6大豪傑 真剣勝負星取り表の描画（縦長角丸長方形）
+    DOM.archiveCrownGrid.innerHTML = "";
+    for (let i = 1; i <= 6; i++) {
+        const char = CHARACTERS[i];
+        const isConquered = logs.some(r => r.charId === i && r.isWin && r.isGenuine);
+
+        const item = document.createElement("div");
+        item.className = `crown-item ${isConquered ? "conquered" : ""}`;
+        item.innerHTML = `
+            <div class="crown-item-avatar">
+                <img src="${char.image}" alt="${char.name}" onerror="this.src='';this.parentElement.textContent='${char.icon}'">
+            </div>
+            <div class="crown-badge-mark">${isConquered ? "👑制覇" : `Lv.${i}`}</div>
+            <div class="crown-item-name">${char.name.split(" ")[1] || char.name}</div>
+        `;
+        DOM.archiveCrownGrid.appendChild(item);
+    }
+
+    // 3. フィルターとソートの適用
+    const filterOpp = DOM.archFilterOpponent.value;
+    const filterMode = DOM.archFilterMode.value;
+    const filterRes = DOM.archFilterResult.value;
+    const sortOrder = DOM.archSortOrder.value;
+
+    let filtered = logs.filter(r => {
+        if (filterOpp !== "all" && r.charId !== Number(filterOpp)) return false;
+        if (filterMode === "genuine" && !r.isGenuine) return false;
+        if (filterMode === "hinted" && r.isGenuine) return false;
+        if (filterRes === "win" && !r.isWin) return false;
+        if (filterRes === "lose" && (r.isWin || r.isDraw)) return false;
+        return true;
+    });
+
+    filtered.sort((a, b) => {
+        if (sortOrder === "date-desc") return b.id - a.id;
+        if (sortOrder === "date-asc") return a.id - b.id;
+        if (sortOrder === "diff-desc") return b.diff - a.diff;
+        if (sortOrder === "best-desc") return (b.bestRate || 0) - (a.bestRate || 0);
+        return 0;
+    });
+
+    // 4. テーブル描画
+    DOM.archiveTableBody.innerHTML = "";
+    if (filtered.length === 0) {
+        DOM.archiveTableBody.innerHTML = `<tr><td colspan="8" class="archive-empty-placeholder">該当する戦績データがありません</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(r => {
+        const tr = document.createElement("tr");
+
+        let resBadge = "";
+        if (r.isWin) resBadge = `<span class="badge-win-gold">${r.dramaTitle}</span>`;
+        else if (r.isDraw) resBadge = `<span class="badge-draw-dim">${r.dramaTitle}</span>`;
+        else resBadge = `<span class="badge-lose-dim">${r.dramaTitle}</span>`;
+
+        const modeBadge = r.isGenuine
+            ? `<span class="badge-genuine-crown">⚔️ 自力真剣</span>`
+            : `<span class="badge-hinted">💡 指南受講</span>`;
+
+        const pColorIcon = (r.playerColor === BLACK) ? "⚫ 先手" : "⚪ 後手";
+        const scoreStr = `${r.playerStones} vs ${r.cpuStones} (${r.playerStones >= r.cpuStones ? "+" : "-"}${r.diff})`;
+
+        tr.innerHTML = `
+            <td style="font-size:9.5px; color:#c7ba9f; white-space:nowrap;">${r.date}</td>
+            <td style="font-weight:700; white-space:nowrap;">Lv.${r.charId} ${r.charName}</td>
+            <td style="font-size:9.5px; white-space:nowrap;">${pColorIcon}</td>
+            <td>${resBadge}</td>
+            <td style="font-family:'Cinzel',serif; font-weight:800; white-space:nowrap;">${scoreStr}</td>
+            <td>${modeBadge}</td>
+            <td style="font-size:9.5px; white-space:nowrap;">🎯 ${r.bestRate || 0}% <span style="font-size:8px; color:#888;">(最善${r.bestCount}/悪${r.badCount})</span></td>
+            <td style="font-size:9.5px; color:#d1b888; white-space:nowrap;">⏱️ ${r.playerTimeStr} (${r.totalTurns}手)</td>
+        `;
+        DOM.archiveTableBody.appendChild(tr);
+    });
+}
+
+function openArchiveModal() {
+    renderArchiveView();
+    DOM.archiveOverlay.classList.add("show");
+}
+
+function closeArchiveModal() {
+    DOM.archiveOverlay.classList.remove("show");
+}
+
 /* 終局処理 */
 function endGame() {
     gameOver = true;
@@ -1495,7 +1714,7 @@ function endGame() {
         DOM.resultAvatarFrame.classList.add("opponent-lost-filter");
 
         if (usedHintInGame) {
-            quoteText = `見事な勝利でゴザイマス…が！ AIの指南（ヒント）を借りての勝利でしたネ！ 次回はぜひ【ヒントなし（真剣勝負）】でボクに挑んでみてくだサイ！`;
+            quoteText = `見事な勝利でゴザイマス…が！ AIの指南（ヒント）を借りての勝利でしたネ！ 次回はぜひ【ヒントなし（自力真剣勝負）】でボクに挑んでみてくだサイ！`;
             if (char.id === 6) {
                 quoteText = `ふむ…宮廷AIの知恵を借りて余を破ったか。真の覇王として戴冠するには己の知恵のみで余に勝たねばならん。ヒントなしの真剣勝負で余を打ち破ってみせよ！`;
             } else if (char.id >= 3) {
@@ -1534,10 +1753,13 @@ function endGame() {
     DOM.carteBadCoord.textContent = report.badCoord;
     DOM.carteBadDesc.textContent = report.badDesc;
 
+    // 戦績録への自動記録実行
+    recordGameResultToArchive(isWin, isDraw, hStones, cStones, char);
+
     if (isWin) {
         if (usedHintInGame) {
             DOM.btnAdvanceIcon.textContent = "👑";
-            DOM.btnAdvanceText.textContent = `ヒントなし（真剣勝負）で ${char.name.split(" ")[0]} と再戦`;
+            DOM.btnAdvanceText.textContent = `ヒントなし（自力勝負）で ${char.name.split(" ")[0]} と再戦`;
             DOM.btnResultAdvance.onclick = () => {
                 DOM.hintMode.value = "off";
                 updateHintModeUI();
@@ -1737,6 +1959,24 @@ if (soundToggleBtn) {
 
 DOM.hintMode.addEventListener("change", updateHintModeUI);
 
+// 戦績録イベントリスナー
+if (DOM.archiveOpenBtn) DOM.archiveOpenBtn.addEventListener("click", openArchiveModal);
+if (DOM.btnResultArchive) DOM.btnResultArchive.addEventListener("click", () => {
+    DOM.royalResultModal.classList.remove("show");
+    openArchiveModal();
+});
+if (DOM.archiveCloseButton) DOM.archiveCloseButton.addEventListener("click", closeArchiveModal);
+if (DOM.archiveOverlay) {
+    DOM.archiveOverlay.addEventListener("click", (e) => {
+        if (e.target === DOM.archiveOverlay) closeArchiveModal();
+    });
+}
+if (DOM.archFilterOpponent) DOM.archFilterOpponent.addEventListener("change", renderArchiveView);
+if (DOM.archFilterMode) DOM.archFilterMode.addEventListener("change", renderArchiveView);
+if (DOM.archFilterResult) DOM.archFilterResult.addEventListener("change", renderArchiveView);
+if (DOM.archSortOrder) DOM.archSortOrder.addEventListener("change", renderArchiveView);
+if (DOM.btnArchiveClear) DOM.btnArchiveClear.addEventListener("click", clearArchiveLogs);
+
 function setupModal(openBtnId, overlayId, closeBtnId) {
     const openBtn = document.getElementById(openBtnId);
     const overlay = document.getElementById(overlayId);
@@ -1770,7 +2010,11 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-// 初期化実行
+/* 初期化実行：未自力勝利の最小レベルを算出して反映・対局開始 */
 initCoordLabels();
+if (DOM.characterSelect) {
+    DOM.characterSelect.value = determineInitialCharacterLevel();
+}
 startGame();
+
 
