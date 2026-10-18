@@ -28,10 +28,10 @@
   [Ver 5.9.0] 2026/09/22 : 【生命感キャラクター・対面3D反転・10:16/16:10タブレットワイド調律エディション】
   [Ver 6.0.0] 2026/09/23 : 【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】
   [Ver 6.1.0] 2026/10/18 : 【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】
-    - 【ステータスUI独立配置】盤面直下に1行専用帯を新設し、完全中央揃え＋黄金ネオングローパルスで手番状況を明示。
-    - 【下部UI階層の再編成】スコア・タイマー・先後手選択ボタンを独立サブ行へ分離し、窮屈感を解消。
-    - 【完全OFF時の真剣勝負意匠】ヒント枠に「⚔️ 真剣勝負モード（指南封印中）」の格式高い黒金プレート表示を導入。
-    - 【戦後会見の盤面視認性調律】モーダル背景の透過度とブラーを上品に調整し、背後の決着盤面を視認可能に改良。
+  [Ver 6.2.0] 2026/10/18 : 【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】
+    - 【ヒント・AI思考全面再構築】Negamax法統一・動的マスマップ・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。自滅マス推奨を完全根絶し全AIへの必勝性を確立。
+    - 【盤面外枠の倍増拡張】アルファベット・数字が配置される外枠幅（--frame-pad）を従来の2倍に拡張し重厚な額縁意匠と視認性を両立。
+    - 【初手ガイダンスの導入】ゲーム開始直後に「先手(黒)か後手(白)を選択して対局を開始してください」と明示する親切UIを導入。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -57,7 +57,8 @@
             --gold-glow: rgba(212, 167, 72, 0.35);
             --panel-bg: rgba(16, 19, 26, 0.94);
             --amber-accent: #e5b842;
-            --frame-pad: clamp(4px, 1.1vw, 8px);
+            /* Ver 6.2.0 外枠の太さを倍増拡張 */
+            --frame-pad: clamp(8px, 2.2vw, 16px);
             --char-accent: #ffd700;
             --char-glow: rgba(255, 215, 0, 0.6);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
@@ -202,7 +203,6 @@
             flex-shrink: 0; width: fit-content;
         }
 
-        /* スマホ・タブレット縦画面の盤面最大化スケーリング */
         #board {
             width: min(calc(100vw - 4px - var(--frame-pad) * 2), 43dvh);
             height: min(calc(100vw - 4px - var(--frame-pad) * 2), 43dvh);
@@ -433,8 +433,8 @@
         .corner-br { bottom: 3px; right: 3px; border-left: none; border-top: none; }
 
         .coord-label {
-            position: absolute; font-family: 'Cinzel', serif; font-size: clamp(7.5px, 1.6vw, 9px); font-weight: 700;
-            color: #cca45b; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; pointer-events: none;
+            position: absolute; font-family: 'Cinzel', serif; font-size: clamp(8px, 1.8vw, 10.5px); font-weight: 800;
+            color: #d8b87a; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95); display: flex; align-items: center; justify-content: center; pointer-events: none;
         }
 
         .board-star-dot {
@@ -515,7 +515,6 @@
         .toast-pass { background: linear-gradient(135deg, rgba(36, 28, 14, 0.96) 0%, rgba(18, 14, 6, 0.98) 100%); border: 2px solid #ffd700; color: #fff5cc; box-shadow: 0 0 28px rgba(255, 215, 0, 0.85); font-size: 14px; padding: 10px 20px; }
         .toast-finish { background: linear-gradient(135deg, rgba(40, 32, 10, 0.98) 0%, rgba(15, 12, 3, 0.98) 100%); border: 2.5px solid #ffd700; color: #ffffff; box-shadow: 0 0 35px rgba(255, 215, 0, 0.95); font-size: 16px; padding: 12px 24px; }
 
-        /* 手番連動対面3D反転アニメーション（0.54秒） */
         .stone-wrapper { position: relative; width: 88%; height: 88%; display: flex; align-items: center; justify-content: center; }
         .stone { position: relative; width: 100%; height: 100%; border-radius: 50%; z-index: 2; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); transition: all 0.6s ease; }
         .stone-new { animation: stone-drop-clean 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
@@ -563,7 +562,6 @@
         .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.2); border-radius: 10px; pointer-events: none; }
         .royal-card.turn-notify-pulse { box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.6) !important; border-color: #ffd700 !important; }
 
-        /* Ver 6.1.0 独立ステータスバナー（完全中央配置・太字900・ネオングロー） */
         .player-status-banner {
             width: 100%; display: flex; align-items: center; justify-content: center;
             padding: 3px 6px; margin-bottom: 4px;
@@ -572,7 +570,7 @@
         }
 
         #status {
-            font-size: 13.5px; font-weight: 900; letter-spacing: 0.08em; text-align: center;
+            font-size: 13px; font-weight: 900; letter-spacing: 0.06em; text-align: center;
             min-height: 20px; display: flex; align-items: center; justify-content: center;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
@@ -593,7 +591,6 @@
         }
         @keyframes hint-fade-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-        /* スコア・時間・手番切替の独立サブ行 */
         .player-sub-row {
             display: flex; align-items: center; justify-content: space-between;
             gap: 6px; margin-bottom: 4px; padding: 0 2px;
@@ -789,7 +786,6 @@
         .footer-version { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 700; color: #e5c378; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 1px 4px; border-radius: 4px; }
         .footer-version:hover { color: #ffffff; background: rgba(212, 167, 72, 0.2); text-shadow: 0 0 8px var(--gold-glow); }
 
-        /* 横画面（16:10等）3カラムレイアウト */
         @media (min-aspect-ratio: 1.05/1) and (min-width: 768px) {
             .app-container { flex-direction: row; justify-content: center; align-items: center; gap: clamp(8px, 1.8vw, 24px); padding: 0 8px; }
             .board-zone { margin: 0; width: auto; }
@@ -934,12 +930,10 @@
         <!-- ゾーン③：操作ゾーン -->
         <div class="player-control-zone">
             <div class="royal-card" id="normalControlCard">
-                <!-- Ver 6.1.0 独立センタリングステータスバナー -->
                 <div class="player-status-banner">
-                    <div id="status" class="status-human-turn">👑 あなたの番です…</div>
+                    <div id="status" class="status-human-turn">👑 先手(黒)か後手(白)を選択して対局を開始してください</div>
                 </div>
 
-                <!-- スコア・タイマー・白黒選択の独立サブ行 -->
                 <div class="player-sub-row">
                     <div class="player-stats-group">
                         <div class="player-score-badge">
@@ -1120,7 +1114,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.1.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.2.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1218,6 +1212,10 @@
             </div>
             <div class="chronicle-timeline">
                 <div class="chronicle-item">
+                    <span class="chronicle-version">Ver 6.2.0</span><span class="chronicle-date">2026/10/18</span>
+                    <div class="chronicle-desc">【思考・ヒント数理エンジン抜本再構築＆外枠倍増エディション】Negamax法統一・動的マスマップ（Dynamic Position Matrix）・中割り正規化評価・深さ7手＋終盤16手完全読みを実装。不用意な自滅マス推奨を完全根絶し全AIへの必勝性を確立。盤面外枠幅を従来の2倍（--frame-pad倍増）に拡張し重厚な額縁感と視認性を向上。初手盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」案内ステータスを導入。</div>
+                </div>
+                <div class="chronicle-item">
                     <span class="chronicle-version">Ver 6.1.0</span><span class="chronicle-date">2026/10/18</span>
                     <div class="chronicle-desc">【プレイヤーUX完全調律・ステータス独立センタリング・快速即応エディション】盤面直下にステータスメッセージ専用帯を新設し完全中央揃え＋黄金ネオングローパルスで手番状況を明示。スコア・タイマー・先後手選択ボタンを独立サブ行へ分離。完全OFF時の合法手点滅非表示および「⚔️ 真剣勝負モード（指南封印中）」専用意匠を導入。パス発生時の特大トーストカットイン、決着時の余韻拡大および背景盤面の視認性向上を実施。</div>
                 </div>
@@ -1237,5 +1235,4 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
-
 

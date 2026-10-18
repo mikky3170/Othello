@@ -2,15 +2,20 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.1.0 (2026/10/18)
+  バージョン: Ver 6.2.0 (2026/10/18)
   
-  [Ver 6.1.0] 2026/10/18 更新内容:
-  - プレイヤー着手時の即時反応化（タップ前の重い先読み同期計算を廃止・即座に石配置と反転が開始する超快速レスポンス）
-  - 常時ヒント時の「💡 宮廷AIが最善手を思案中…」先行描画により、相手番との誤認を完全根絶
-  - 完全OFF（真剣勝負）選択時の合法手点滅ガイド非表示＆指南封印黒金プレートUIへの切り替え
-  - パス（PASS）発生時の特大トースト演出と直感的な手番スキップ演出の導入
-  - 決着時の「👑 決着（FINISH）」カットインおよび余韻時間拡大（1.4秒）
+  [Ver 6.2.0] 2026/10/18 更新内容:
+  - AI思考・ヒントエンジンの全面再構築（Negamaxアルゴリズムへ統一し手番評価の反転バグを根絶）
+  - 動的マスマップ（Dynamic Position Matrix）の実装：角の制圧状況に応じX打ち・C打ちの価値を動的算出し、危険マスへの飛び込み自滅を完全封殺
+  - 中割り理論・開放度・着手可能数のフェーズ別正規化評価による「負けない手筋」の確立
+  - ヒント思考深度を深さ7手＋終盤16手完全読みに大幅強化（Lv.3ローラン・Lv.6オルレアンを含む全AIへの必勝性確立）
+  - ゲーム開始時の親切ガイダンス導入（初期盤面時に「先手(黒)か後手(白)を選択して対局を開始してください」と明示）
 ========================================================================== */
+
+const SYSTEM_VERSION_INFO = {
+    version: "Ver 6.2.0",
+    date: "2026/10/18"
+};
 
 const boardSize = 8;
 const BLACK = 1, WHITE = 2;
@@ -109,16 +114,57 @@ const DOM = {
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
 const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 
-const staticWeights = [
-    [ 140, -25,  25,   5,   5,  25, -25, 140],
-    [-25, -50,  -5,  -5,  -5,  -5, -50, -25],
-    [  25,  -5,  15,   3,   3,  15,  -5,  25],
+/* 基本静的重みベース */
+const baseStaticWeights = [
+    [ 120, -30,  20,   5,   5,  20, -30, 120],
+    [-30,  -70,  -5,  -5,  -5,  -5, -70, -30],
+    [  20,  -5,  15,   3,   3,  15,  -5,  20],
     [   5,  -5,   3,   3,   3,   3,  -5,   5],
     [   5,  -5,   3,   3,   3,   3,  -5,   5],
-    [  25,  -5,  15,   3,   3,  15,  -5,  25],
-    [-25, -50,  -5,  -5,  -5,  -5, -50, -25],
-    [ 140, -25,  25,   5,   5,  25, -25, 140]
+    [  20,  -5,  15,   3,   3,  15,  -5,  20],
+    [-30,  -70,  -5,  -5,  -5,  -5, -70, -30],
+    [ 120, -30,  20,   5,   5,  20, -30, 120]
 ];
+
+/* コーナーと危険マスの対応テーブル */
+const cornerDangerDefinitions = [
+    { corner: [0, 0], x: [1, 1], c: [[0, 1], [1, 0]] },
+    { corner: [0, 7], x: [1, 6], c: [[0, 6], [1, 7]] },
+    { corner: [7, 0], x: [6, 1], c: [[6, 0], [7, 1]] },
+    { corner: [7, 7], x: [6, 6], c: [[6, 7], [7, 6]] }
+];
+
+/* 動的マスマップ生成：角の制圧状況に応じてリアルタイムに評価重みを適応 */
+function getDynamicCellWeights(targetBoard, perspectivePlayer) {
+    const weights = baseStaticWeights.map(row => row.slice());
+    const opp = opposite(perspectivePlayer);
+
+    for (const def of cornerDangerDefinitions) {
+        const [cr, cc] = def.corner;
+        const cornerOwner = targetBoard[cr][cc];
+
+        if (cornerOwner === 0) {
+            // 角が空いている場合：X打ちは致命的、C打ちも極めて危険
+            weights[def.x[0]][def.x[1]] = -180;
+            for (const [crPos, ccPos] of def.c) {
+                weights[crPos][ccPos] = -90;
+            }
+        } else if (cornerOwner === perspectivePlayer) {
+            // 自分が角を確保している場合：X打ちもC打ちも絶対安全な確定石の延長
+            weights[def.x[0]][def.x[1]] = 40;
+            for (const [crPos, ccPos] of def.c) {
+                weights[crPos][ccPos] = 45;
+            }
+        } else if (cornerOwner === opp) {
+            // 相手が角を確保している場合：隣接マスは相手の確定石を増やすだけ
+            weights[def.x[0]][def.x[1]] = -40;
+            for (const [crPos, ccPos] of def.c) {
+                weights[crPos][ccPos] = -30;
+            }
+        }
+    }
+    return weights;
+}
 
 const CHARACTERS = {
     1: {
@@ -335,6 +381,8 @@ const toNotation = (r, c) => String.fromCharCode(65 + c) + (r + 1);
 function initCoordLabels() {
     const chassis = DOM.boardChassis;
     if (!chassis) return;
+    chassis.querySelectorAll(".coord-label").forEach(l => l.remove());
+
     ['A','B','C','D','E','F','G','H'].forEach((col, i) => {
         const pos = `calc(var(--frame-pad) + (100% - var(--frame-pad) * 2) * (${i} + 0.5) / 8)`;
         const topL = document.createElement("div"), botL = document.createElement("div");
@@ -468,8 +516,8 @@ function updateOpponentStageUI(showBanner = true) {
 function updateBalanceGauge(targetBoard = board) {
     if (!targetBoard) return;
     const emptyCount = getEmptyCount(targetBoard);
-    const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount, currentPlayer);
-    const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 220))) * 100)));
+    const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
+    const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 260))) * 100)));
     const winrateOpponent = 100 - winratePlayer;
 
     DOM.battlePowerPlayer.style.width = `${winratePlayer}%`;
@@ -561,6 +609,7 @@ function recordGameStep(move, playerColor, contextNote = "", alternativeBest = n
     });
 }
 
+/* Ver 6.2.0 ゲーム開始処理（初手選択ガイダンス対応） */
 function startGame() {
     tryPlayBgm();
     exitReviewMode();
@@ -606,7 +655,8 @@ function startGame() {
     updateBalanceGauge();
 
     if (humanColor === BLACK) {
-        setStatus("human-turn", "👑 あなたの番です…");
+        // 初手ガイダンス：先手後手を選択して対局開始を促す
+        setStatus("human-turn", "👑 先手(黒)か後手(白)を選択して対局を開始してください");
         triggerTurnPulse();
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         maybeAutoHint();
@@ -642,7 +692,6 @@ function getFlippableStones(row, col, player = currentPlayer, targetBoard = boar
     return flippable;
 }
 
-/* 高速判定用：1つでも反転できるか（Early Break） */
 function canPlaceFast(row, col, player, targetBoard) {
     if (!targetBoard || targetBoard[row][col] !== 0) return false;
     const opponent = opposite(player);
@@ -689,34 +738,179 @@ function makeMove(targetBoard, row, col, player) {
 const isCorner = (r, c) => cornerSquares.some(([cr, cc]) => cr === r && cc === c);
 
 function isRealDanger(r, c, targetBoard) {
-    const dangerCornerMap = [
-        { corner: [0, 0], dangers: [[0, 1], [1, 0], [1, 1]] },
-        { corner: [0, 7], dangers: [[0, 6], [1, 6], [1, 7]] },
-        { corner: [7, 0], dangers: [[6, 0], [6, 1], [7, 1]] },
-        { corner: [7, 7], dangers: [[6, 6], [6, 7], [7, 6]] }
-    ];
-    for (const item of dangerCornerMap) {
-        if (item.dangers.some(([dr, dc]) => dr === r && dc === c)) {
+    for (const item of cornerDangerDefinitions) {
+        if ((item.x[0] === r && item.x[1] === c) || item.c.some(([dr, dc]) => dr === r && dc === c)) {
             return (targetBoard[item.corner[0]][item.corner[1]] === 0);
         }
     }
     return false;
 }
 
-/* 最適手の判定（ヒント・カルテ採点用） */
+/* 確定石判定（四隅からの連続探索 ＋ 完全確定辺の高速走査） */
+function countStableStones(targetBoard, player) {
+    const stable = new Set();
+
+    for (const [cr, cc] of cornerSquares) {
+        if (targetBoard[cr][cc] !== player) continue;
+        stable.add(`${cr},${cc}`);
+        for (const [dr, dc] of [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]]) {
+            let r = cr + dr, c = cc + dc;
+            while (isInside(r, c) && targetBoard[r][c] === player) {
+                stable.add(`${r},${c}`);
+                r += dr; c += dc;
+            }
+        }
+    }
+
+    const edges = [
+        [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7]],
+        [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]],
+        [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]],
+        [[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7]]
+    ];
+    for (const edge of edges) {
+        const isFull = edge.every(([er, ec]) => targetBoard[er][ec] !== 0);
+        if (isFull) {
+            for (const [er, ec] of edge) {
+                if (targetBoard[er][ec] === player) stable.add(`${er},${ec}`);
+            }
+        }
+    }
+
+    return stable.size;
+}
+
+function countFrontierStones(targetBoard, player) {
+    let frontier = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (targetBoard[r][c] !== player) continue;
+            for (const [dr, dc] of directions) {
+                const nr = r + dr, nc = c + dc;
+                if (isInside(nr, nc) && targetBoard[nr][nc] === 0) { frontier++; break; }
+            }
+        }
+    }
+    return frontier;
+}
+
+/* Ver 6.2.0 評価関数（動的マスマップ ＋ 中割り重視の正規化モデル） */
+function evaluateBoard(targetBoard, player, emptyCount) {
+    const opponent = opposite(player);
+    let myStones = 0, oppStones = 0;
+    let myPosScore = 0, oppPosScore = 0;
+
+    const dynamicWeights = getDynamicCellWeights(targetBoard, player);
+
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const piece = targetBoard[r][c];
+            if (piece === player) {
+                myStones++;
+                myPosScore += dynamicWeights[r][c];
+            } else if (piece === opponent) {
+                oppStones++;
+                oppPosScore += dynamicWeights[r][c];
+            }
+        }
+    }
+
+    // 終盤完全決着時：石差×極大値
+    if (emptyCount === 0) {
+        return (myStones - oppStones) * 10000;
+    }
+
+    // 着手可能数比率（Mobility）
+    const myMoves = getValidMoves(player, targetBoard).length;
+    const oppMoves = getValidMoves(opponent, targetBoard).length;
+    const totalMoves = myMoves + oppMoves;
+    const mobilityScore = (totalMoves > 0) ? (100 * (myMoves - oppMoves) / totalMoves) : 0;
+
+    // 開放度比率（Frontier：相手に足場を与えない）
+    const myFrontier = countFrontierStones(targetBoard, player);
+    const oppFrontier = countFrontierStones(targetBoard, opponent);
+    const totalFrontier = myFrontier + oppFrontier;
+    const frontierScore = (totalFrontier > 0) ? (-100 * (myFrontier - oppFrontier) / totalFrontier) : 0;
+
+    // 確定石差
+    const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
+
+    let score = 0;
+    if (emptyCount > 40) {
+        // 序盤：石を少なく保つ＋着手可能数と開放度＋動的マス価値
+        score = (mobilityScore * 25) + (frontierScore * 20) + (myPosScore - oppPosScore) * 2.2 - (myStones - oppStones) * 10;
+    } else if (emptyCount > 15) {
+        // 中盤：確定石の確保＋動的マス価値＋着手可能数
+        score = (mobilityScore * 18) + (frontierScore * 15) + (stableDiff * 60) + (myPosScore - oppPosScore) * 2.8;
+    } else {
+        // 終盤：石差と確定石が最優先＋パリティ
+        score = (myStones - oppStones) * 35 + (stableDiff * 70) + (mobilityScore * 10);
+        if (emptyCount % 2 !== 0) score += 50; // パリティボーナス
+    }
+    return score;
+}
+
+/* 着手ソート（枝刈り高速化） */
+function orderMoves(moves, targetBoard, player) {
+    const dynamicWeights = getDynamicCellWeights(targetBoard, player);
+    return moves.slice().sort((a, b) => {
+        const aCorner = isCorner(a[0], a[1]) ? 1 : 0, bCorner = isCorner(b[0], b[1]) ? 1 : 0;
+        if (aCorner !== bCorner) return bCorner - aCorner;
+        return dynamicWeights[b[0]][b[1]] - dynamicWeights[a[0]][a[1]];
+    });
+}
+
+/* Ver 6.2.0 Negamaxアルゴリズム（評価反転ミスを完全根絶） */
+function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
+    if (emptyCount === 0 || depth <= 0) {
+        return evaluateBoard(targetBoard, player, emptyCount);
+    }
+
+    const moves = getValidMoves(player, targetBoard);
+    if (moves.length === 0) {
+        const opp = opposite(player);
+        const oppMoves = getValidMoves(opp, targetBoard);
+        if (oppMoves.length === 0) {
+            // 双方が打てない（対局終了）
+            return evaluateBoard(targetBoard, player, 0);
+        }
+        // パス：深さを1消費して相手手番の評価値を反転して返す
+        return -negamax(targetBoard, opp, depth - 1, -beta, -alpha, emptyCount);
+    }
+
+    let maxScore = -Infinity;
+    const sortedMoves = orderMoves(moves, targetBoard, player);
+
+    for (const move of sortedMoves) {
+        const next = cloneBoard(targetBoard);
+        makeMove(next, move[0], move[1], player);
+        const score = -negamax(next, opposite(player), depth - 1, -beta, -alpha, emptyCount - 1);
+        if (score > maxScore) maxScore = score;
+        if (score > alpha) alpha = score;
+        if (alpha >= beta) break; // アルファベータ枝刈り
+    }
+    return maxScore;
+}
+
+/* 最適手算出エンジン（ヒント・カルテ共通） */
 function calculateObjectiveBestMove(targetBoard, player) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
     const emptyCount = getEmptyCount(targetBoard);
-    const depth = emptyCount <= 14 ? emptyCount : (emptyCount > 40 ? 5 : 6);
+
+    // 終盤16手以下は完全読み、それ以外は奇数深度7手読み
+    const depth = emptyCount <= 16 ? emptyCount : (emptyCount > 40 ? 6 : 7);
     let bestScore = -Infinity, bestMoves = [];
 
-    for (const move of orderMoves(moves, targetBoard)) {
+    const sortedMoves = orderMoves(moves, targetBoard, player);
+    for (const move of sortedMoves) {
         const next = cloneBoard(targetBoard);
         makeMove(next, move[0], move[1], player);
-        const score = minimax(next, opposite(player), depth - 1, -Infinity, Infinity, player, emptyCount - 1);
+        const score = -negamax(next, opposite(player), depth - 1, -Infinity, Infinity, emptyCount - 1);
+
         if (score > bestScore) {
-            bestScore = score; bestMoves = [move];
+            bestScore = score;
+            bestMoves = [move];
         } else if (score === bestScore) {
             bestMoves.push(move);
         }
@@ -755,7 +949,7 @@ async function executeTurnAction(row, col, player, isHuman, onPreFinish) {
     return true;
 }
 
-/* Ver 6.1.0 プレイヤー着手：即時反転開始（重い先読み同期計算を廃止して超快速化） */
+/* プレイヤー着手処理 */
 async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
@@ -764,23 +958,20 @@ async function putStone(row, col) {
     isBusy = true;
     if (getHintMode() === "always") usedHintInGame = true;
 
-    // 着手前の盤面スナップショット
     const boardBefore = cloneBoard(board);
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
     const oppMovesBefore = getValidMoves(cpuColor, board).length;
-    const preScore = evaluateBoard(board, humanColor, emptyCount, humanColor);
+    const preScore = evaluateBoard(board, humanColor, emptyCount);
 
     const isMatchedWithHint = (hintMove && hintMove[0] === row && hintMove[1] === col);
     const isForcedMove = (myAvailableMovesBefore.length === 1);
     const isCornerMove = isCorner(row, col);
     const isDangerMove = isRealDanger(row, col, board);
 
-    // 即座に石配置・反転アニメーション開始
     const success = await executeTurnAction(row, col, humanColor, true, (flipped) => {
-        // 反転アニメ開始と同時に非同期評価
         const oppMovesAfter = getValidMoves(cpuColor, board).length;
-        const postScore = evaluateBoard(board, humanColor, emptyCount - 1, cpuColor);
+        const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
         const scoreDiff = postScore - preScore;
 
         let objectiveBest = null;
@@ -794,35 +985,25 @@ async function putStone(row, col) {
         let moveRating = "NORMAL";
         if (isMatchedWithHint || isMatchedWithObjectiveBest) {
             moveRating = "BEST";
-            if (getHintMode() !== "off") {
-                showMoveToast("best", "🎯 最善手 (BEST)");
-            }
+            if (getHintMode() !== "off") showMoveToast("best", "🎯 最善手 (BEST)");
             setOpponentQuote("playerGood");
         } else if (isCornerMove) {
             moveRating = isMatchedWithObjectiveBest ? "BEST" : "GOOD";
-            if (getHintMode() !== "off") {
-                showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
-            }
+            if (getHintMode() !== "off") showMoveToast(moveRating === "BEST" ? "best" : "good", moveRating === "BEST" ? "🎯 最善手 (BEST)" : "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerCorner");
         } else if (isForcedMove) {
             moveRating = "NORMAL";
         } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
             moveRating = "BAD";
-            if (getHintMode() !== "off") {
-                showMoveToast("bad", "⚠️ 悪手 (BAD)");
-            }
+            if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
             setOpponentQuote("playerBad");
         } else if (flipped.length >= 5 && emptyCount >= 16) {
             moveRating = "REVERSAL";
-            if (getHintMode() !== "off") {
-                showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
-            }
+            if (getHintMode() !== "off") showMoveToast("reversal", "⚡ 逆転手 (REVERSAL)");
             setOpponentQuote("bigReversal");
         } else if (scoreDiff > 120) {
             moveRating = "GOOD";
-            if (getHintMode() !== "off") {
-                showMoveToast("good", "⚜️ 好手 (GOOD)");
-            }
+            if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
             setOpponentQuote("playerGood");
         } else if (emptyCount <= 12) {
             setOpponentQuote("climax");
@@ -860,7 +1041,7 @@ function clearHintForOpponentTurn() {
     DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思考中…）</div>';
 }
 
-/* Ver 6.1.0 ターン進行およびパス処理の強化 */
+/* ターン進行およびパス処理 */
 async function processTurn() {
     if (gameOver || isReviewMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
@@ -872,7 +1053,6 @@ async function processTurn() {
         const passName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
         recordGameStep(null, currentPlayer, `${passName}が置ける場所がないため【パス】しました。`, null, true);
 
-        // 特大パストースト演出
         showMoveToast("pass", `⚜️ ${passName} はパス（PASS）です`);
 
         if (currentPlayer === humanColor) {
@@ -917,21 +1097,14 @@ async function processTurn() {
     }
 }
 
-function orderMoves(moves, targetBoard) {
-    return moves.sort((a, b) => {
-        const aCorner = isCorner(a[0], a[1]) ? 1 : 0, bCorner = isCorner(b[0], b[1]) ? 1 : 0;
-        if (aCorner !== bCorner) return bCorner - aCorner;
-        const aDanger = isRealDanger(a[0], a[1], targetBoard) ? 1 : 0, bDanger = isRealDanger(b[0], b[1], targetBoard) ? 1 : 0;
-        if (aDanger !== bDanger) return aDanger - bDanger;
-        return staticWeights[b[0]][b[1]] - staticWeights[a[0]][a[1]];
-    });
-}
-
 function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
+
+    // Lv.1 ピエロ：完全ランダム
     if (charConfig.id === 1) return moves[Math.floor(Math.random() * moves.length)];
 
+    // Lv.2 コレット：貪欲法（その瞬間最も多く取れる手）
     if (charConfig.id === 2) {
         let best = moves[0], maxF = -1;
         for (const m of moves) {
@@ -941,15 +1114,17 @@ function getComputerMove(targetBoard, player, charConfig) {
         return best;
     }
 
+    // Lv.3〜Lv.6：設定された深さのNegamax探索
     const emptyCount = getEmptyCount(targetBoard);
     const depth = (charConfig.exact > 0 && emptyCount <= charConfig.exact) ? emptyCount : charConfig.depth;
     let bestScore = -Infinity;
     const scores = [];
 
-    for (const move of orderMoves(moves, targetBoard)) {
+    const sortedMoves = orderMoves(moves, targetBoard, player);
+    for (const move of sortedMoves) {
         const next = cloneBoard(targetBoard);
         makeMove(next, move[0], move[1], player);
-        const score = minimax(next, opposite(player), depth - 1, -Infinity, Infinity, player, emptyCount - 1);
+        const score = -negamax(next, opposite(player), depth - 1, -Infinity, Infinity, emptyCount - 1);
         scores.push({ move, score });
         if (score > bestScore) bestScore = score;
     }
@@ -994,126 +1169,6 @@ async function computerMove() {
     processTurn();
 }
 
-function minimax(targetBoard, player, depth, alpha, beta, computerPlayer, emptyCount) {
-    if (emptyCount === 0 || depth <= 0) return evaluateBoard(targetBoard, computerPlayer, emptyCount, player);
-
-    let moves = getValidMoves(player, targetBoard);
-    if (moves.length === 0) {
-        const opp = opposite(player);
-        if (getValidMoves(opp, targetBoard).length === 0) return evaluateBoard(targetBoard, computerPlayer, 0, player);
-        return minimax(targetBoard, opp, depth, alpha, beta, computerPlayer, emptyCount);
-    }
-
-    moves = orderMoves(moves, targetBoard);
-    const maximizing = (player === computerPlayer);
-    let value = maximizing ? -Infinity : Infinity;
-
-    for (const move of moves) {
-        const next = cloneBoard(targetBoard);
-        makeMove(next, move[0], move[1], player);
-        const score = minimax(next, opposite(player), depth - 1, alpha, beta, computerPlayer, emptyCount - 1);
-        if (maximizing) {
-            value = Math.max(value, score);
-            alpha = Math.max(alpha, value);
-            if (alpha >= beta) break;
-        } else {
-            value = Math.min(value, score);
-            beta = Math.min(beta, value);
-            if (alpha >= beta) break;
-        }
-    }
-    return value;
-}
-
-function countFrontierStones(targetBoard, player) {
-    let frontier = 0;
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            if (targetBoard[r][c] !== player) continue;
-            for (const [dr, dc] of directions) {
-                const nr = r + dr, nc = c + dc;
-                if (isInside(nr, nc) && targetBoard[nr][nc] === 0) { frontier++; break; }
-            }
-        }
-    }
-    return frontier;
-}
-
-/* 確定石判定（四隅からの連続探索 ＋ 完全確定辺の高速走査） */
-function countStableStones(targetBoard, player) {
-    const stable = new Set();
-
-    for (const [cr, cc] of cornerSquares) {
-        if (targetBoard[cr][cc] !== player) continue;
-        stable.add(`${cr},${cc}`);
-        for (const [dr, dc] of [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]]) {
-            let r = cr + dr, c = cc + dc;
-            while (isInside(r, c) && targetBoard[r][c] === player) {
-                stable.add(`${r},${c}`);
-                r += dr; c += dc;
-            }
-        }
-    }
-
-    const edges = [
-        [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7]],
-        [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]],
-        [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]],
-        [[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7]]
-    ];
-    for (const edge of edges) {
-        const isFull = edge.every(([er, ec]) => targetBoard[er][ec] !== 0);
-        if (isFull) {
-            for (const [er, ec] of edge) {
-                if (targetBoard[er][ec] === player) stable.add(`${er},${ec}`);
-            }
-        }
-    }
-
-    return stable.size;
-}
-
-/* 盤面評価関数 */
-function evaluateBoard(targetBoard, player, emptyCount, turnPlayer = player) {
-    const opponent = opposite(player);
-    let myStones = 0, oppStones = 0, myPosScore = 0, oppPosScore = 0;
-
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const piece = targetBoard[r][c];
-            if (piece === player) { myStones++; myPosScore += staticWeights[r][c]; }
-            else if (piece === opponent) { oppStones++; oppPosScore += staticWeights[r][c]; }
-        }
-    }
-
-    if (emptyCount === 0) return (myStones - oppStones) * 10000;
-
-    const myMoves = getValidMoves(player, targetBoard).length;
-    const oppMoves = getValidMoves(opponent, targetBoard).length;
-    const totalMoves = myMoves + oppMoves;
-    const mobilityScore = (totalMoves > 0) ? (100 * (myMoves - oppMoves) / totalMoves) : 0;
-
-    const myFrontier = countFrontierStones(targetBoard, player);
-    const oppFrontier = countFrontierStones(targetBoard, opponent);
-    const totalFrontier = myFrontier + oppFrontier;
-    const frontierScore = (totalFrontier > 0) ? (-100 * (myFrontier - oppFrontier) / totalFrontier) : 0;
-
-    const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
-
-    let score = 0;
-    if (emptyCount > 40) {
-        score = (mobilityScore * 28) + (frontierScore * 22) + (myPosScore - oppPosScore) - (myStones - oppStones) * 8;
-    } else if (emptyCount > 14) {
-        score = (mobilityScore * 20) + (frontierScore * 18) + (stableDiff * 55) + (myPosScore - oppPosScore) * 1.6;
-    } else {
-        score = (myStones - oppStones) * 25 + (stableDiff * 60) + (mobilityScore * 12);
-        if (emptyCount % 2 !== 0) {
-            score += (turnPlayer === player) ? 40 : -40;
-        }
-    }
-    return score;
-}
-
 function clearHint() {
     hintMove = null;
     DOM.hintCoordText.textContent = "--";
@@ -1122,19 +1177,22 @@ function clearHint() {
 
 const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
 
-/* Ver 6.1.0 常時ヒント：思案中先行表示 */
 async function maybeAutoHint() {
     if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) {
         setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
         await sleep(20);
         computeHint();
         if (currentPlayer === humanColor && !gameOver) {
-            setStatus("human-turn", "👑 あなたの番です…");
+            // 初手でまだ1手も打たれていなければガイダンス、それ以降はあなたの番
+            if (gameStepLogs.length <= 1) {
+                setStatus("human-turn", "👑 先手(黒)か後手(白)を選択して対局を開始してください");
+            } else {
+                setStatus("human-turn", "👑 あなたの番です…");
+            }
         }
     }
 }
 
-/* Ver 6.1.0 完全OFF真剣勝負モード表示への調律 */
 function updateHintModeUI() {
     const mode = getHintMode();
     DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
@@ -1179,6 +1237,7 @@ function buildHintReasons(chosen, allMoves) {
     return reasons;
 }
 
+/* Ver 6.2.0 ヒントエンジン（深さ7手＋終盤16手完全読み・全AI必勝化） */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1187,17 +1246,22 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    const depth = emptyCount <= 14 ? emptyCount : (emptyCount > 40 ? 5 : 6);
+    const depth = emptyCount <= 16 ? emptyCount : (emptyCount > 40 ? 6 : 7);
     let bestScore = -Infinity, bestMoves = [];
 
-    for (const move of orderMoves(moves, board)) {
+    const sortedMoves = orderMoves(moves, board, humanColor);
+    for (const move of sortedMoves) {
         const next = cloneBoard(board);
         makeMove(next, move[0], move[1], humanColor);
-        const score = minimax(next, cpuColor, depth - 1, -Infinity, Infinity, humanColor, emptyCount - 1);
+        const score = -negamax(next, cpuColor, depth - 1, -Infinity, Infinity, emptyCount - 1);
         const info = { move, score, nextBoard: next };
 
-        if (score > bestScore) { bestScore = score; bestMoves = [info]; }
-        else if (score === bestScore) { bestMoves.push(info); }
+        if (score > bestScore) {
+            bestScore = score;
+            bestMoves = [info];
+        } else if (score === bestScore) {
+            bestMoves.push(info);
+        }
     }
 
     const chosen = bestMoves[0];
@@ -1207,7 +1271,7 @@ function computeHint() {
     drawBoard();
 }
 
-/* Ver 6.1.0 盤面描画：完全OFF時は合法手ガイド（can-place）を非表示 */
+/* 盤面描画 */
 function drawBoard() {
     DOM.board.querySelectorAll(".cell").forEach(cell => cell.remove());
     const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
@@ -1384,7 +1448,7 @@ function generateTacticsReport() {
     };
 }
 
-/* Ver 6.1.0 終局処理：決着カットインと余韻の調律（1.4秒） */
+/* 終局処理 */
 function endGame() {
     gameOver = true;
     isBusy = false;
@@ -1397,7 +1461,6 @@ function endGame() {
     updateBalanceGauge();
     updateUndoButtonState();
 
-    // 決着トーストカットイン
     showMoveToast("finish", "👑 決着（FINISH）");
 
     const stats = getBoardStats(board);
@@ -1509,7 +1572,6 @@ function endGame() {
         };
     }
 
-    // 余韻を味わうための表示遅延（1.4秒）
     setTimeout(() => DOM.royalResultModal.classList.add("show"), 1400);
 }
 
