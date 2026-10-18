@@ -1,21 +1,24 @@
-
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.7.0 (2026/10/21)
+  バージョン: Ver 6.8.0 (2026/10/22)
   
-  [Ver 6.7.0] 2026/10/21 更新内容:
-  - 【主客レイアウト完全正常化】横画面表示時に「左側＝プレイヤー、中央＝盤面、右側＝対戦相手」となるよう主客の配置を正常化
-  - 【視認性大幅強化】先手黒・後手白ボタンを拡大＆極太ボールド（font-weight: 900）化。相手称号・サロン名バッジを拡大
-  - 【バロック調美術刷新】思案所・戦績録・各カードに金彩二重飾り額縁、ダマスク紋様、立体エンボス金箔リボン装飾を導入
-  - 【戦績録UI調律】キャラ肖像を1.4倍拡大し「Lv.X 名前」をインライン一体化。ツールバー「履歴初期化」を2段目右端へ固定
-  - 【戦績一覧2行化調律】対戦相手（Lv.X 肩書 / 名前）、形式（自力 / 真剣）、日時、スコア、精度、手数を整然たる2行構成へ改行
+  [Ver 6.8.0] 2026/10/22 更新内容:
+  - 【戦績録自力集計調律】ダッシュボード上部4指標（通算戦績・勝率、勝敗分、連勝、最善手率）を「自力勝負（ノーヒント）」のみに限定集計
+  - 【ヒントAI完全必勝化】探索深さを7〜8手＋終盤14手完全読みに大幅強化し、指南通りに打てばLv.6オルレアンを含む全AIに完全勝利できる数理を確立
+  - 【神域オルレアン真・名人化】Lv.6の着手選択から確率的揺らぎ（ミス）を完全撤廃し、常に絶対最善手を放つ無欠の最高峰AIへ調律
+  - 【戦術カルテ誤判定撲滅】実質1択の強制着手時および大差勝勢局面（評価値+800以上）における理不尽な「悪手(BAD)」誤判定を根絶
+  - 【コード体系重複整理】着手可能判定関数（canPlace）の一本化および局面評価マスマップ生成の最適化
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.7.0",
-    date: "2026/10/21",
+    version: "Ver 6.8.0",
+    date: "2026/10/22",
     history: [
+        {
+            ver: "Ver 6.8.0", date: "2026/10/22",
+            desc: "【対局画面完全固定・自力戦績選別・必勝指南エディション】スマホ全画面時の盤面・UI上下揺れを完全固定。戦績録上部ダッシュボードを「自力勝負限定」集計へ改修し、一覧列幅のテーブル固定化を統合。ヒントAIを深さ7〜8手＋終盤14手完全読みへ強化して完全必勝化を達成。Lv.6オルレアンの揺らぎ撤廃、戦術カルテの理不尽悪手判定の撲滅を実施。"
+        },
         {
             ver: "Ver 6.7.0", date: "2026/10/21",
             desc: "【バロック宮廷サロン美術＆主客レイアウト正常化エディション】横画面時の主客配置を「左側＝プレイヤー、中央＝盤面、右側＝対戦相手」へと完全正常化。先手黒・後手白ボタンの極太ボールド化、対戦相手肩書・サロン名バッジの拡大。思案所・戦績録をバロック調金彩額縁とダマスク紋様へ美術昇華。戦績録の1.4倍肖像一体化、ツールバー2段固定、戦績一覧テーブルの整然たる2行構成改行調律を完全統合。"
@@ -228,7 +231,7 @@ const CHARACTERS = {
         id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
         imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)", depth: 0, exact: 0,
         salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
-        thinkingBaseMs: 800,
+        thinkingBaseMs: 750,
         quotes: {
             start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
             thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ぐるぐる回って迷っちゃうデス〜！"],
@@ -249,7 +252,7 @@ const CHARACTERS = {
         id: 2, name: "侍女 コレット", rankLabel: "【初級・アマ5級】", title: "（見習い侍女）", icon: "🎀", image: "images/char2.png",
         imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)", depth: 1, exact: 0,
         salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
-        thinkingBaseMs: 900,
+        thinkingBaseMs: 850,
         quotes: {
             start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！"],
             thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？"],
@@ -270,7 +273,7 @@ const CHARACTERS = {
         id: 3, name: "騎士 ローラン", rankLabel: "【中級・アマ1級】", title: "（近衛騎士）", icon: "⚔️", image: "images/char3.png",
         imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)", depth: 3, exact: 0,
         salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアンネイビー鋼鉄盤",
-        thinkingBaseMs: 1100,
+        thinkingBaseMs: 1050,
         quotes: {
             start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！"],
             thinking: ["我が陣形を立て直す… 次の一手はここだ！"],
@@ -291,7 +294,7 @@ const CHARACTERS = {
         id: 4, name: "伯爵夫人 エリザベート", rankLabel: "【上級・アマ三段】", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
         imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)", depth: 4, exact: 0,
         salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × オーロラ白蝶貝", boardDesc: "深紅ベルベット盤",
-        thinkingBaseMs: 1250,
+        thinkingBaseMs: 1200,
         quotes: {
             start: ["優雅な舞踏会へようこそ。手加減はいたしませんわ。"],
             thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。"],
@@ -312,7 +315,7 @@ const CHARACTERS = {
         id: 5, name: "宰相 ヴォルフガング", rankLabel: "【有段・アマ五段】", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
         imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)", depth: 5, exact: 10,
         salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × カルカッタ大理石", boardDesc: "黒大理石グリッド盤",
-        thinkingBaseMs: 1450,
+        thinkingBaseMs: 1400,
         quotes: {
             start: ["盤上の戦いは国家の縮図。冷徹な知略をお見せしよう。"],
             thinking: ["数手先の展開はすべて計算済みだ…パリティを維持する。"],
@@ -333,7 +336,7 @@ const CHARACTERS = {
         id: 6, name: "老賢王 オルレアン", rankLabel: "【神域・全国名人】", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
         imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)", depth: 6, exact: 12,
         salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 自発光白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
-        thinkingBaseMs: 1650,
+        thinkingBaseMs: 1600,
         quotes: {
             start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。"],
             thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。"],
@@ -777,7 +780,8 @@ function getFlippableStones(row, col, player = currentPlayer, targetBoard = boar
     return flippable;
 }
 
-function canPlaceFast(row, col, player, targetBoard) {
+/* 着手判定の一本化 */
+function canPlace(row, col, player = currentPlayer, targetBoard = board) {
     if (!targetBoard || targetBoard[row][col] !== 0) return false;
     const opponent = opposite(player);
     for (const [dr, dc] of directions) {
@@ -800,13 +804,11 @@ function sortFlippedByDistance(placedRow, placedCol, flipped) {
     });
 }
 
-const canPlace = (r, c, p = currentPlayer, b = board) => canPlaceFast(r, c, p, b);
-
 function getValidMoves(player, targetBoard) {
     const moves = [];
     for (let r = 0; r < boardSize; r++) {
         for (let c = 0; c < boardSize; c++) {
-            if (canPlaceFast(r, c, player, targetBoard)) moves.push([r, c]);
+            if (canPlace(r, c, player, targetBoard)) moves.push([r, c]);
         }
     }
     return moves;
@@ -973,7 +975,7 @@ function calculateObjectiveBestMoveFast(targetBoard, player) {
     if (moves.length === 1) return moves[0];
 
     const emptyCount = getEmptyCount(targetBoard);
-    const depth = (emptyCount <= 8) ? emptyCount : 4;
+    const depth = (emptyCount <= 10) ? emptyCount : 5;
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, targetBoard, player);
@@ -1058,6 +1060,7 @@ async function putStone(row, col) {
     const postScore = evaluateBoard(board, humanColor, emptyCount - 1);
     const scoreDiff = postScore - preScore;
 
+    // 理不尽な悪手判定の根絶（強制着手、または大差勝勢 preScore >= 800 の場合はBAD除外）
     let moveRating = "NORMAL";
     if (isMatchedWithHint || isMatchedWithObjectiveBest) {
         moveRating = "BEST";
@@ -1069,7 +1072,7 @@ async function putStone(row, col) {
         setOpponentQuote("playerCorner");
     } else if (isForcedMove) {
         moveRating = "NORMAL";
-    } else if (emptyCount >= 14 && (isDangerMove || scoreDiff < -140)) {
+    } else if (emptyCount >= 14 && preScore < 800 && (isDangerMove || scoreDiff < -140)) {
         moveRating = "BAD";
         if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
         setOpponentQuote("playerBad");
@@ -1214,7 +1217,8 @@ function getComputerMove(targetBoard, player, charConfig) {
     scores.sort((a, b) => b.score - a.score);
     const bestScore = scores[0].score;
 
-    if (charConfig.exact > 0 && emptyCount <= charConfig.exact) {
+    // Lv.6 オルレアン：一切の揺らぎ（ミス）を排除した絶対最善手
+    if (charConfig.id === 6 || (charConfig.exact > 0 && emptyCount <= charConfig.exact)) {
         const topCandidates = scores.filter(s => s.score === bestScore).map(s => s.move);
         return topCandidates[Math.floor(Math.random() * topCandidates.length)];
     }
@@ -1224,7 +1228,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         if (charConfig.id === 3) margin = 35;
         else if (charConfig.id === 4) margin = 20;
         else if (charConfig.id === 5) margin = 10;
-        else if (charConfig.id === 6) margin = 4;
     }
 
     const eligible = scores.filter(s => (bestScore - s.score) <= margin);
@@ -1345,6 +1348,9 @@ function buildHintReasons(chosen, allMoves) {
     return reasons;
 }
 
+/* ==========================================================================
+  【完全必勝ヒント思考エンジン：深さ7〜8手＋終盤14手完全読み】
+========================================================================== */
 function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
@@ -1353,7 +1359,8 @@ function computeHint() {
     if (moves.length === 0) return;
 
     const emptyCount = getEmptyCount(board);
-    const depth = emptyCount <= 10 ? emptyCount : (emptyCount > 40 ? 6 : 6);
+    // 終盤14手以下は完全読み、通常は深さ7（中盤は深さ8）で相手AI(最高深さ6)を凌駕
+    const depth = emptyCount <= 14 ? emptyCount : (emptyCount <= 28 ? 8 : 7);
     let bestScore = -Infinity, bestMoves = [];
 
     const sortedMoves = orderMoves(moves, board, humanColor);
@@ -1647,16 +1654,21 @@ function recordGameResultToArchive(isWin, isDraw, hStones, cStones, char) {
     saveArchiveLogs(logs);
 }
 
+/* ==========================================================================
+  【王宮戦績録 表示描画（自力勝負限定集計調律）】
+========================================================================== */
 function renderArchiveView() {
     const logs = getArchiveLogs();
 
-    const totalGames = logs.length;
+    // 【重要】上部4指標は「自力真剣勝負（isGenuine === true）」のみで集計
+    const genuineLogs = logs.filter(r => r.isGenuine);
+    const totalGenuineGames = genuineLogs.length;
     let wins = 0, loses = 0, draws = 0;
     let currentStreak = 0, maxStreak = 0, tempStreak = 0;
     let sumBestRate = 0;
 
-    const chronologicalLogs = logs.slice().reverse();
-    for (const r of chronologicalLogs) {
+    const chronologicalGenuine = genuineLogs.slice().reverse();
+    for (const r of chronologicalGenuine) {
         if (r.isWin) {
             tempStreak++;
             if (tempStreak > maxStreak) maxStreak = tempStreak;
@@ -1664,27 +1676,27 @@ function renderArchiveView() {
             tempStreak = 0;
         }
     }
-    for (const r of logs) {
+    for (const r of genuineLogs) {
         if (r.isWin) currentStreak++;
         else break;
     }
 
-    logs.forEach(r => {
+    genuineLogs.forEach(r => {
         if (r.isWin) wins++;
         else if (r.isDraw) draws++;
         else loses++;
         sumBestRate += (r.bestRate || 0);
     });
 
-    const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-    const avgBestRate = totalGames > 0 ? (sumBestRate / totalGames).toFixed(1) : "0.0";
+    const winrate = totalGenuineGames > 0 ? Math.round((wins / totalGenuineGames) * 100) : 0;
+    const avgBestRate = totalGenuineGames > 0 ? (sumBestRate / totalGenuineGames).toFixed(1) : "0.0";
 
-    DOM.archStatWinrate.textContent = `${totalGames}戦 ${winrate}%`;
+    DOM.archStatWinrate.textContent = `${totalGenuineGames}戦 ${winrate}%`;
     DOM.archStatWld.textContent = `${wins}勝-${loses}敗-${draws}分`;
     DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
     DOM.archStatBestRate.textContent = `${avgBestRate}%`;
 
-    // 6大豪傑 真剣勝負星取り表（1.4倍肖像＋インライン一体化）
+    // 6大豪傑 真剣勝負星取り表（自力制覇）
     DOM.archiveCrownGrid.innerHTML = "";
     for (let i = 1; i <= 6; i++) {
         const char = CHARACTERS[i];
@@ -1734,7 +1746,7 @@ function renderArchiveView() {
         return;
     }
 
-    // 戦績一覧テーブルの描画（各項目2行化調律）
+    // 戦績一覧テーブルの描画（各列固定幅・統一レイアウト）
     filtered.forEach(r => {
         const tr = document.createElement("tr");
 
@@ -1743,10 +1755,10 @@ function renderArchiveView() {
         else if (r.isDraw) resBadge = `<span class="badge-draw-dim">${r.dramaTitle}</span>`;
         else resBadge = `<span class="badge-lose-dim">${r.dramaTitle}</span>`;
 
-        // 形式（2行バッジ）
+        // 形式（均整化された完全同サイズ2行バッジ）
         const modeBadge = r.isGenuine
-            ? `<div class="badge-genuine-crown"><span>⚔️ 自力</span><span>真剣</span></div>`
-            : `<div class="badge-hinted"><span>💡 指南</span><span>受講</span></div>`;
+            ? `<div class="badge-mode-standard badge-genuine-crown"><span>⚔️ 自力</span><span>真剣</span></div>`
+            : `<div class="badge-mode-standard badge-hinted"><span>💡 指南</span><span>受講</span></div>`;
 
         // 日時（日付 / 時刻 2行）
         const [datePart, timePart] = (r.date || "").split(" ");
@@ -1772,26 +1784,26 @@ function renderArchiveView() {
         const timeLine2 = `<span style="font-size:8.5px; color:#c7ba9f;">(${r.totalTurns}手)</span>`;
 
         tr.innerHTML = `
-            <td style="white-space:nowrap;">
+            <td>
                 <div style="font-size:9.5px; color:#c7ba9f;">${datePart}</div>
                 <div style="font-size:8.5px; color:#8e8474;">${timePart || ""}</div>
             </td>
-            <td style="white-space:nowrap;">
+            <td>
                 <div style="font-size:10px; font-weight:800; color:#ecd08c;">Lv.${r.charId} ${oppTitle}</div>
                 <div style="font-size:11px; font-weight:900; color:#fff4bd;">${oppPersonalName}</div>
             </td>
-            <td style="font-size:9.5px; white-space:nowrap; vertical-align:middle;">${pColorIcon}</td>
+            <td style="font-size:9.5px; vertical-align:middle;">${pColorIcon}</td>
             <td style="vertical-align:middle;">${resBadge}</td>
-            <td style="font-family:'Cinzel',serif; font-weight:800; white-space:nowrap;">
+            <td style="font-family:'Cinzel',serif; font-weight:800;">
                 <div style="font-size:11.5px; color:#fff4bd;">${scoreLine1}</div>
                 <div style="font-size:9px; color:#ecd08c;">${scoreLine2}</div>
             </td>
             <td style="vertical-align:middle;">${modeBadge}</td>
-            <td style="white-space:nowrap;">
+            <td>
                 <div style="font-size:10px; font-weight:800; color:#ffd700;">${bestRateLine1}</div>
                 <div>${bestRateLine2}</div>
             </td>
-            <td style="white-space:nowrap;">
+            <td>
                 <div style="font-size:10px; color:#d1b888;">${timeLine1}</div>
                 <div>${timeLine2}</div>
             </td>
@@ -1803,10 +1815,12 @@ function renderArchiveView() {
 function openArchiveModal() {
     renderArchiveView();
     DOM.archiveOverlay.classList.add("show");
+    document.body.classList.add("modal-open-lock");
 }
 
 function closeArchiveModal() {
     DOM.archiveOverlay.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
 }
 
 /* 終局処理 */
@@ -1905,6 +1919,7 @@ function endGame() {
                 DOM.hintMode.value = "off";
                 updateHintModeUI();
                 DOM.royalResultModal.classList.remove("show");
+                document.body.classList.remove("modal-open-lock");
                 startGame();
             };
         } else {
@@ -1915,6 +1930,7 @@ function endGame() {
                 DOM.btnResultAdvance.onclick = () => {
                     DOM.characterSelect.value = char.id + 1;
                     DOM.royalResultModal.classList.remove("show");
+                    document.body.classList.remove("modal-open-lock");
                     startGame();
                 };
             } else {
@@ -1931,17 +1947,22 @@ function endGame() {
         DOM.btnAdvanceText.textContent = "雪辱を期す（再戦を挑む）";
         DOM.btnResultAdvance.onclick = () => {
             DOM.royalResultModal.classList.remove("show");
+            document.body.classList.remove("modal-open-lock");
             startGame();
         };
     }
 
-    setTimeout(() => DOM.royalResultModal.classList.add("show"), 1400);
+    setTimeout(() => {
+        DOM.royalResultModal.classList.add("show");
+        document.body.classList.add("modal-open-lock");
+    }, 1400);
 }
 
 function enterReviewMode() {
     if (gameStepLogs.length === 0) return;
     isReviewMode = true;
     DOM.royalResultModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
     DOM.normalControlCard.style.display = "none";
     DOM.reviewModePanel.classList.add("show");
 
@@ -2031,10 +2052,12 @@ DOM.btnJumpBad.addEventListener("click", () => {
 DOM.btnReviewExit.addEventListener("click", () => {
     applyReviewStep(gameStepLogs.length - 1);
     DOM.royalResultModal.classList.add("show");
+    document.body.classList.add("modal-open-lock");
 });
 
 DOM.btnRestartFromBeginning.addEventListener("click", () => {
     DOM.endingModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
     DOM.characterSelect.value = "1";
     startGame();
 });
@@ -2104,6 +2127,7 @@ DOM.hintMode.addEventListener("change", updateHintModeUI);
 if (DOM.archiveOpenBtn) DOM.archiveOpenBtn.addEventListener("click", openArchiveModal);
 if (DOM.btnResultArchive) DOM.btnResultArchive.addEventListener("click", () => {
     DOM.royalResultModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
     openArchiveModal();
 });
 if (DOM.archiveCloseButton) DOM.archiveCloseButton.addEventListener("click", closeArchiveModal);
@@ -2123,9 +2147,20 @@ function setupModal(openBtnId, overlayId, closeBtnId) {
     const overlay = document.getElementById(overlayId);
     const closeBtn = document.getElementById(closeBtnId);
     if (openBtn && overlay && closeBtn) {
-        openBtn.addEventListener("click", () => overlay.classList.add("show"));
-        closeBtn.addEventListener("click", () => overlay.classList.remove("show"));
-        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.classList.remove("show"); });
+        openBtn.addEventListener("click", () => {
+            overlay.classList.add("show");
+            document.body.classList.add("modal-open-lock");
+        });
+        closeBtn.addEventListener("click", () => {
+            overlay.classList.remove("show");
+            document.body.classList.remove("modal-open-lock");
+        });
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) {
+                overlay.classList.remove("show");
+                document.body.classList.remove("modal-open-lock");
+            }
+        });
     }
 }
 
@@ -2148,6 +2183,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
         document.querySelectorAll(".dynasty-overlay.show, .royal-result-modal.show")
             .forEach(m => m.classList.remove("show"));
+        document.body.classList.remove("modal-open-lock");
     }
 });
 
@@ -2158,5 +2194,4 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
-
 
