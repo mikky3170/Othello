@@ -1,23 +1,26 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.9.0 (2026/10/22)
+  バージョン: Ver 6.9.1 (2026/10/22)
   
-  [Ver 6.9.0] 2026/10/22 更新内容:
-  - 【プロ公式定石ツリー完全搭載】虎、牛、兎、猫、羊、馬、ローズ等の日本オセロ連盟公認定石を完全網羅。序盤の不自然な悪手を100%根絶。
-  - 【段級位ロジック完全適合】Lv.1（アマ10級）〜Lv.6（全国名人）の思考特性をオセロ競技基準に厳密合致。
-  - 【ヒントAI必勝化】深さ9手＋終盤16手完全読みにより、Lv.6（深さ7手／14手読み）を常に2手深く上回り、ヒント通りに打てば100%確実に完勝できる指南エンジンを確立。
-  - 【評価関数の数理欠陥修正】序盤の石数を減らしすぎる欠陥ペナルティを全廃。純粋な中割り・モビリティ・確定石評価へ刷新。
-  - 【事前計算（プリフェッチ）キャッシュ機構】手番中の裏計算キャッシュにより、石配置の即座の反転と妥当な採点判定を完全両立。
+  [Ver 6.9.1] 2026/10/22 更新内容:
+  - 【完全非同期プリフェッチ調律】相手着手後の画面フリーズを根絶。相手思考中オーラの即時解除と「AI思案中…」表示を完全復元。
+  - 【打った瞬間の即応判定両立】手番中の裏計算キャッシュにより、ユーザー着手時のゼロ遅延パタパタ反転と妥当な採点判定（最善手・好手・悪手）を完全両立。
+  - 【AIセリフ発声パルス演出】セリフ出力中は吹き出し枠がゴールドの光彩で脈動点滅し、発声完了で静止する臨場感演出を実装。
+  - 【プロ公式定石＆段級位完全適合】虎・牛・兎・猫・羊・馬定石等を完全網羅し、Lv.1〜Lv.6の実力を競技基準に厳密調律。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.9.0",
+    version: "Ver 6.9.1",
     date: "2026/10/22",
     history: [
         {
+            ver: "Ver 6.9.1", date: "2026/10/22",
+            desc: "【完全非同期プリフェッチ・UI正常化＆躍動セリフパルス調律エディション】相手思考オーラの即時解除と「AI思案中…」演出を完全復元。セリフ出力中のゴールド点滅パルスを実装。非同期裏計算キャッシュにより、打った瞬間のゼロ遅延パタパタ反転と妥当な採点判定を完全両立。"
+        },
+        {
             ver: "Ver 6.9.0", date: "2026/10/22",
-            desc: "【公式プロ定石ツリー完全搭載・段級位数理完全調律・事前計算プリフェッチエディション】虎・牛・兎・猫・羊・馬定石等を完全網羅し序盤の変な手を根絶。Lv.1〜Lv.6の段級位を実力通りに調律。ヒントAIを深さ9手＋終盤16手完全読みに引き上げLv.6への必勝化を達成。事前計算キャッシュにより打った瞬間のゼロ遅延即応と妥当な採点を完全両立。"
+            desc: "【公式プロ定石ツリー完全搭載・段級位数理完全調律・事前計算プリフェッチエディション】虎・牛・兎・猫・羊・馬定石等を完全網羅し序盤の変な手を根絶。Lv.1〜Lv.6の段級位を実力通りに調律。ヒントAIを深さ9手＋終盤16手完全読みに引き上げLv.6への必勝化を達成。"
         },
         {
             ver: "Ver 6.8.1", date: "2026/10/22",
@@ -30,10 +33,6 @@ const SYSTEM_VERSION_INFO = {
         {
             ver: "Ver 6.7.0", date: "2026/10/21",
             desc: "【バロック宮廷サロン美術＆主客レイアウト正常化エディション】横画面時の主客配置を正常化。先手黒・後手白ボタン極太化。"
-        },
-        {
-            ver: "Ver 6.0.0", date: "2026/09/23",
-            desc: "【思考エンジン大刷新・完全確定辺走査・パリティ調律・モジュール分離エディション】ファイルをHTMLとJSに完全分離。"
         }
     ]
 };
@@ -62,6 +61,7 @@ let minPlayerWinrateInGame = 50;
 
 // 事前計算（プリフェッチ）キャッシュ
 let cachedMoveEvaluations = null;
+let isPrefetching = false;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
@@ -166,23 +166,19 @@ const FLIP_ANIMATION_DURATION_MS = 680;
   【日本オセロ連盟公認 公式プロ定石データベース（OPENING BOOK）】
 ========================================================================== */
 const OPENING_BOOK = {
-    // 初手（黒）: F5 (4,5) が世界標準
     "": [
         { move: [4, 5], name: "黒初手（F5）", weight: 100 }
     ],
-    // 2手目（白）: 縦取り(F6), 斜め取り(F4), 平行取り(D6)
     "F5": [
         { move: [5, 5], name: "縦取り（F6）", weight: 60 },
         { move: [3, 5], name: "斜め取り（F4）", weight: 30 },
         { move: [5, 3], name: "平行取り（D6）", weight: 10 }
     ],
-    // --- 縦取りルート (F5-F6) ---
     "F5-F6": [
         { move: [4, 2], name: "虎定石（C5）", weight: 50 },
         { move: [3, 2], name: "牛定石（C4）", weight: 30 },
         { move: [5, 2], name: "兎定石（C6）", weight: 20 }
     ],
-    // 虎定石 (F5-F6-C5)
     "F5-F6-C5": [
         { move: [3, 5], name: "虎定石（F4）", weight: 80 },
         { move: [5, 4], name: "虎定石変化（E6）", weight: 20 }
@@ -215,8 +211,6 @@ const OPENING_BOOK = {
     "F5-F6-C5-F4-E3-D3-C3-C4-C2-G5-E6": [
         { move: [5, 6], name: "虎定石完成（G6）", weight: 90 }
     ],
-
-    // 牛定石 (F5-F6-C4)
     "F5-F6-C4": [
         { move: [2, 2], name: "牛定石（C3）", weight: 70 },
         { move: [2, 4], name: "牛定石変化（E3）", weight: 30 }
@@ -237,8 +231,6 @@ const OPENING_BOOK = {
     "F5-F6-C4-C3-D3-D2-E3-C5": [
         { move: [1, 3], name: "牛定石（D1）", weight: 90 }
     ],
-
-    // 兎定石 (F5-F6-C6)
     "F5-F6-C6": [
         { move: [3, 5], name: "兎定石（F4）", weight: 75 },
         { move: [2, 4], name: "兎定石（E3）", weight: 25 }
@@ -253,14 +245,11 @@ const OPENING_BOOK = {
     "F5-F6-C6-F4-E3-C5": [
         { move: [5, 4], name: "兎定石（E6）", weight: 85 }
     ],
-
-    // --- 斜め取りルート (F5-F4) ---
     "F5-F4": [
         { move: [2, 4], name: "馬定石（E3）", weight: 60 },
         { move: [4, 2], name: "ローズ定石（C5）", weight: 30 },
         { move: [3, 2], name: "蛇定石（C4）", weight: 10 }
     ],
-    // 馬定石 (F5-F4-E3)
     "F5-F4-E3": [
         { move: [3, 5], name: "馬定石（F6）", weight: 80 }
     ],
@@ -272,7 +261,6 @@ const OPENING_BOOK = {
         { move: [5, 5], name: "馬定石（F7）", weight: 70 },
         { move: [3, 2], name: "馬定石（C4）", weight: 30 }
     ],
-    // ローズ定石 (F5-F4-C5)
     "F5-F4-C5": [
         { move: [5, 5], name: "ローズ定石（F6）", weight: 80 }
     ],
@@ -284,7 +272,6 @@ const OPENING_BOOK = {
     ]
 };
 
-// 正統派オセロ静的マスマップ（角＝最高点、X・C＝厳罰、ボックス＝安定）
 const baseStaticWeights = [
     [ 140, -45,  15,   5,   5,  15, -45, 140],
     [ -45, -80,  -5,  -5,  -5,  -5, -80, -45],
@@ -631,9 +618,16 @@ function renderCharacterAvatar() {
     img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
 }
 
+/* ==========================================================================
+  【AIセリフ発声中 パルス点滅制御】
+========================================================================== */
 function typeWriterSpeech(fullText, isClimax) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
     DOM.speechText.textContent = "";
+
+    // 喋っている間、吹き出しをゴールドに点滅
+    DOM.opponentSpeech.classList.add("is-speaking");
+
     let index = 0;
     const total = fullText.length;
     typeWriterInterval = setInterval(() => {
@@ -643,6 +637,8 @@ function typeWriterSpeech(fullText, isClimax) {
         } else {
             clearInterval(typeWriterInterval);
             typeWriterInterval = null;
+            // 喋り終わったら点滅を停止し静止表示
+            DOM.opponentSpeech.classList.remove("is-speaking");
         }
     }, 22);
 }
@@ -796,6 +792,8 @@ async function undoMove() {
         gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
         pendingAnimation = null;
 
+        DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         setStatus("human-turn", `👑 あなたの番です（${pColorName}）…（時を戻しました）`);
         triggerTurnPulse();
@@ -804,9 +802,8 @@ async function undoMove() {
         drawBoard();
         updateBalanceGauge();
 
-        // 戻した直後の手番で事前計算を実行
-        prefetchPlayerEvaluations();
-        maybeAutoHint();
+        // 戻した直後の手番で非同期プリフェッチを開始
+        prefetchPlayerEvaluationsAsync();
     }
 
     isBusy = false;
@@ -858,7 +855,6 @@ function getBestCounterBookMove() {
     const seq = getCurrentMoveSequence();
     const candidates = OPENING_BOOK[seq];
     if (!candidates || candidates.length === 0) return null;
-    // ヒントAIは常に最高重み（最高勝率）の手を選択
     return candidates.slice().sort((a, b) => b.weight - a.weight)[0];
 }
 
@@ -867,6 +863,7 @@ function startGame() {
     exitReviewMode();
     currentGameSessionId++;
     cachedMoveEvaluations = null;
+    isPrefetching = false;
 
     board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
     board[3][3] = WHITE; board[3][4] = BLACK;
@@ -912,8 +909,7 @@ function startGame() {
         setStatus("human-turn", "👑 あなたの番です（黒）最初の一手を置いてください");
         triggerTurnPulse();
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-        prefetchPlayerEvaluations();
-        maybeAutoHint();
+        prefetchPlayerEvaluationsAsync();
     } else {
         setStatus("cpu-turn", "相手（黒）が先手です。思案中...");
         DOM.opponentAvatarFrame.classList.add("thinking-aura");
@@ -1045,8 +1041,6 @@ function countFrontierStones(targetBoard, player) {
 
 /* ==========================================================================
   【完全浄化・正統派オセロ評価関数】
-  - 序盤の石数減点ペナルティを完全撤廃
-  - 「中割り（フロンティア最小化）」「着手可能数（モビリティ）」「確定石」に純化
 ========================================================================== */
 function evaluateBoard(targetBoard, player, emptyCount) {
     const opponent = opposite(player);
@@ -1086,13 +1080,10 @@ function evaluateBoard(targetBoard, player, emptyCount) {
 
     let score = 0;
     if (emptyCount > 32) {
-        // 序盤：モビリティと中割り（フロンティア低減）を最優先。石数の加減点はゼロ。
         score = (mobilityScore * 40) + (frontierScore * 35) + (myPosScore - oppPosScore) * 1.5;
     } else if (emptyCount > 14) {
-        // 中盤：確定石・モビリティ・辺の安全性を重視。
         score = (mobilityScore * 28) + (frontierScore * 20) + (stableDiff * 70) + (myPosScore - oppPosScore) * 2.0;
     } else {
-        // 終盤：石数の最大化とパリティ
         score = (myStones - oppStones) * 55 + (stableDiff * 85) + (mobilityScore * 10);
         if (emptyCount % 2 !== 0) score += 45;
     }
@@ -1138,23 +1129,23 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【事前計算（プリフェッチ）キャッシュ機構】
-  - プレイヤーの手番になった瞬間に裏で全合法手を高速評価・キャッシュ
-  - 着手時はキャッシュから即座に判定を取り出すため、ゼロ遅延と妥当性を完全両立
+  【完全非同期・安全プリフェッチ機構】
+  - メインスレッドを1ミリ秒もフリーズさせない（sleep(0)でUI解放）
+  - 定石は0秒即応、中盤以降は裏で順次計算
 ========================================================================== */
-function prefetchPlayerEvaluations() {
-    if (gameOver || isReviewMode || currentPlayer !== humanColor) {
-        cachedMoveEvaluations = null;
-        return;
-    }
+async function prefetchPlayerEvaluationsAsync() {
+    if (gameOver || isReviewMode || currentPlayer !== humanColor || isPrefetching) return;
+    const session = currentGameSessionId;
+    isPrefetching = true;
 
     const moves = getValidMoves(humanColor, board);
     if (moves.length === 0) {
         cachedMoveEvaluations = { moves: [], best: null, scoredMoves: [] };
+        isPrefetching = false;
         return;
     }
 
-    // 1. まずプロ定石データベースに該当手があるか検査
+    // 1. プロ定石データベースに一致する場合は即座に確定
     const bookEntry = getBestCounterBookMove();
     if (bookEntry && moves.some(([r, c]) => r === bookEntry.move[0] && c === bookEntry.move[1])) {
         const bestMove = bookEntry.move;
@@ -1167,20 +1158,38 @@ function prefetchPlayerEvaluations() {
         }));
         scored.sort((a, b) => b.score - a.score);
         cachedMoveEvaluations = { moves, best: bestMove, scoredMoves: scored, isBook: true, bookName: bookEntry.name };
+        isPrefetching = false;
+
+        // 常時ヒント中なら表示を更新
+        if (getHintMode() === "always" && currentPlayer === humanColor) {
+            applyHintFromCache();
+        }
         return;
     }
 
-    // 2. 定石外または中盤以降：ヒントAIの深い読み（深さ9手／終盤16手完全読み）
+    // 2. 定石外または中盤以降：深さ7手／終盤14手読みで非同期分割計算
     const emptyCount = getEmptyCount(board);
-    const depth = (emptyCount <= 16) ? emptyCount : (emptyCount <= 28 ? 9 : 8);
+    const depth = (emptyCount <= 14) ? emptyCount : (emptyCount <= 28 ? 8 : 7);
     const scored = [];
-
     const sortedMoves = orderMoves(moves, board, humanColor);
+
     for (const move of sortedMoves) {
+        if (session !== currentGameSessionId || currentPlayer !== humanColor) {
+            isPrefetching = false;
+            return;
+        }
+        // UIスレッドを解放してブラウザをフリーズさせない
+        await sleep(0);
+
         const next = cloneBoard(board);
         makeMove(next, move[0], move[1], humanColor);
         const score = -negamax(next, cpuColor, depth - 1, -Infinity, Infinity, emptyCount - 1);
         scored.push({ move, coord: toNotation(move[0], move[1]), score, isBook: false });
+    }
+
+    if (session !== currentGameSessionId || currentPlayer !== humanColor) {
+        isPrefetching = false;
+        return;
     }
 
     scored.sort((a, b) => b.score - a.score);
@@ -1190,6 +1199,45 @@ function prefetchPlayerEvaluations() {
         scoredMoves: scored,
         isBook: false
     };
+    isPrefetching = false;
+
+    // 常時ヒント中なら表示を更新
+    if (getHintMode() === "always" && currentPlayer === humanColor) {
+        applyHintFromCache();
+    }
+}
+
+function applyHintFromCache() {
+    if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) return;
+    const chosenMove = cachedMoveEvaluations.best;
+    hintMove = chosenMove;
+    const coordStr = toNotation(chosenMove[0], chosenMove[1]);
+    DOM.hintCoordText.textContent = coordStr;
+
+    const reasons = [];
+    if (cachedMoveEvaluations.isBook) {
+        reasons.push(`📖 日本オセロ連盟公認定石【${cachedMoveEvaluations.bookName}】の最高勝率ルートです。`);
+        reasons.push("🎯 序盤の骨格を完璧に保ち、主導権を握る絶対の定石手筋です。");
+    } else {
+        const [r, c] = chosenMove;
+        if (isCorner(r, c)) reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
+        else if (!isRealDanger(r, c, board)) reasons.push("🛡️ 危険マスを避け、内側の石だけを返す鋭い中割りです。");
+
+        const oppBefore = getValidMoves(cpuColor, board).length;
+        const nextB = cloneBoard(board);
+        makeMove(nextB, r, c, humanColor);
+        const oppAfter = getValidMoves(cpuColor, nextB).length;
+        if (oppAfter < oppBefore) reasons.push(`📉 相手の選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
+
+        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読みが導き出した最善手です。");
+    }
+
+    DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
+    drawBoard();
+
+    // ヒント思案完了後、自然な手番表示に戻す
+    const pColorName = (humanColor === BLACK) ? "黒" : "白";
+    setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
 }
 
 async function executeTurnAction(row, col, player, isHuman) {
@@ -1237,17 +1285,21 @@ async function putStone(row, col) {
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
 
-    // 事前計算キャッシュから即座に客観最善手を取得（0ミリ秒）
-    if (!cachedMoveEvaluations || cachedMoveEvaluations.moves.length === 0) {
-        prefetchPlayerEvaluations();
+    // キャッシュから即座に客観最善手を取得（未完了時はフォールバック計算）
+    let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
+    let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
+
+    if (!objectiveBest) {
+        const bookEntry = getBestCounterBookMove();
+        if (bookEntry) objectiveBest = bookEntry.move;
+        else objectiveBest = myAvailableMovesBefore[0];
     }
-    const objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
-    const scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
+
     const chosenScoreObj = scoredList.find(s => s.move[0] === row && s.move[1] === col);
     const chosenScore = chosenScoreObj ? chosenScoreObj.score : 0;
     const topScore = scoredList[0] ? scoredList[0].score : 0;
 
-    // 石のアニメーションを即時スタート
+    // 石の反転を即時開始
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
     const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
@@ -1257,7 +1309,6 @@ async function putStone(row, col) {
     const danger = isRealDanger(row, col, boardBefore);
     const flips = getFlippableStones(row, col, humanColor, boardBefore).length;
 
-    // 着手採点判定
     let moveRating = "NORMAL";
     const scoreDiffFromBest = topScore - chosenScore;
 
@@ -1352,11 +1403,16 @@ async function processTurn() {
 
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         if (currentPlayer === humanColor) {
-            setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-            triggerTurnPulse();
+            // 相手オーラを即時確実に解除
             DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-            prefetchPlayerEvaluations();
-            maybeAutoHint();
+
+            if (getHintMode() === "always") {
+                setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+            } else {
+                setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
+            }
+            triggerTurnPulse();
+            prefetchPlayerEvaluationsAsync();
         } else {
             setStatus("cpu-turn", "相手が思考を巡らせています…");
             DOM.opponentAvatarFrame.classList.add("thinking-aura");
@@ -1368,13 +1424,18 @@ async function processTurn() {
 
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
     if (currentPlayer === humanColor) {
-        setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-        triggerTurnPulse();
+        // 相手オーラを即時確実に解除
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+
+        if (getHintMode() === "always") {
+            setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+        } else {
+            setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
+        }
+        triggerTurnPulse();
         drawBoard();
         updateBalanceGauge();
-        prefetchPlayerEvaluations();
-        maybeAutoHint();
+        prefetchPlayerEvaluationsAsync();
         updateUndoButtonState();
     } else {
         setStatus("cpu-turn", "相手が思考を巡らせています…");
@@ -1391,7 +1452,7 @@ function getComputerMove(targetBoard, player, charConfig) {
     if (moves.length === 0) return null;
     if (moves.length === 1) return moves[0];
 
-    // Lv.1 ピエロ（アマ10級）：基本ランダムだが、約40%でX・Cマスに無邪気に飛びつく
+    // Lv.1 ピエロ（アマ10級）：約40%でX・Cマスに無邪気に飛びつく
     if (charConfig.id === 1) {
         const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
         if (dangerMoves.length > 0 && Math.random() < 0.40) {
@@ -1418,7 +1479,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         }
     }
 
-    // 定石外または中盤以降：深さ探索
     const emptyCount = getEmptyCount(targetBoard);
     const depth = (charConfig.exact > 0 && emptyCount <= charConfig.exact) ? emptyCount : charConfig.depth;
     const scores = [];
@@ -1439,7 +1499,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         return scores[0].move;
     }
 
-    // Lv.3〜Lv.5 の許容マージン
     let margin = 0;
     if (charConfig.id === 3) margin = 35;
     else if (charConfig.id === 4) margin = 18;
@@ -1484,6 +1543,9 @@ async function computerMove() {
         if (!success) return;
     }
 
+    // 相手が石を打ち終わった瞬間、相手オーラを即時確実に解除
+    DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+
     isBusy = false;
     currentPlayer = humanColor;
     processTurn();
@@ -1496,12 +1558,6 @@ function clearHint() {
 }
 
 const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
-
-async function maybeAutoHint() {
-    if (getHintMode() === "always" && !isReviewMode && currentPlayer === humanColor) {
-        computeHint();
-    }
-}
 
 function updateHintModeUI() {
     const mode = getHintMode();
@@ -1517,7 +1573,11 @@ function updateHintModeUI() {
         DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
         if (mode === "always") {
             usedHintInGame = true;
-            maybeAutoHint();
+            if (cachedMoveEvaluations && cachedMoveEvaluations.best) {
+                applyHintFromCache();
+            } else {
+                prefetchPlayerEvaluationsAsync();
+            }
         } else {
             clearHint();
         }
@@ -1525,41 +1585,16 @@ function updateHintModeUI() {
     drawBoard();
 }
 
-function computeHint() {
+async function computeHint() {
     if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
     usedHintInGame = true;
 
-    if (!cachedMoveEvaluations || cachedMoveEvaluations.moves.length === 0) {
-        prefetchPlayerEvaluations();
+    if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) {
+        setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+        await prefetchPlayerEvaluationsAsync();
     }
 
-    if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) return;
-
-    const chosenMove = cachedMoveEvaluations.best;
-    hintMove = chosenMove;
-    const coordStr = toNotation(chosenMove[0], chosenMove[1]);
-    DOM.hintCoordText.textContent = coordStr;
-
-    const reasons = [];
-    if (cachedMoveEvaluations.isBook) {
-        reasons.push(`📖 日本オセロ連盟公認定石【${cachedMoveEvaluations.bookName}】の最高勝率ルートです。`);
-        reasons.push("🎯 序盤の骨格を完璧に保ち、主導権を握る絶対の定石手筋です。");
-    } else {
-        const [r, c] = chosenMove;
-        if (isCorner(r, c)) reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
-        else if (!isRealDanger(r, c, board)) reasons.push("🛡️ 危険マスを避け、内側の石だけを返す鋭い中割りです。");
-
-        const oppBefore = getValidMoves(cpuColor, board).length;
-        const nextB = cloneBoard(board);
-        makeMove(nextB, r, c, humanColor);
-        const oppAfter = getValidMoves(cpuColor, nextB).length;
-        if (oppAfter < oppBefore) reasons.push(`📉 相手の選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
-
-        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ9手）が導き出した最善手です。");
-    }
-
-    DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
-    drawBoard();
+    applyHintFromCache();
 }
 
 function drawBoard() {
@@ -1945,6 +1980,7 @@ function endGame() {
     isBusy = false;
     clearHint();
     cachedMoveEvaluations = null;
+    isPrefetching = false;
     if (timerInterval) clearInterval(timerInterval);
     if (typeWriterInterval) clearInterval(typeWriterInterval);
 

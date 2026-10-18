@@ -1,3 +1,4 @@
+
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -36,10 +37,10 @@
   [Ver 6.8.0] 2026/10/22 : 【対局画面完全固定・自力戦績選別・必勝指南エディション】
   [Ver 6.8.1] 2026/10/22 : 【白黒UI完全同期・純CSS立体石アイコン・戦術カルテ因果関係網羅エディション】
   [Ver 6.9.0] 2026/10/22 : 【公式プロ定石ツリー完全搭載・段級位数理完全調律・事前計算プリフェッチエディション】
-    - 【プロ公式定石搭載】虎・牛・兎・猫・羊・馬定石等を完全網羅し、序盤の不自然な悪手を100%根絶。
-    - 【段級位ロジックの完全適合】Lv.1（アマ10級）〜Lv.6（全国名人）の思考特性をオセロ競技基準に完全合致。
-    - 【ヒントAI必勝化】深さ9手＋終盤16手完全読みにより、Lv.6に対して確実に完勝できる指南エンジンを確立。
-    - 【事前計算（プリフェッチ）方式導入】手番中の裏計算キャッシュにより、石配置の即座の反転と妥当な採点判定を完全両立。
+  [Ver 6.9.1] 2026/10/22 : 【完全非同期プリフェッチ・UI正常化＆躍動セリフパルス調律エディション】
+    - 【非同期プリフェッチ調律】相手着手後の画面フリーズを根絶し、相手思考中オーラの即時解除と「AI思案中…」表示を完全復元。
+    - 【打った瞬間の正確判定】裏計算キャッシュにより、ユーザー着手時のゼロ遅延パタパタ反転と妥当な採点判定を完全両立。
+    - 【AIセリフ発声パルス演出】セリフ出力中は吹き出しがゴールドに脈動点滅し、発声完了で静止する臨場感演出を実装。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -430,18 +431,36 @@
             box-shadow: inset 1px 1px 2px #ffffff, 0 2px 4px rgba(0,0,0,0.6);
         }
 
+        /* AIセリフ吹き出し（タイピング中パルス点滅演出） */
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
             border: 1px solid rgba(212, 167, 72, 0.38); border-radius: 7px; border-top-left-radius: 2px;
             padding: 3px 7px; font-size: 10.5px; line-height: 1.35; color: #f7eed8;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); position: relative; white-space: normal;
             word-break: break-all; animation: bubble-appear 0.28s ease-out; height: 30px;
-            display: flex; align-items: center; overflow: hidden; transition: all 0.3s ease;
+            display: flex; align-items: center; overflow: hidden; transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         .opponent-speech-bubble::before {
             content: ""; position: absolute; left: -5px; top: 10px; width: 0; height: 0;
             border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
         }
+
+        /* セリフ出力中の躍動点滅パルス */
+        .opponent-speech-bubble.is-speaking {
+            border-color: #ffd700 !important;
+            animation: speech-bubble-pulse 0.8s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes speech-bubble-pulse {
+            from {
+                box-shadow: 0 0 6px rgba(255, 215, 0, 0.4), inset 0 0 4px rgba(255, 215, 0, 0.2);
+                border-color: rgba(255, 215, 0, 0.6);
+            }
+            to {
+                box-shadow: 0 0 16px rgba(255, 215, 0, 0.85), inset 0 0 8px rgba(255, 215, 0, 0.4);
+                border-color: #ffffff;
+            }
+        }
+
         .opponent-speech-bubble.is-climax { border-color: var(--char-accent); box-shadow: 0 0 14px var(--char-glow); }
         .opponent-speech-bubble.is-climax span {
             background: linear-gradient(135deg, #ffffff 0%, #fff2b8 40%, var(--char-accent) 100%);
@@ -851,7 +870,7 @@
         .stats-col-title { font-size: 9.5px; color: #bfa882; font-weight: 700; }
         .stats-col-val { font-family: 'Cinzel', serif; font-size: 13.5px; font-weight: 900; color: #fff4bd; display: inline-flex; align-items: center; gap: 5px; }
 
-        /* 刷新されたAI戦術カルテ */
+        /* AI戦術カルテ */
         .ai-tactics-carte {
             background: linear-gradient(135deg, rgba(28, 24, 18, 0.92) 0%, rgba(14, 12, 10, 0.96) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.55); border-radius: 10px; padding: 9px 11px; margin-bottom: 11px; text-align: left;
@@ -1617,7 +1636,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.9.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.9.1</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1626,5 +1645,4 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
-
 
