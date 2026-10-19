@@ -16,7 +16,7 @@
 const BLACK = 1, WHITE = 2;
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 8.6.0",
+    version: "Ver 8.6.2",
     date: "2026/10/20",
     history: [
         {

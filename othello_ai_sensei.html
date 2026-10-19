@@ -1,0 +1,730 @@
+
+<!-- ==========================================================================
+  【オセロプログラム メインHTML構造】
+  ファイル名: othello_ai_sensei.html
+  バージョン: Ver 8.6.0 (2026/10/20)
+  
+  [Ver 8.6.0] 2026/10/20 更新内容:
+  - 【プレイヤー即時着手・宮廷思案所全面体系化＆豪傑名鑑エディション】
+  - 天秤ゲージのプレイヤー石・相手石を立体ミニ石コンポーネント化し、反転バグを根絶。
+  - 対戦相手ゾーンから不要ボタンを撤去し、スマホ画面でのセリフ欠けを完全解消。
+  - 「思案中バッジ」をアバター足元の中央へ移設。
+  - 宮廷思案所を「操作体系」「序中終盤の心得」「五大奥義」「豪傑画像名鑑」「用語宝典」の5大体系へ全面刷新。
+========================================================================== -->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Othello 2026 AI先生 - Royal Dynasty Edition</title>
+
+    <!-- 高品位フォント：Cinzel ＋ しっぽり明朝 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Cinzel+Decorative:wght@700;900&family=Shippori+Mincho:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- 外部スタイルシート（完全独立） -->
+    <link rel="stylesheet" href="othello_ai_sensei_css.css">
+</head>
+
+<body class="stage-theme-1">
+
+    <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
+
+    <!-- ミニ解説ポップアップコンテナ -->
+    <div id="termPopup" class="term-popup" style="display: none;">
+        <div class="term-popup-header">
+            <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
+            <span class="term-popup-close" id="termPopupClose">✕</span>
+        </div>
+        <div class="term-popup-body" id="termPopupBody">解説テキスト</div>
+        <div class="term-popup-actions">
+            <button type="button" class="term-popup-drill-btn" id="termPopupDrillBtn">検定で特訓 🎯</button>
+            <span class="term-popup-more" id="termPopupMore">思案所宝典へ ➔</span>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-left-space"></div>
+        <div class="header-title-wrap">
+            <h1 class="main-header-title">Othello 2026 AI先生</h1>
+            <span class="header-subtitle">Royal Dynasty</span>
+        </div>
+        <div class="header-actions">
+            <button id="archiveOpenBtn" class="header-btn" type="button" aria-label="戦績録を開く">
+                <span>📜</span>
+                <span>戦績</span>
+            </button>
+            <button id="fullscreenBtn" class="header-btn" type="button" aria-label="全画面切替">
+                <span id="fsIcon">⛶</span>
+                <span id="fsText">全画面</span>
+            </button>
+            <button id="soundToggleBtn" class="header-btn" type="button" aria-label="音声切替">
+                <span id="soundIcon">🔔</span>
+                <span id="soundText">ON</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆2行セリフ対応＆アバタータップ人物伝） -->
+        <div class="opponent-zone" id="opponentZone">
+            <div class="opponent-avatar-wrap" id="opponentAvatarWrap" title="肖像画をタップして人物伝・攻略指南を見る">
+                <div class="voice-wave-ring wave-1"></div>
+                <div class="voice-wave-ring wave-2"></div>
+                <div class="opponent-avatar-frame" id="opponentAvatarFrame">
+                    <div class="avatar-img-box" id="avatarImgBox"></div>
+                </div>
+                <div class="opponent-rank-badge" id="opponentRankBadge">Lv.1</div>
+                <div class="opponent-thinking-badge" id="opponentThinkingBadge">⏱️ 思案中...</div>
+            </div>
+
+            <div class="opponent-info-wrap">
+                <div class="opponent-header-row">
+                    <div class="opponent-name-group">
+                        <span class="opponent-name" id="opponentName">道化師 ピエロ</span>
+                        <span class="opponent-title" id="opponentTitle">【入門・アマ12級】</span>
+                    </div>
+                    <div class="opponent-stats-group">
+                        <span class="opponent-timer" id="opponentTime" title="相手の総消費思考時間">⏱️ 00:00</span>
+                        <div class="opponent-score-badge">
+                            <div class="mini-piece-stone piece-white" id="opponentPieceIcon"></div>
+                            <span id="opponentScore">2</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="stage-material-badge" id="stageMaterialBadge">
+                    🏛️ <span id="badgeSalonName">旅の酒場</span> / <span id="badgeMaterial">黒檀 × 白木</span>
+                </div>
+                <div class="opponent-speech-bubble" id="opponentSpeech">
+                    <span id="speechText">ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ゾーン②：盤面ゾーン -->
+        <div class="board-zone">
+            <!-- 天秤ゲージ（立体ミニ石コンポーネント化により白黒反転バグ根絶） -->
+            <div class="battle-gauge-container gauge-player-black" id="battleGaugeContainer">
+                <div class="battle-gauge-header">
+                    <span id="battleStatPlayer" class="battle-stat-tag">
+                        <div class="mini-piece-stone piece-black" id="battlePiecePlayer"></div>
+                        <span id="battleStatPlayerText">あなた 50%</span>
+                    </span>
+                    <span class="battle-badge" id="battleSituationBadge">⚖️ 運命の天秤：互角</span>
+                    <span id="battleStatOpponent" class="battle-stat-tag">
+                        <span id="battleStatOpponentText">50% ピエロ</span>
+                        <div class="mini-piece-stone piece-white" id="battlePieceOpponent"></div>
+                    </span>
+                </div>
+                <div class="battle-track">
+                    <div class="battle-center-mark"></div>
+                    <div class="battle-power-player" id="battlePowerPlayer" style="width: 50%;"></div>
+                    <div class="battle-power-opponent" id="battlePowerOpponent"></div>
+                    <div class="battle-clash-spark" id="battleClashSpark" style="left: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="dynasty-board-chassis" id="boardChassis">
+                <div class="corner-ornament corner-tl"></div>
+                <div class="corner-ornament corner-tr"></div>
+                <div class="corner-ornament corner-bl"></div>
+                <div class="corner-ornament corner-br"></div>
+                <div id="moveToast" class="move-toast"></div>
+                
+                <div class="stage-curtain-banner" id="stageCurtainBanner">
+                    <div class="banner-stage-label" id="curtainStageLabel">STAGE 1</div>
+                    <div class="banner-salon-title" id="curtainSalonTitle">旅の一座の酒場</div>
+                    <div class="banner-relic-sub" id="curtainRelicSub">盤面：オリーブ木目卓 / 石：年輪黒檀 × 白木メイプル</div>
+                </div>
+
+                <div id="board">
+                    <div class="board-star-dot star-c3"></div>
+                    <div class="board-star-dot star-f3"></div>
+                    <div class="board-star-dot star-c6"></div>
+                    <div class="board-star-dot star-f6"></div>
+                </div>
+            </div>
+
+            <!-- 📖 盤面動的ビジュアル講義コントロールカード（盤面位置完全固定） -->
+            <div class="lecture-control-card" id="lectureControlCard">
+                <div class="lecture-header-nav">
+                    <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
+                    <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 2</span>
+                </div>
+                <div class="lecture-body-box">
+                    <div class="lecture-title-text" id="lectureTitleText">⚠️ 講義：Xマスの罠と角防衛のメカニズム</div>
+                    <div class="lecture-desc-text" id="lectureDescText">盤面上で角の斜め前（B2）に打ってしまうと何が起きるか、実演を見てみましょう。</div>
+                    <div class="lecture-explain-box" id="lectureExplainBox" style="display:none;"></div>
+                </div>
+                <div class="lecture-actions-bar">
+                    <button type="button" class="lecture-btn-action btn-lecture-play" id="btnLecturePlay" onclick="playCurrentLectureStep()">▶ 実演を再生</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-reset" id="btnLectureReset" onclick="resetCurrentLecture()">↺ 最初から</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-to-drill" id="btnLectureToDrill" onclick="proceedToDrillFromLecture()">🎯 この奥義の検定を解く ▶</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-exit" id="btnLectureExit" onclick="exitLectureMode()">✕ 講義を終了</button>
+                </div>
+            </div>
+
+            <!-- 🎯 宮廷次の一手検定：盤面解答カード -->
+            <div class="drill-control-card" id="drillControlCard">
+                <div class="drill-header-nav">
+                    <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
+                    <div class="drill-diff-badge" id="drillDiffBadge">初級・アマ10級</div>
+                </div>
+
+                <div class="drill-question-box">
+                    <div id="drillQuestionText">Q. 白に角（A1）を献上しない、安全な内側のマスを選んでください（盤面タップ）。</div>
+                    <div class="drill-question-sub" id="drillQuestionSub">手番：あなたの黒番（⚫）</div>
+                </div>
+
+                <div class="drill-feedback-box" id="drillFeedbackBox">
+                    <div id="drillFeedbackTitle" style="font-weight:900; margin-bottom:3px; color:#ffd700;">正解！🎉 完璧な着手理由です！</div>
+                    <div id="drillFeedbackReason">解説文が入ります</div>
+                </div>
+
+                <div class="drill-actions-bar">
+                    <button type="button" class="drill-btn-action drill-btn-retry" id="btnDrillRetry" onclick="resetCurrentDrill()">もう一度やり直す ↺</button>
+                    <button type="button" class="drill-btn-action drill-btn-lecture" id="btnDrillBackToLecture" onclick="returnToLectureFromDrill()">📖 盤面講義を見る</button>
+                    <button type="button" class="drill-btn-action drill-btn-next-question" id="btnDrillNextQuestion" onclick="advanceNextDrillQuestion()">次の問題へ進む ▶</button>
+                    <button type="button" class="drill-btn-action drill-btn-list" id="btnDrillList" onclick="openDrillCourseModal()">検定コース一覧 📋</button>
+                    <button type="button" class="drill-btn-action drill-btn-exit" id="btnDrillExit" onclick="exitDrillMode()">対局に戻る ✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ゾーン③：操作ゾーン -->
+        <div class="player-control-zone">
+            <div class="royal-card" id="normalControlCard">
+                <div class="player-status-banner">
+                    <div id="status" class="status-human-turn">👑 あなたの番です（黒）最初の一手を置いてください</div>
+                </div>
+
+                <div class="player-sub-row">
+                    <div class="player-stats-group">
+                        <div class="player-score-badge">
+                            <div class="mini-piece-stone piece-black" id="playerPieceIcon"></div>
+                            <span id="playerScore">2</span>
+                        </div>
+                        <span class="player-timer" id="playerTime">⏱️ 00:00</span>
+                    </div>
+                    <div class="color-selector">
+                        <button type="button" class="color-btn active" id="btnPlayerBlack">先手(黒)</button>
+                        <button type="button" class="color-btn" id="btnPlayerWhite">後手(白)</button>
+                    </div>
+                </div>
+
+                <div class="action-grid-row1">
+                    <select id="characterSelect" aria-label="対戦相手の選択">
+                        <option value="1" selected>Lv.1 ピエロ 【入門・アマ12級】</option>
+                        <option value="2">Lv.2 コレット 【初級入門・アマ9級】</option>
+                        <option value="3">Lv.3 ルカ 【初級・アマ7級】</option>
+                        <option value="4">Lv.4 ニコラ 【初中級・アマ4級】</option>
+                        <option value="5">Lv.5 ローラン 【中級・アマ2級】</option>
+                        <option value="6">Lv.6 ジュリアン 【中上級・アマ1級】</option>
+                        <option value="7">Lv.7 エリザベート 【上級・アマ初段】</option>
+                        <option value="8">Lv.8 フェルディナント 【強豪有段・アマ三段】</option>
+                        <option value="9">Lv.9 ヴォルフガング 【宮廷最強・アマ五段】</option>
+                        <option value="10">Lv.10 オルレアン 【神域・全国名人】</option>
+                    </select>
+
+                    <select id="hintMode" aria-label="学習モード">
+                        <option value="manual" selected>手動ヒント＋採点</option>
+                        <option value="always">常時ヒント＋採点</option>
+                        <option value="off">完全OFF(真剣勝負)</option>
+                    </select>
+                </div>
+
+                <div class="action-grid-row2">
+                    <button id="undoButton" class="btn-royal" type="button">⚜️ 待った</button>
+                    <button id="restartButton" class="btn-royal" type="button">👑 新対局</button>
+                    <button id="btnOpenDrillMain" class="btn-royal" type="button" onclick="openDrillCourseModal()">🎯 検定</button>
+                    <button id="guideButton" class="btn-royal" type="button">📜 思案所</button>
+                    <button id="hintButton" class="btn-royal" type="button">💡 ヒント</button>
+                </div>
+
+                <div class="hint-fixed-display" id="hintFixedDisplay">
+                    <div class="hint-fixed-header">
+                        <div class="hint-badge-tag" id="hintBadgeTag">💡【宮廷AI指南・最善手】</div>
+                        <div class="hint-target-coord" id="hintCoordText">--</div>
+                    </div>
+                    <div class="hint-elegant-gold-text" id="hintBodyText">
+                        <div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 棋譜検証パネル -->
+            <div class="review-mode-panel" id="reviewModePanel">
+                <div class="review-header-row">
+                    <div class="review-step-label">🔍【棋譜検証モード】</div>
+                    <div class="review-turn-info" id="reviewTurnInfo">第 0 手 / 全 0 手</div>
+                </div>
+                <div class="review-context-box" id="reviewContextBox">
+                    一手ずつ手筋を振り返り、前後の因果関係と正解手を検証できます。
+                </div>
+                <div class="review-controls-row1">
+                    <button type="button" class="btn-review-nav" id="btnReviewPrev">◀ 1手前（Before）</button>
+                    <button type="button" class="btn-review-nav" id="btnReviewNext">次の一手（After） ▶</button>
+                </div>
+                <div class="review-controls-row2">
+                    <button type="button" class="btn-review-nav btn-jump-best" id="btnJumpGood">🎯 分岐点へ</button>
+                    <button type="button" class="btn-review-nav btn-jump-bad" id="btnJumpBad">⚠️ 悪手へ</button>
+                    <button type="button" class="btn-review-nav btn-review-exit" id="btnReviewExit">👑 会見へ戻る</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 📜 豪傑人物伝・攻略指南モーダル（アバタータップで展開） -->
+    <div id="charProfileModal" class="royal-result-modal">
+        <div class="royal-result-card" style="max-width: 480px;">
+            <div class="guide-header">
+                <h2 id="profileCharNameHeader">道化師 ピエロ 人物伝</h2>
+                <button type="button" class="modal-close-btn" onclick="closeCharProfileModal()">✕</button>
+            </div>
+            <div class="profile-modal-body">
+                <div class="profile-avatar-row">
+                    <div class="profile-avatar-frame" id="profileAvatarBox"></div>
+                    <div class="profile-header-info">
+                        <div class="profile-title-badge" id="profileTitleBadge">【入門・アマ12級】宮廷道化師</div>
+                        <div class="profile-salon-badge" id="profileSalonBadge">🏛️ 旅の一座の酒場</div>
+                        <div class="profile-material-badge" id="profileMaterialBadge">石：年輪黒檀 × 白木メイプル</div>
+                    </div>
+                </div>
+                <div class="profile-card-section">
+                    <div class="profile-section-title">👑【人物伝・生い立ち】</div>
+                    <div class="profile-section-text" id="profileBioText">人物伝テキスト</div>
+                </div>
+                <div class="profile-card-section tactics-highlight">
+                    <div class="profile-section-title">⚔️【棋風と攻略の指南】</div>
+                    <div class="profile-section-text" id="profileTacticsText">攻略法テキスト</div>
+                </div>
+            </div>
+            <div class="result-actions" style="margin-top: 10px;">
+                <button type="button" class="result-btn-gold" onclick="closeCharProfileModal()">盤面に戻る ✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📋 宮廷検定コース一覧モーダル（五大奥義カテゴリー階層フレーム） -->
+    <div id="drillCourseModal" class="dynasty-overlay">
+        <div class="dynasty-modal">
+            <div class="guide-header">
+                <h2>🎯 宮廷オセロアカデミー（講義 ＆ 五大奥義検定）</h2>
+                <button type="button" class="modal-close-btn" onclick="closeDrillCourseModal()">✕</button>
+            </div>
+            <div style="font-size:11px; color:#ecd08c; margin-bottom:8px; line-height:1.5;">
+                初心者が確実に上達できるよう、まずは<b>【📖 盤面講義】</b>で石の動きと理由を目で見て理解し、その後に<b>【🎯 検定問題（基本・反転・応用）】</b>で実戦力をチェックする二段階教育体系です。
+            </div>
+            <div class="drill-course-list" id="drillCourseList"></div>
+        </div>
+    </div>
+
+    <!-- 🏆 免許皆伝・合格証モーダル -->
+    <div id="drillCertificateModal" class="royal-result-modal">
+        <div class="royal-result-card">
+            <div class="cert-border-box">
+                <div class="cert-header-title">🏆 免許皆伝・合格之証</div>
+                <div class="cert-seal-badge">👑 宮廷オセロ検定 最高位初段</div>
+                <p class="cert-body-text">
+                    貴殿は宮廷が誇る五大奥義<br>
+                    <b>【Xマスの防衛・壁の回避・至高の中割り・ウイング破り・パリティの独占】</b><br>
+                    の全15問に及ぶ類題検定を見事完全制覇し、オセロの真髄を完全に体得したことをここに証します。
+                </p>
+                <div style="font-size:10px; color:#ffd700; font-weight:800; margin-top:6px;">
+                    この知謀をもってすれば、神域たるLv.10老賢王オルレアンをも必ずや打ち破れましょう！
+                </div>
+            </div>
+            <div class="result-actions">
+                <button type="button" class="result-btn-gold" onclick="closeCertificateAndChallengeKing()">
+                    👑 神域の老賢王オルレアン（Lv.10）に真剣勝負を挑む！
+                </button>
+                <button type="button" class="result-btn-dark" onclick="closeCertificateModal()">
+                    対局盤面に戻る ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 👑 王宮戦後会見モーダル -->
+    <div id="royalResultModal" class="royal-result-modal">
+        <div class="royal-result-card">
+            <div class="result-main-title" id="resultMainTitle">👑 完全勝利 (VICTORY)</div>
+
+            <div class="result-avatar-container">
+                <div class="opponent-status-tag tag-opponent-surrendered" id="opponentStatusTag">
+                    【対戦相手】道化師 ピエロ（降参・完敗）
+                </div>
+                <div class="result-avatar-frame" id="resultAvatarFrame"></div>
+                <div class="result-char-name-badge" id="resultCharNameBadge">道化師 ピエロ 【入門・アマ12級】</div>
+            </div>
+
+            <div class="result-quote-card" id="resultQuoteBox">
+                「参った参った〜！ さすが貴方様、完敗でゴザイマス！」
+            </div>
+
+            <div class="result-stats-card">
+                <div class="stats-col">
+                    <span class="stats-col-title">最終盤面制圧</span>
+                    <span class="stats-col-val" id="resultStonesDetail">⚫ 42 vs 22 ⚪</span>
+                </div>
+                <div class="stats-col">
+                    <span class="stats-col-title">費やした思考時間</span>
+                    <span class="stats-col-val" id="resultTimesDetail">01:24 / 00:48</span>
+                </div>
+            </div>
+
+            <!-- 📜 AI戦局総括ストーリータイムライン -->
+            <div class="ai-tactics-carte">
+                <div class="carte-header">
+                    <span>📜 宮廷AI戦局総括（一局の航跡・ストーリー）</span>
+                </div>
+                
+                <div class="carte-hint-advice" id="carteHintAdvice" style="display:none;"></div>
+
+                <div id="carteStoryTimeline" class="carte-story-timeline"></div>
+            </div>
+
+            <div class="result-actions">
+                <div class="result-main-btn-row">
+                    <button type="button" class="result-btn-gold" id="btnResultAdvance" style="flex:1;">
+                        <span id="btnAdvanceIcon">⚔️</span>
+                        <span id="btnAdvanceText">次の強敵へ挑む</span>
+                    </button>
+                </div>
+                <button type="button" class="result-btn-dark" id="btnStartReview">🔍 盤面をじっくり検証する（棋譜再生）</button>
+                <button type="button" class="result-btn-dark" id="btnResultArchive" style="border-color:#ffd700; color:#fff4bd;">📜 王宮戦績録を開く（成績一覧）</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 👑 栄光の戴冠式モーダル -->
+    <div id="endingModal" class="royal-result-modal">
+        <div class="royal-result-card">
+            <div class="ending-hero-title">🏆 GRAND TRIUMPH</div>
+            <div style="font-size:13px; font-weight:800; color:#ffd700; margin-bottom:4px;">全宮廷10大豪傑制覇・栄光の戴冠式</div>
+            <p style="font-size:11px; color:#e0d3bc; line-height:1.5; margin-bottom:8px;">
+                AIの指南に一切頼ることなく、己の知謀のみで至高の老賢王オルレアンをも打ち破り、貴方様は王国の頂点たる「真のオセロ覇王」へと戴冠いたしました！
+            </p>
+
+            <div class="ending-tribute-grid">
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char1.png" alt="ピエロ" onerror="this.src='';this.parentElement.textContent='🃏'"></div>
+                    <div class="tribute-name">ピエロ</div>
+                    <div class="tribute-msg">「本物の天才でゴザイマス！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char2.png" alt="コレット" onerror="this.src='';this.parentElement.textContent='🎀'"></div>
+                    <div class="tribute-name">コレット</div>
+                    <div class="tribute-msg">「お城の歴史に残りますっ！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char7.png" alt="ルカ" onerror="this.src='';this.parentElement.textContent='🌱'"></div>
+                    <div class="tribute-name">ルカ</div>
+                    <div class="tribute-msg">「最高の薔薇を捧げます！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';this.parentElement.textContent='🔮'"></div>
+                    <div class="tribute-name">ニコラ</div>
+                    <div class="tribute-msg">「完全無欠の知の極致です！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char3.png" alt="ローラン" onerror="this.src='';this.parentElement.textContent='⚔️'"></div>
+                    <div class="tribute-name">ローラン</div>
+                    <div class="tribute-msg">「我が剣を捧げよう！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char9.png" alt="ジュリアン" onerror="this.src='';this.parentElement.textContent='🪕'"></div>
+                    <div class="tribute-name">ジュリアン</div>
+                    <div class="tribute-msg">「覇王の詩を歌い継ぎます。」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
+                    <div class="tribute-name">エリザベート</div>
+                    <div class="tribute-msg">「今宵は貴方様の宴ですわ。」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char10.png" alt="フェルディナント" onerror="this.src='';this.parentElement.textContent='🛡️'"></div>
+                    <div class="tribute-name">フェルディナント</div>
+                    <div class="tribute-msg">「王国全軍、貴殿に従おう！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char5.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
+                    <div class="tribute-name">ヴォルフガング</div>
+                    <div class="tribute-msg">「冷徹な知略の極み、敬服す。」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
+                    <div class="tribute-name">オルレアン</div>
+                    <div class="tribute-msg">「余の玉座を託そうぞ！」</div>
+                </div>
+            </div>
+
+            <button type="button" class="result-btn-gold" id="btnRestartFromBeginning" style="width:100%;">
+                👑 王国を巡る新たな旅へ（Lv.1 ピエロから凱旋対局）
+            </button>
+        </div>
+    </div>
+
+    <!-- 📜 王宮戦績録モーダル -->
+    <div id="archiveOverlay" class="dynasty-overlay">
+        <div id="archiveModal" class="dynasty-modal">
+            <div class="guide-header">
+                <h2>📜 王宮戦績録（Dynasty Archives）</h2>
+                <button id="archiveCloseButton" class="modal-close-btn" type="button">✕</button>
+            </div>
+
+            <div class="archive-summary-container">
+                <div class="archive-stats-row">
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">通算戦績（自力勝率）</span>
+                        <span class="archive-stat-val" id="archStatWinrate">0戦 0%</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">勝 - 敗 - 分</span>
+                        <span class="archive-stat-val" id="archStatWld">0-0-0</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">現在 / 最高連勝</span>
+                        <span class="archive-stat-val" id="archStatStreak">0 / 0連勝</span>
+                    </div>
+                    <div class="archive-stat-box">
+                        <span class="archive-stat-lbl">平均最善手率</span>
+                        <span class="archive-stat-val" id="archStatBestRate">0.0%</span>
+                    </div>
+                </div>
+
+                <div style="font-size:10px; font-weight:800; color:#ffd700; margin-top:2px;">
+                    ⚔️ 10大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
+                </div>
+                <div class="archive-crown-grid" id="archiveCrownGrid"></div>
+            </div>
+
+            <div class="archive-toolbar">
+                <div class="archive-toolbar-row1">
+                    <select id="archFilterOpponent" aria-label="対戦相手フィルター">
+                        <option value="all">全対戦相手</option>
+                        <option value="1">Lv.1 ピエロ</option>
+                        <option value="2">Lv.2 コレット</option>
+                        <option value="3">Lv.3 ルカ</option>
+                        <option value="4">Lv.4 ニコラ</option>
+                        <option value="5">Lv.5 ローラン</option>
+                        <option value="6">Lv.6 ジュリアン</option>
+                        <option value="7">Lv.7 エリザベート</option>
+                        <option value="8">Lv.8 フェルディナント</option>
+                        <option value="9">Lv.9 ヴォルフガング</option>
+                        <option value="10">Lv.10 オルレアン</option>
+                    </select>
+
+                    <select id="archFilterMode" aria-label="形式フィルター">
+                        <option value="all">全挑戦形式</option>
+                        <option value="genuine">⚔️ 真剣勝負のみ</option>
+                        <option value="hinted">💡 指南受講のみ</option>
+                    </select>
+                </div>
+
+                <div class="archive-toolbar-row2">
+                    <div class="archive-toolbar-row2-left">
+                        <select id="archFilterResult" aria-label="結果フィルター">
+                            <option value="all">全勝敗</option>
+                            <option value="win">👑 勝利のみ</option>
+                            <option value="lose">🥀 敗北のみ</option>
+                        </select>
+
+                        <select id="archSortOrder" aria-label="ソート順">
+                            <option value="date-desc">日時：新しい順 ▼</option>
+                            <option value="date-asc">日時：古い順 ▲</option>
+                            <option value="diff-desc">石差：大差順 ▼</option>
+                            <option value="best-desc">精度：最善手率順 ▼</option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn-clear-archive" id="btnArchiveClear">🗑️ 履歴初期化</button>
+                </div>
+            </div>
+
+            <div class="archive-table-wrap">
+                <table class="archive-table">
+                    <colgroup>
+                        <col class="col-date">
+                        <col class="col-opp">
+                        <col class="col-color">
+                        <col class="col-title">
+                        <col class="col-score">
+                        <col class="col-mode">
+                        <col class="col-acc">
+                        <col class="col-time">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>対局日時</th>
+                            <th>対戦相手</th>
+                            <th>手番</th>
+                            <th>勝敗・称号</th>
+                            <th>スコア</th>
+                            <th style="text-align:center;">形式</th>
+                            <th>精度(AI一致)</th>
+                            <th>時間 / 手数</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archiveTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📜 宮廷思案所モーダル（5大体系タブ全面刷新） -->
+    <div id="guideOverlay" class="dynasty-overlay">
+        <div id="guideModal" class="dynasty-modal">
+            <div class="guide-header">
+                <h2>📜 宮廷思案所（Royal Compendium）</h2>
+                <button id="guideCloseButton" class="modal-close-btn" type="button">✕</button>
+            </div>
+            <div class="manual-tabs">
+                <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作体系</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-tips">📖 序中終盤の心得</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-academy">🎯 五大奥義講義</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-gallery">👥 豪傑名鑑</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-terms">📚 用語・定石宝典</button>
+            </div>
+            
+            <!-- 第1タブ【👑 操作体系と画面の歩き方】 -->
+            <div id="tab-ops" class="manual-tab-content active">
+                <div id="opsGuideContainer" class="guide-cards-list"></div>
+            </div>
+
+            <!-- 第2タブ【📖 初心者脱出！序中終盤の心得＆上達ロードマップ】 -->
+            <div id="tab-tips" class="manual-tab-content">
+                <div class="manual-card-highlight">
+                    <div style="font-size:12px; font-weight:900; color:#ffd700; margin-bottom:4px;">
+                        👑 初心者が最短で勝てるようになる「三段階の王道戦略」
+                    </div>
+                    <div style="font-size:10px; color:#f2e9d2; line-height:1.4;">
+                        オセロは序盤、中盤、終盤で「目指すべきゴール」が180度変わります。この3つの心得を胸に刻むだけで、あなたの勝率は劇的に跳ね上がります。
+                    </div>
+                </div>
+                <div id="strategyPhasesContainer" class="guide-cards-list" style="margin-top:8px;"></div>
+                <div style="margin-top:10px;">
+                    <div style="font-size:11.5px; font-weight:900; color:#ffd700; margin-bottom:5px;">
+                        📈 初心者から神域（名人）への完全上達ロードマップ
+                    </div>
+                    <div id="strategyRoadmapContainer" class="roadmap-cards-list"></div>
+                </div>
+            </div>
+
+            <!-- 第3タブ【🎯 五大奥義 盤面講義＆検定】 -->
+            <div id="tab-academy" class="manual-tab-content">
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>⚠️ 第1奥義：Xマスの罠と角防衛</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-1')">盤面講義を見る 📖</button>
+                    </div>
+                    <div>角が空いている時に斜め前（Xマス）に打つと相手に角を献上してしまいます。盤面でアニメーション実演を見ながら理由を学びましょう。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🧱 第2奥義：壁の回避と外側警戒</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-2')">盤面講義を見る 📖</button>
+                    </div>
+                    <div>石をたくさん取ると外側に一直線の「壁」ができ、相手の足場を急増させてしまいます。盤面で危険性を体感します。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🌱 第3奥義：至高の手筋「中割り」</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">盤面講義を見る 📖</button>
+                    </div>
+                    <div>内側の石だけを1枚めくり、相手の選択肢をゼロへと追い込むオセロ最強の基本手筋の神髄を盤面で学びます。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>💎 第4奥義：Cマスの罠とウイング破り</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-4')">盤面講義を見る 📖</button>
+                    </div>
+                    <div>相手のウイングの隙間にあえてCマスからクサビを打ち込み、角を確定強奪する高度な辺の攻防を実演します。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>⚖️ 第5奥義：終盤の絶対法則「パリティ」</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-5')">盤面講義を見る 📖</button>
+                    </div>
+                    <div>「偶数空きは相手から、奇数空きは自分から」。終盤の最後の一手を独占する必勝の偶数理論を盤面で実演します。</div>
+                </div>
+            </div>
+
+            <!-- 第4タブ【👥 宮廷豪傑名鑑（全10豪傑 画像入り一覧ギャラリー）】 -->
+            <div id="tab-gallery" class="manual-tab-content">
+                <div style="font-size:11px; color:#ecd08c; margin-bottom:8px;">
+                    王宮に集う全10大豪傑の肖像画名鑑です。「対戦する ⚔️」を押すと、その豪傑と即座に対局できます。
+                </div>
+                <div id="charGalleryList" class="char-gallery-grid"></div>
+            </div>
+
+            <!-- 第5タブ【📚 オセロ用語・定石の宝典】 -->
+            <div id="tab-terms" class="manual-tab-content">
+                <div class="manual-card" id="term-sec-board">
+                    <div class="manual-card-title">
+                        <span>🎯 盤面エリアの名称と急所</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-1')">講義 📖</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>👑 四隅（角・隅）：</b>A1, A8, H1, H8の4箇所。一度取ると絶対に相手にひっくり返されない、オセロ最大の要塞。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>⚠️ Xマス（エックス）：</b>B2, G2, B7, G7の4箇所。角の斜め前にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。
+                    </div>
+                    <div>
+                        <b>⚠️ Cマス（シー）：</b>角に縦横で隣接する8箇所（A2, B1, G1, H2等）。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。
+                    </div>
+                </div>
+
+                <div class="manual-card" id="term-sec-tactics">
+                    <div class="manual-card-title">
+                        <span>⚔️ オセロ戦術の専門用語</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">講義 📖</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🌱 中割り（なかわり）：</b>既に相手の石に囲まれている「内側の石」だけを返す着手。外側に自分の石が露出しないため、相手に打てるマスを与えません。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🧱 壁（かべ）：</b>外側に自分の石がずらりと一直線に並んでしまうこと。相手に無数の足場を与えてしまうため、敗着の典型とされます。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>📉 開放度（かいほうど）：</b>打った石の周りにある「空きマスの数」。開放度が低い手ほど好手とされます。
+                    </div>
+                    <div>
+                        <b>⚖️ パリティ（偶数理論）：</b>オセロ終盤の絶対法則。偶数空きエリアは相手に先に打たせ、奇数空きエリアは自分が先に打つことで最後の一手を独占できます。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 歴代バージョン年代記 -->
+    <div id="versionOverlay" class="dynasty-overlay">
+        <div id="versionModal" class="dynasty-modal">
+            <div class="guide-header">
+                <h2>📜 歴代バージョン年代記（Chronicle）</h2>
+                <button id="versionCloseButton" class="modal-close-btn" type="button">✕</button>
+            </div>
+            <div class="chronicle-timeline" id="chronicleTimeline"></div>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <footer class="app-footer">
+        <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.0</div>
+    </footer>
+
+    <div class="bottom-safe-space"></div>
+
+    <!-- 外部スクリプト読み込み（データモジュール ➔ ロジック本体） -->
+    <script src="othello_data.js"></script>
+    <script src="othello_ai_sensei_js.js"></script>
+</body>
+</html>
+
+
