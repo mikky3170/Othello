@@ -42,10 +42,11 @@
   [Ver 7.0.0] 2026/10/19 : 【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】
   [Ver 7.1.0] 2026/10/19 : 【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】
   [Ver 7.2.0] 2026/10/19 : 【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】
-    - 単なる最善手/悪手の切り出しを脱却し、一局を「序盤・勝負の分岐点・終盤の結末」の3幕ストーリーで総括。
-    - 「石を多く取ったのになぜ悪手なのか？」「どこで勝負が決まったのか？」といった疑問を解決する深掘り因果関係解説システムを新設。
-    - 各着手時の相手選択肢数（合法手）の増減や外壁露出数を精密記録し、ワンタップで該当局面を盤面図解付きで検証可能に。
-    - 完勝時の快感を損なわない納得感のある大局観フォロー文言を自動調律。
+  [Ver 7.3.0] 2026/10/19 : 【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】
+    - 実際の対局振り返り（棋譜検証・カルテ）とお手本解説（用語デモ）の役割を完全分離。対局盤面が勝手に上書きされて迷子になる問題を根本根絶。
+    - 盤面を覆い尽くしていた長文バッジを全廃。マス自体の美しい発光と最小限の記号（👑角・⚠️X・🎯ここ）のみに絞り、スマホでの文字重なりを完全解消。
+    - 「Xマス」「中割り」「壁」「パリティ」の全4大テーマで、「1.局面 ➔ 2.着手 ➔ 3.結果」の3ステップ連動アニメーションを完全実装。
+    - 解説カード上部にテーマ切り替えバーを新設し、思案所を開き直さずに次々と重要手筋を連続学習可能に。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -307,86 +308,96 @@
         .white-stone { background: var(--st-w-stone-bg); box-shadow: var(--st-w-stone-shadow); border: var(--st-w-stone-border); }
         .stone-edge-rim { background: var(--st-edge-rim); }
 
-        /* 👁️ 盤面立体バッジ */
-        .demo-badge-corner {
-            position: absolute; z-index: 20; background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
-            color: #121008; font-size: 9.5px; font-weight: 900; padding: 2px 4px; border-radius: 4px;
-            border: 1px solid #ffffff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.9), 0 2px 5px rgba(0,0,0,0.8);
-            pointer-events: none; animation: badge-pulse-gold 1.2s infinite alternate ease-in-out;
-            white-space: nowrap;
+        /* 👁️ 盤面ビジュアル解説：マスの美しい光彩演出（文字重なり全廃） */
+        .demo-cell-target {
+            box-shadow: inset 0 0 0 2.5px #2ecc71, inset 0 0 14px rgba(46, 204, 113, 0.85) !important;
+            animation: demo-pulse-green 1.2s infinite alternate ease-in-out;
+            background-color: rgba(46, 204, 113, 0.15) !important;
         }
-        @keyframes badge-pulse-gold { from { transform: scale(0.95); } to { transform: scale(1.08); filter: drop-shadow(0 0 6px #fff); } }
+        @keyframes demo-pulse-green { from { filter: drop-shadow(0 0 2px #2ecc71); } to { filter: drop-shadow(0 0 8px #ffffff); } }
 
-        .demo-badge-x {
-            position: absolute; z-index: 20; background: linear-gradient(135deg, #ff4d4d 0%, #a61212 100%);
-            color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 4px; border-radius: 4px;
-            border: 1px solid #ffd0d0; box-shadow: 0 0 12px rgba(255, 77, 77, 0.95), 0 2px 5px rgba(0,0,0,0.8);
-            pointer-events: none; animation: badge-pulse-red 1.1s infinite alternate ease-in-out;
-            white-space: nowrap;
+        .demo-cell-danger {
+            box-shadow: inset 0 0 0 2.5px #ff4d4d, inset 0 0 16px rgba(255, 77, 77, 0.9) !important;
+            animation: demo-pulse-red 1.1s infinite alternate ease-in-out;
+            background-color: rgba(255, 77, 77, 0.2) !important;
         }
-        @keyframes badge-pulse-red { from { transform: scale(0.95); } to { transform: scale(1.1); filter: drop-shadow(0 0 8px #ff0000); } }
+        @keyframes demo-pulse-red { from { filter: drop-shadow(0 0 2px #ff4d4d); } to { filter: drop-shadow(0 0 10px #ff0000); } }
 
-        .demo-badge-c {
-            position: absolute; z-index: 20; background: linear-gradient(135deg, #e5a724 0%, #8c600f 100%);
-            color: #ffffff; font-size: 8.5px; font-weight: 900; padding: 1.5px 3.5px; border-radius: 3px;
-            border: 1px solid #fff2cc; box-shadow: 0 0 8px rgba(229, 167, 36, 0.8), 0 2px 4px rgba(0,0,0,0.8);
-            pointer-events: none; white-space: nowrap;
+        .demo-cell-corner {
+            box-shadow: inset 0 0 0 2.5px #ffd700, inset 0 0 16px rgba(255, 215, 0, 0.9) !important;
+            animation: demo-pulse-gold 1.2s infinite alternate ease-in-out;
+            background-color: rgba(255, 215, 0, 0.18) !important;
         }
+        @keyframes demo-pulse-gold { from { filter: drop-shadow(0 0 2px #ffd700); } to { filter: drop-shadow(0 0 10px #ffffff); } }
 
-        .demo-badge-cut {
-            position: absolute; z-index: 20; background: linear-gradient(135deg, #2ecc71 0%, #196f3d 100%);
-            color: #ffffff; font-size: 9.5px; font-weight: 900; padding: 2px 5px; border-radius: 4px;
-            border: 1.5px solid #ffffff; box-shadow: 0 0 14px rgba(46, 204, 113, 0.95);
-            pointer-events: none; animation: badge-pulse-gold 1.1s infinite alternate; white-space: nowrap;
+        .demo-cell-parity-even {
+            box-shadow: inset 0 0 0 2px #0284c7, inset 0 0 12px rgba(2, 132, 199, 0.7) !important;
+            background-color: rgba(2, 132, 199, 0.15) !important;
+        }
+        .demo-cell-c-sq {
+            box-shadow: inset 0 0 0 1.5px #e5a724, inset 0 0 8px rgba(229, 167, 36, 0.5) !important;
         }
 
-        .demo-badge-wall {
-            position: absolute; z-index: 20; background: rgba(220, 20, 60, 0.85); color: #fff;
-            font-size: 8.5px; font-weight: 900; padding: 1px 3px; border-radius: 3px; border: 1px solid #ff9999;
-            pointer-events: none; white-space: nowrap;
+        /* マス中央の極小シンボルバッジ（スマホでの被りゼロ） */
+        .demo-symbol-badge {
+            position: absolute; z-index: 25; font-size: 8.5px; font-weight: 900;
+            padding: 1px 3.5px; border-radius: 3px; line-height: 1.1; pointer-events: none;
+            white-space: nowrap; box-shadow: 0 1.5px 4px rgba(0,0,0,0.8);
         }
+        .badge-sym-target { background: #2ecc71; color: #0a2512; border: 1px solid #ffffff; }
+        .badge-sym-danger { background: #ff4d4d; color: #ffffff; border: 1px solid #ffd0d0; }
+        .badge-sym-corner { background: #ffd700; color: #1a1204; border: 1px solid #ffffff; }
+        .badge-sym-parity-even { background: #0284c7; color: #ffffff; border: 1px solid #bae6fd; }
+        .badge-sym-c-sq { background: #d97706; color: #ffffff; border: 1px solid #fef3c7; font-size: 7.5px; }
 
-        .demo-badge-even {
-            position: absolute; z-index: 20; background: #0284c7; color: #fff; font-size: 8.5px; font-weight: 900;
-            padding: 1px 4px; border-radius: 3px; border: 1px solid #7dd3fc; pointer-events: none;
-        }
-        .demo-badge-odd {
-            position: absolute; z-index: 20; background: #e11d48; color: #fff; font-size: 8.5px; font-weight: 900;
-            padding: 1px 4px; border-radius: 3px; border: 1px solid #fda4af; pointer-events: none;
-        }
-
-        /* 盤面直下の特製ビジュアル解説カード */
+        /* 3ステップ紙芝居型 特製ビジュアル解説カード */
         .demo-guide-card {
             display: none; width: min(calc(100vw - 8px), 480px);
             background: linear-gradient(145deg, rgba(22, 26, 36, 0.98) 0%, rgba(12, 14, 20, 0.99) 100%);
-            border: 2px solid #ffd700; border-radius: 12px; padding: 9px 12px; margin-top: 5px;
+            border: 2px solid #ffd700; border-radius: 12px; padding: 8px 10px; margin-top: 4px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 18px rgba(255, 215, 0, 0.4);
-            flex-direction: column; gap: 5px; text-align: left; z-index: 120;
+            flex-direction: column; gap: 4px; text-align: left; z-index: 120;
             animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
         }
         .demo-guide-card.show { display: flex; }
 
-        .demo-guide-header {
+        .demo-theme-nav-bar {
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1.5px solid rgba(212, 167, 72, 0.4); padding-bottom: 4px;
+            border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px;
         }
-        .demo-guide-title { font-size: 13px; font-weight: 900; color: #ffd700; display: flex; align-items: center; gap: 6px; }
-        .demo-guide-badge { font-size: 9px; font-weight: 800; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; padding: 1px 6px; border-radius: 10px; }
+        .demo-nav-btn {
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(212, 167, 72, 0.4);
+            color: #ffd700; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 4px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .demo-nav-btn:hover { background: #ffd700; color: #121008; }
+        .demo-theme-title { font-size: 12px; font-weight: 900; color: #fff4bd; }
 
-        .demo-guide-body { display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.45; }
-        .demo-guide-situation { color: #ffffff; font-weight: 700; display: flex; align-items: baseline; gap: 4px; }
-        .demo-guide-reason { color: #ecd08c; background: rgba(0, 0, 0, 0.45); border-left: 3px solid #ffd700; padding: 4px 7px; border-radius: 0 4px 4px 0; font-size: 10.5px; }
-        .demo-guide-maxim { color: #ffd700; font-weight: 900; font-size: 10px; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+        .demo-step-tabs { display: flex; gap: 4px; margin-top: 1px; }
+        .demo-step-tab {
+            flex: 1; text-align: center; font-size: 9.5px; font-weight: 800; padding: 2px 0;
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.3);
+            border-radius: 4px; color: #c2b49a; cursor: pointer; transition: all 0.2s ease;
+        }
+        .demo-step-tab.active {
+            background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #121008;
+            border-color: #ffffff; font-weight: 900; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+        }
 
-        .demo-guide-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; pt: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); }
+        .demo-guide-body { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; line-height: 1.4; margin-top: 2px; }
+        .demo-guide-situation { color: #ffffff; font-weight: 700; }
+        .demo-guide-reason { color: #ecd08c; background: rgba(0, 0, 0, 0.5); border-left: 3px solid #ffd700; padding: 3px 6px; border-radius: 0 4px 4px 0; font-size: 10px; }
+        .demo-guide-maxim { color: #ffd700; font-weight: 900; font-size: 9.5px; }
+
+        .demo-guide-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 3px; pt: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); }
         .demo-btn-sim {
-            font-size: 10.5px; font-weight: 900; padding: 3px 10px; border-radius: 6px;
+            font-size: 10px; font-weight: 900; padding: 3px 10px; border-radius: 5px;
             background: linear-gradient(180deg, #3a2e16 0%, #1c1507 100%); color: #ffd700;
             border: 1.5px solid #ffd700; cursor: pointer; transition: all 0.2s ease;
         }
         .demo-btn-sim:hover { background: #ffd700; color: #121008; }
         .demo-btn-exit-main {
-            font-size: 10.5px; font-weight: 900; padding: 3px 12px; border-radius: 6px;
+            font-size: 10px; font-weight: 900; padding: 3px 10px; border-radius: 5px;
             background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.8);
         }
@@ -1283,7 +1294,7 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- ミニ解説ポップアップコンテナ -->
+    <!-- ミニ解説ポップアップコンテナ（対局盤面を壊さない安全設計） -->
     <div id="termPopup" class="term-popup">
         <div class="term-popup-header">
             <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
@@ -1291,7 +1302,7 @@
         </div>
         <div class="term-popup-body" id="termPopupBody">解説テキスト</div>
         <div class="term-popup-actions">
-            <button type="button" class="term-popup-demo-btn" id="termPopupDemoBtn">盤面で確認 👁️</button>
+            <button type="button" class="term-popup-demo-btn" id="termPopupDemoBtn">お手本デモ 👁️</button>
             <span class="term-popup-more" id="termPopupMore">思案所宝典へ ➔</span>
         </div>
     </div>
@@ -1391,25 +1402,28 @@
                 </div>
             </div>
 
-            <!-- 特製ビジュアル解説カード -->
+            <!-- 3ステップ紙芝居型 特製ビジュアル解説カード -->
             <div class="demo-guide-card" id="demoGuideCard">
-                <div class="demo-guide-header">
-                    <span class="demo-guide-title" id="demoGuideTitle">👁️ 盤面ビジュアル解説</span>
-                    <span class="demo-guide-badge" id="demoGuideBadge">指南デモ</span>
+                <div class="demo-theme-nav-bar">
+                    <button type="button" class="demo-nav-btn" id="btnDemoPrevTheme">◀ 前のテーマ</button>
+                    <span class="demo-theme-title" id="demoThemeNavTitle">⚠️ Xマスと角の攻防 (1/4)</span>
+                    <button type="button" class="demo-nav-btn" id="btnDemoNextTheme">次のテーマ ▶</button>
                 </div>
+
+                <div class="demo-step-tabs" id="demoStepTabs">
+                    <button type="button" class="demo-step-tab active" id="demoStepTab1">1. 局面（狙い）</button>
+                    <button type="button" class="demo-step-tab" id="demoStepTab2">2. 着手（反転）</button>
+                    <button type="button" class="demo-step-tab" id="demoStepTab3">3. 結果（理由）</button>
+                </div>
+
                 <div class="demo-guide-body">
-                    <div class="demo-guide-situation" id="demoGuideSituation">
-                        <span>【局面】</span><span id="demoSituationText">局面の解説</span>
-                    </div>
-                    <div class="demo-guide-reason" id="demoGuideReason">
-                        急所の理由解説
-                    </div>
-                    <div class="demo-guide-maxim" id="demoGuideMaxim">
-                        <span>💡 格言：</span><span id="demoMaximText">オセロの格言</span>
-                    </div>
+                    <div class="demo-guide-situation" id="demoSituationText">局面の解説文が入ります</div>
+                    <div class="demo-guide-reason" id="demoGuideReason">急所の理由が入ります</div>
+                    <div class="demo-guide-maxim" id="demoMaximText">『オセロの格言が入ります』</div>
                 </div>
+
                 <div class="demo-guide-actions">
-                    <button type="button" class="demo-btn-sim" id="btnDemoSimulate">相手の番をシミュレート ▶</button>
+                    <button type="button" class="demo-btn-sim" id="btnDemoNextStep">次のステップを見る ▶</button>
                     <button type="button" class="demo-btn-exit-main" id="btnExitDemoMain">対局に戻る ✕</button>
                 </div>
             </div>
@@ -1526,7 +1540,7 @@
                 </div>
             </div>
 
-            <!-- 📜 新設：AI戦局総括ストーリータイムライン -->
+            <!-- 📜 AI戦局総括ストーリータイムライン -->
             <div class="ai-tactics-carte">
                 <div class="carte-header">
                     <span>📜 宮廷AI戦局総括（一局の航跡・ストーリー）</span>
@@ -1783,7 +1797,7 @@
                     </div>
                 </div>
                 <div class="manual-char-card">
-                    <div class="manual-char-avatar-mini"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';this.parentElement.textContent='🔮'"></div>
+                    <div class="manual-char-avatar-mini"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';http://localhost:8080'"><span style="font-size:28px;">🔮</span></div>
                     <div class="manual-char-info">
                         <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 錬金術師 ニコラ <span class="manual-strength-tag">【初中級・アマ4級】</span></div>
                         <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 錬金実験室 / 盤：スレート鉱物盤 / 石：紫水晶 × 黄鉄鉱</div>
@@ -1839,25 +1853,27 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 第3タブ【戦術の極意】 -->
             <div id="tab-tips" class="manual-tab-content">
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>🌱 序盤の極意「中割り理論」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
                     </div>
                     <div>序盤は外側の石を取らず、内側の石だけをめくる「中割り」を徹底しましょう。外側を取ると相手に足場をプレゼントしてしまいます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>🧱 中盤の極意「壁の回避」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('壁')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('壁')">お手本デモ 👁️</button>
                     </div>
                     <div>一列に自分の石が並ぶ「壁」を作ると、相手の打てる場所を増やしてしまいます。相手の石を囲むように内側をめくりましょう。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>👑 終盤の極意「パリティ理論」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('パリティ')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('パリティ')">お手本デモ 👁️</button>
                     </div>
                     <div>空きマスが偶数のエリアには、相手に先に打たせて自分が最後に打つのが鉄則です。</div>
                 </div>
@@ -1868,7 +1884,7 @@
                 <div class="manual-card" id="term-sec-board">
                     <div class="manual-card-title">
                         <span>🎯 盤面エリアの名称と急所</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('角・X・C')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('角・X・C')">お手本デモ 👁️</button>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>👑 四隅（角・隅）：</b>A1, A8, H1, H8の4箇所。一度取ると絶対に相手にひっくり返されない、オセロ最大の要塞。
@@ -1884,7 +1900,7 @@
                 <div class="manual-card" id="term-sec-tactics">
                     <div class="manual-card-title">
                         <span>⚔️ オセロ戦術の専門用語</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🌱 中割り（なかわり）：</b>既に相手の石に囲まれている「内側の石」だけを返す着手。外側に自分の石が露出しないため、相手に打てるマスを与えません。
@@ -1906,7 +1922,7 @@
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
                         <span>📖 公式プロ6大定石図鑑</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('定石')">盤面で確認 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🐯 虎定石（トラ）：</b>初手F5に対し平行取りD6または縦取りF6から展開する、オセロ界で最も歴史ある王道定石。
@@ -1942,7 +1958,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.2.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.3.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>

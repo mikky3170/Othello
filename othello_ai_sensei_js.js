@@ -1,31 +1,35 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 7.2.0 (2026/10/19)
+  バージョン: Ver 7.3.0 (2026/10/19)
   
-  [Ver 7.2.0] 2026/10/19 更新内容:
-  - 【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】
-  - 単なる最善手/悪手の切り出しを脱却し、一局を「序盤・勝負の分岐点・終盤の結末」の3幕ストーリーで総括。
-  - 「石を多く取ったのになぜ悪手なのか？」「どこで勝負が決まったのか？」といった疑問を解決する深掘り因果関係解説システムを新設。
-  - 各着手時の相手選択肢数（合法手）の増減や外壁露出数を精密記録し、ワンタップで該当局面を盤面図解付きで検証可能に。
-  - 完勝時の快感を損なわない納得感のある大局観フォロー文言を自動調律。
+  [Ver 7.3.0] 2026/10/19 更新内容:
+  - 【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】
+  - 実際の対局振り返り（棋譜検証・カルテ）とお手本解説（用語デモ）の役割を完全分離。対局盤面が勝手に上書きされて迷子になる問題を根本根絶。
+  - 盤面を覆い尽くしていた長文バッジを全廃。マス自体の美しい発光と最小限の記号（👑角・⚠️X・🎯ここ）のみに絞り、スマホでの文字重なりを完全解消。
+  - 「Xマス」「中割り」「壁」「パリティ」の全4大テーマで、「1.局面 ➔ 2.着手 ➔ 3.結果」の3ステップ連動アニメーションを完全実装。
+  - 解説カード上部にテーマ切り替えバーを新設し、思案所を開き直さずに次々と重要手筋を連続学習可能に。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 7.2.0",
+    version: "Ver 7.3.0",
     date: "2026/10/19",
     history: [
         {
+            ver: "Ver 7.3.0", date: "2026/10/19",
+            desc: "【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】実際の対局の振り返りと、用意されたお手本パターンの役割を完全分離。マスを覆う長文バッジを全廃し、3ステップ紙芝居型アニメーションで『Xマス』『中割り』『壁』『パリティ』の因果関係が目に見えて理解できるように抜本改善。"
+        },
+        {
             ver: "Ver 7.2.0", date: "2026/10/19",
-            desc: "【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】一局を「序盤・勝負の分岐点・終盤の結末」の3幕で物語る大局観総括を新設。石を取りすぎた悪手の理由（相手の選択肢急増・外壁露出）やターニングポイントの因果関係をワンタップで盤面深掘り検証可能に。"
+            desc: "【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】一局を「序盤・勝負の分岐点・終盤の結末」の3幕で物語る大局観総括を新設。石を取りすぎた悪手の理由やターニングポイントの因果関係をワンタップで盤面深掘り検証可能に。"
         },
         {
             ver: "Ver 7.1.0", date: "2026/10/19",
-            desc: "【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】枠の金パルスを廃止しセリフ文字全体の呼吸点滅演出へ。盤面直下に状況・理由・格言が読める指南カードを新設。全10豪傑のセリフと勝敗温度感を全面洗練。"
+            desc: "【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】枠の金パルスを廃止しセリフ文字全体の呼吸点滅演出へ。盤面直下に状況・理由・格言が読める指南カードを新設。"
         },
         {
             ver: "Ver 7.0.0", date: "2026/10/19",
-            desc: "【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】ルカ、ニコラ、ジュリアン、フェルディナントが正式参戦し全10階位が完成。大盤面が直接パルス点滅する「盤面ビジュアル解説モード」を新設。"
+            desc: "【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】ルカ、ニコラ、ジュリアン、フェルディナントが正式参戦し全10階位が完成。"
         }
     ]
 };
@@ -43,7 +47,7 @@ let currentGameSessionId = 0;
 
 let gameStepLogs = [], reviewStepIndex = 0, isReviewMode = false;
 let tacticsBestIndex = -1, tacticsWorstIndex = -1, tacticsWorstAlternative = null;
-let tacticsTurningPointIndex = -1; // 本局最大の勝負の分岐点インデックス
+let tacticsTurningPointIndex = -1;
 
 let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
 let isAiThinkingHint = false, timerInterval = null;
@@ -62,7 +66,8 @@ const transpositionTable = new Map();
 
 // 👁️ 盤面ビジュアル解説（デモモード）管理変数
 let isDemoMode = false;
-let currentDemoType = null;
+const DEMO_THEMES = ["角・X・C", "中割り", "壁", "パリティ"];
+let currentDemoThemeIndex = 0;
 let currentDemoStep = 1;
 let savedBoardStateForDemo = null;
 
@@ -162,14 +167,18 @@ const DOM = {
     termPopupDemoBtn: document.getElementById("termPopupDemoBtn"),
     termPopupMore: document.getElementById("termPopupMore"),
     guideOverlay: document.getElementById("guideOverlay"),
-    // 特製ビジュアル解説カード
+    // 3ステップ紙芝居型 特製ビジュアル解説カード
     demoGuideCard: document.getElementById("demoGuideCard"),
-    demoGuideTitle: document.getElementById("demoGuideTitle"),
-    demoGuideBadge: document.getElementById("demoGuideBadge"),
+    demoThemeNavTitle: document.getElementById("demoThemeNavTitle"),
+    btnDemoPrevTheme: document.getElementById("btnDemoPrevTheme"),
+    btnDemoNextTheme: document.getElementById("btnDemoNextTheme"),
+    demoStepTab1: document.getElementById("demoStepTab1"),
+    demoStepTab2: document.getElementById("demoStepTab2"),
+    demoStepTab3: document.getElementById("demoStepTab3"),
     demoSituationText: document.getElementById("demoSituationText"),
     demoGuideReason: document.getElementById("demoGuideReason"),
     demoMaximText: document.getElementById("demoMaximText"),
-    btnDemoSimulate: document.getElementById("btnDemoSimulate"),
+    btnDemoNextStep: document.getElementById("btnDemoNextStep"),
     btnExitDemoMain: document.getElementById("btnExitDemoMain")
 };
 
@@ -180,92 +189,291 @@ const TERMS_DICTIONARY = {
     "Xマス": {
         title: "⚠️ Xマス（エックス）",
         desc: "角の斜め前（B2, G2, B7, G7）にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。",
-        tabSec: "term-sec-board", demoType: "角・X・C",
-        situation: "角が空いている状態で、黒が斜め前の【B2（Xマス）】に不用意に石を置いてしまった局面です。",
-        reason: "Xマスに打つと、相手（白）に左上の角【A1】へ潜り込む足場を直接プレゼントしてしまいます。",
-        maxim: "『角が空いているうちは、絶対にXマスに手を出すな』",
-        simBtnText: "白が角(A1)を取る様子を見る ▶"
+        tabSec: "term-sec-board", demoTheme: "角・X・C"
     },
     "Cマス": {
         title: "⚠️ Cマス（シー）",
         desc: "角に隣接するマス。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。",
-        tabSec: "term-sec-board", demoType: "角・X・C",
-        situation: "角のすぐ隣にある8つのマス（A2, B1, G1, H2など）です。",
-        reason: "Cマスに石を置くと、相手に外側から角へ侵入されるきっかけを作ってしまいます。",
-        maxim: "『Cマスに打つ時は、角を取られない確実な裏付けを持て』",
-        simBtnText: "角の攻防シミュレート ▶"
+        tabSec: "term-sec-board", demoTheme: "角・X・C"
     },
     "中割り": {
         title: "🌱 中割り理論",
         desc: "外側の石を取らず、内側の石だけを返すオセロの基本奥義。外側に石が露出しないため、相手に打てるマスを与えません。",
-        tabSec: "term-sec-tactics", demoType: "中割り",
-        situation: "中央が混み合い、外側に石を返したくない中盤の局面です。",
-        reason: "緑のバッジ【E4】に打つと、周囲を既に囲まれている内側の白石だけが返り、外側の境界線が一切広がりません。",
-        maxim: "『外側を取るな、内側の石だけを静かにめくれ』",
-        simBtnText: "中割りの着手をシミュレート ▶"
+        tabSec: "term-sec-tactics", demoTheme: "中割り"
     },
     "壁": {
         title: "🧱 壁（かべ）",
         desc: "外側に自分の石が一直線に並んでしまう状態。相手に多くの足場を与えてしまうため、敗着の典型とされます。",
-        tabSec: "term-sec-tactics", demoType: "壁",
-        situation: "外側に白石が一直線に6個並んで「壁」を作ってしまった失敗局面です。",
-        reason: "外側に石が並ぶと、相手（黒）はこの白石を足場にして四方八方あらゆるマスへ自由に打ち込めるようになります。",
-        maxim: "『壁を作った者に勝利なし。石を多く取りすぎるな』",
-        simBtnText: "相手に囲まれる様子を見る ▶"
+        tabSec: "term-sec-tactics", demoTheme: "壁"
     },
     "パリティ": {
         title: "⚖️ パリティ（偶数理論）",
         desc: "オセロ終盤の絶対法則。偶数空きエリアには相手に先に打たせ、自分が最後に打つことで最後の一手を独占できます。",
-        tabSec: "term-sec-tactics", demoType: "パリティ",
-        situation: "盤面が複数の空きエリアに分断された終盤の局面です。",
-        reason: "左上の青マスは「2マス（偶数空き）」。相手に先に打たせれば、自分が2手目を打ってそのエリアの最後を独占できます。",
-        maxim: "『偶数は相手から、奇数は自分から打て』",
-        simBtnText: "最後の一手独占を見る ▶"
+        tabSec: "term-sec-tactics", demoTheme: "パリティ"
     },
     "確定石": {
         title: "💎 確定石（かくていせき）",
         desc: "終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。",
-        tabSec: "term-sec-tactics", demoType: "確定石",
-        situation: "黒が左上の角【A1】を制圧し、そこから辺沿いに石が連なっている局面です。",
-        reason: "角は絶対に挟まれないため、角に繋がる同じ色の石も終局まで永久にひっくり返りません。",
-        maxim: "『角を取れば確定石が生まれる。盤上の領土を確約せよ』",
-        simBtnText: "角からの確定石を見る ▶"
+        tabSec: "term-sec-tactics", demoTheme: "角・X・C"
     },
     "開放度": {
         title: "📉 開放度（かいほうど）",
         desc: "打った石の周囲にある空きマスの数。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。",
-        tabSec: "term-sec-tactics", demoType: "中割り",
-        situation: "周囲に空きマスが少ないマスを選ぶことで、相手に打てる場所を増やさないテクニックです。",
-        reason: "開放度が低い手を打つと、相手の手番で打てる場所が激減し、やがてパスへと追い込むことができます。",
-        maxim: "『開放度を最小に抑え、相手の選択肢を奪い尽くせ』",
-        simBtnText: "着手を見る ▶"
+        tabSec: "term-sec-tactics", demoTheme: "中割り"
     },
     "虎定石": {
         title: "🐯 虎定石（トラ）",
         desc: "初手F5に対し平行取りD6や縦取りから展開する王道定石。主導権を握りやすい基本形です。",
-        tabSec: "term-sec-openings", demoType: "定石",
-        situation: "白の平行取りD6から、黒がC5に打って主導権を争う王道定石の骨格です。",
-        reason: "中央の石のバランスが崩れず、先手（黒）が自然に中割りを狙える堅牢な布石です。",
-        maxim: "『初心者は虎を学べ。定石の基本がすべて詰まっている』",
-        simBtnText: "定石の展開を見る ▶"
+        tabSec: "term-sec-openings", demoTheme: "中割り"
     },
     "牛定石": {
         title: "🐮 牛定石（ウシ）",
         desc: "縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。",
-        tabSec: "term-sec-openings", demoType: "定石",
-        situation: "白の縦取りF6に対し、黒がC4に打って内側を固める重厚な定石です。",
-        reason: "互いに相手の内側を狙い合うじっくりとした展開となり、中盤の読み合いが深まります。",
-        maxim: "『牛のようにどっしりと、中央を固めて機を窺え』",
-        simBtnText: "定石の展開を見る ▶"
+        tabSec: "term-sec-openings", demoTheme: "中割り"
     },
     "馬定石": {
         title: "🐴 馬定石（ウマ）",
         desc: "斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟で勝ちやすい名定石です。",
-        tabSec: "term-sec-openings", demoType: "定石",
-        situation: "初手F5に対し、白が斜め取りF4で応じる現代オセロの高勝率布石です。",
-        reason: "白が柔軟に中割りを選択しやすく、黒の無理攻めを誘発しやすい実践的な定石です。",
-        maxim: "『白番なら馬を走らせよ。柔軟な中割りで勝利を掴め』",
-        simBtnText: "定石の展開を見る ▶"
+        tabSec: "term-sec-openings", demoTheme: "中割り"
+    }
+};
+
+/* 3ステップ紙芝居型デモマスターデータ */
+const DEMO_SCENARIOS = {
+    "角・X・C": {
+        title: "⚠️ Xマスと角の攻防 (1/4)",
+        steps: [
+            {
+                stepNum: 1,
+                title: "1.【危険な着手】",
+                situation: "角が空いている状態で、黒が斜め前の【B2（Xマス）】に不用意に石を置いてしまった場面です。",
+                reason: "角が空いている時にXマスに打つと、相手に角への踏み台を直接プレゼントしてしまいます。",
+                maxim: "『角が空いているうちは、絶対にXマスに手を出すな』",
+                btnText: "白の反撃（角奪取）を見る ▶",
+                highlights: [
+                    { r: 0, c: 0, type: "corner", label: "👑角" },
+                    { r: 1, c: 1, type: "danger", label: "⚠️X" },
+                    { r: 0, c: 1, type: "c-sq", label: "C" },
+                    { r: 1, c: 0, type: "c-sq", label: "C" }
+                ],
+                setup: (b) => {
+                    b[2][2] = BLACK; b[3][3] = WHITE; b[3][4] = BLACK;
+                    b[4][3] = BLACK; b[4][4] = WHITE;
+                    b[1][1] = BLACK; // Xマス
+                }
+            },
+            {
+                stepNum: 2,
+                title: "2.【相手の角奪取】",
+                situation: "白がすかさず左上の角【A1】に飛び込みました！",
+                reason: "B2の黒石を踏み台にして挟むことで、白は労せずして最も重要な角を確保できます。",
+                maxim: "『Xマスの代償は、相手への角の献上である』",
+                btnText: "結果（取り返せない絶望）を見る ▶",
+                highlights: [
+                    { r: 0, c: 0, type: "target", label: "👑角奪取" },
+                    { r: 1, c: 1, type: "danger", label: "💀返転" }
+                ],
+                setup: (b) => {
+                    b[0][0] = WHITE;
+                    b[1][1] = WHITE; b[2][2] = WHITE;
+                    b[3][3] = WHITE; b[3][4] = BLACK;
+                    b[4][3] = BLACK; b[4][4] = WHITE;
+                }
+            },
+            {
+                stepNum: 3,
+                title: "3.【結果と真理】",
+                situation: "角は絶対に挟まれないため、斜めの石が永久に白の【確定石】となりました！",
+                reason: "黒はこの角を取り返す手段が一切なく、左上エリアの主導権を完全に失いました。",
+                maxim: "『角を制する者がオセロを制す。不用意なX打ちは敗着の直行便』",
+                btnText: "もう一度最初から見る ↺",
+                highlights: [
+                    { r: 0, c: 0, type: "corner", label: "💎不滅" },
+                    { r: 1, c: 1, type: "corner", label: "💎確定" },
+                    { r: 2, c: 2, type: "corner", label: "💎確定" }
+                ],
+                setup: (b) => {
+                    b[0][0] = WHITE;
+                    b[1][1] = WHITE; b[2][2] = WHITE;
+                    b[3][3] = WHITE; b[3][4] = BLACK;
+                    b[4][3] = BLACK; b[4][4] = WHITE;
+                }
+            }
+        ]
+    },
+    "中割り": {
+        title: "🌱 中割り理論 (2/4)",
+        steps: [
+            {
+                stepNum: 1,
+                title: "1.【中盤の急所】",
+                situation: "中央が混み合い、外側に石を返したくない局面。緑の【E4】が急所です！",
+                reason: "周りに石が密集している内側を選ぶことで、外側に境界線が広がらないようにします。",
+                maxim: "『外側を取るな、内側の石だけを静かにめくれ』",
+                btnText: "中割りの着手を見る ▶",
+                highlights: [
+                    { r: 3, c: 4, type: "target", label: "🎯急所" }
+                ],
+                setup: (b) => {
+                    b[2][3] = BLACK; b[2][4] = WHITE;
+                    b[3][2] = BLACK; b[3][3] = WHITE; b[3][4] = 0; b[3][5] = BLACK;
+                    b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK; b[4][5] = BLACK;
+                    b[5][3] = BLACK; b[5][4] = BLACK;
+                }
+            },
+            {
+                stepNum: 2,
+                title: "2.【内側だけを反転】",
+                situation: "黒がE4に打つと、内側の白石1枚（D4）だけが裏返りました！",
+                reason: "外側の石は1枚も返っておらず、黒の陣地が外側へ露出していません。",
+                maxim: "『めくる石は最小限に。1枚返しこそが至高の一手』",
+                btnText: "相手が困り果てる結果を見る ▶",
+                highlights: [
+                    { r: 3, c: 4, type: "target", label: "打点" },
+                    { r: 3, c: 3, type: "target", label: "🌱内反転" }
+                ],
+                setup: (b) => {
+                    b[2][3] = BLACK; b[2][4] = WHITE;
+                    b[3][2] = BLACK; b[3][3] = BLACK; b[3][4] = BLACK; b[3][5] = BLACK;
+                    b[4][2] = BLACK; b[4][3] = BLACK; b[4][4] = BLACK; b[4][5] = BLACK;
+                    b[5][3] = BLACK; b[5][4] = BLACK;
+                }
+            },
+            {
+                stepNum: 3,
+                title: "3.【相手の足場消滅】",
+                situation: "外側に黒石が出ていないため、白（相手）は次に打てるマスが激減（ほぼパス）！",
+                reason: "相手に打てる場所を与えずに自分だけが打ち続けることで、相手を危険なXマスへと追い詰めます。",
+                maxim: "『自分の石を隠し、相手の選択肢を奪い尽くせ』",
+                btnText: "もう一度最初から見る ↺",
+                highlights: [
+                    { r: 3, c: 4, type: "target", label: "安全" }
+                ],
+                setup: (b) => {
+                    b[2][3] = BLACK; b[2][4] = WHITE;
+                    b[3][2] = BLACK; b[3][3] = BLACK; b[3][4] = BLACK; b[3][5] = BLACK;
+                    b[4][2] = BLACK; b[4][3] = BLACK; b[4][4] = BLACK; b[4][5] = BLACK;
+                    b[5][3] = BLACK; b[5][4] = BLACK;
+                }
+            }
+        ]
+    },
+    "壁": {
+        title: "🧱 壁の恐怖 (3/4)",
+        steps: [
+            {
+                stepNum: 1,
+                title: "1.【壁の形成】",
+                situation: "白が石を多く取りすぎ、外側に一直線にずらりと6個並んで「壁」を作ってしまいました。",
+                reason: "序盤〜中盤に石を欲張って取ると、自分の石が外側に露出して相手の格好の足場になります。",
+                maxim: "『石を多く取るな。外側の壁は敗北へのスロープである』",
+                btnText: "相手（黒）の包囲を見る ▶",
+                highlights: [
+                    { r: 1, c: 1, type: "danger", label: "🧱壁" },
+                    { r: 1, c: 2, type: "danger", label: "🧱壁" },
+                    { r: 1, c: 3, type: "danger", label: "🧱壁" },
+                    { r: 1, c: 4, type: "danger", label: "🧱壁" },
+                    { r: 1, c: 5, type: "danger", label: "🧱壁" },
+                    { r: 1, c: 6, type: "danger", label: "🧱壁" }
+                ],
+                setup: (b) => {
+                    for (let c = 1; c <= 6; c++) b[1][c] = WHITE;
+                    b[2][2] = WHITE; b[2][3] = BLACK; b[2][4] = BLACK;
+                }
+            },
+            {
+                stepNum: 2,
+                title: "2.【外側からの猛攻】",
+                situation: "黒はこの白の壁を自由自在に踏み台にして、外側のマスへ次々に打ち込みます！",
+                reason: "壁を作った側は相手の打てる場所を大量にプレゼントしてしまい、主導権を完全に奪われます。",
+                maxim: "『壁を作った者は、相手に無限の選択肢を与えていると知れ』",
+                btnText: "白の手詰まり（結果）を見る ▶",
+                highlights: [
+                    { r: 0, c: 2, type: "target", label: "🎯急襲" },
+                    { r: 0, c: 3, type: "target", label: "🎯急襲" },
+                    { r: 0, c: 4, type: "target", label: "🎯急襲" }
+                ],
+                setup: (b) => {
+                    for (let c = 1; c <= 6; c++) b[1][c] = WHITE;
+                    b[0][2] = BLACK; b[0][3] = BLACK; b[0][4] = BLACK;
+                    b[2][2] = WHITE; b[2][3] = BLACK; b[2][4] = BLACK;
+                }
+            },
+            {
+                stepNum: 3,
+                title: "3.【手詰まりと崩壊】",
+                situation: "白は中央をすべて囲まれ、打てるマスが完全消滅（パス）して大敗が決着しました。",
+                reason: "序盤は石を少なく保ち、相手に壁を作らせることこそがオセロで勝つための基本戦略です。",
+                maxim: "『序盤は少なく取って耐え、終盤に一網打尽にせよ』",
+                btnText: "もう一度最初から見る ↺",
+                highlights: [
+                    { r: 0, c: 3, type: "target", label: "包囲" }
+                ],
+                setup: (b) => {
+                    for (let c = 1; c <= 6; c++) b[1][c] = WHITE;
+                    b[0][2] = BLACK; b[0][3] = BLACK; b[0][4] = BLACK;
+                    b[2][2] = WHITE; b[2][3] = BLACK; b[2][4] = BLACK;
+                }
+            }
+        ]
+    },
+    "パリティ": {
+        title: "⚖️ パリティ（偶数理論） (4/4)",
+        steps: [
+            {
+                stepNum: 1,
+                title: "1.【偶数空きのエリア】",
+                situation: "盤面の右上に【2マス空き（偶数）】が孤立して残された終盤の局面です。",
+                reason: "偶数マス空いているエリアには、相手から先に打たせるのがパリティの鉄則です。",
+                maxim: "『偶数空きは相手から、奇数空きは自分から打て』",
+                btnText: "白（相手）が先に打つ様子を見る ▶",
+                highlights: [
+                    { r: 0, c: 6, type: "parity-even", label: "空き1" },
+                    { r: 0, c: 7, type: "parity-even", label: "空き2" }
+                ],
+                setup: (b) => {
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
+                    }
+                    b[0][6] = 0; b[0][7] = 0; // 2マス空き
+                }
+            },
+            {
+                stepNum: 2,
+                title: "2.【相手が1マス目を打つ】",
+                situation: "白が仕方なく1マス目（G1）に打ちました！",
+                reason: "相手が先に打ったことで、残る空きマスは「あと1マス」だけになります。",
+                maxim: "『相手に先手を取らせ、最後の一手を奪う罠を張れ』",
+                btnText: "黒が最後の一手を独占する結果を見る ▶",
+                highlights: [
+                    { r: 0, c: 6, type: "danger", label: "白着手" },
+                    { r: 0, c: 7, type: "target", label: "🎯独占マス" }
+                ],
+                setup: (b) => {
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
+                    }
+                    b[0][6] = WHITE; b[0][7] = 0;
+                }
+            },
+            {
+                stepNum: 3,
+                title: "3.【最後の一手を独占】",
+                situation: "黒が最後の2マス目（H1・角）に打ち、このエリアの最後の一手を独占制圧！",
+                reason: "エリアの最後の一手を打った側は、そのエリアの石をすべて自分の色で確定させることができます。",
+                maxim: "『各エリアの最後の一手を制する者が、最終盤面の勝者となる』",
+                btnText: "もう一度最初から見る ↺",
+                highlights: [
+                    { r: 0, c: 7, type: "target", label: "👑独占！" }
+                ],
+                setup: (b) => {
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
+                    }
+                    b[0][6] = BLACK; b[0][7] = BLACK;
+                }
+            }
+        ]
     }
 };
 
@@ -1456,7 +1664,7 @@ async function putStone(row, col) {
 
     // 着手後の相手の選択肢数
     const oppMovesAfter = getValidMoves(cpuColor, board).length;
-    const mobilityDelta = oppMovesAfter - oppMovesBefore; // 相手の足場が何箇所増減したか
+    const mobilityDelta = oppMovesAfter - oppMovesBefore;
 
     const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
     const isCornerMove = isCorner(row, col);
@@ -1607,7 +1815,6 @@ function getComputerMove(targetBoard, player, charConfig) {
     if (moves.length === 0) return null;
     if (moves.length === 1) return moves[0];
 
-    // Lv.1 ピエロ（アマ12級）：約40%でX・Cマスに無邪気に飛びつく
     if (charConfig.id === 1) {
         const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
         if (dangerMoves.length > 0 && Math.random() < 0.40) {
@@ -1616,7 +1823,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         return moves[Math.floor(Math.random() * moves.length)];
     }
 
-    // Lv.2 コレット（アマ9級）：最多反転のみを選ぶ初級者
     if (charConfig.id === 2) {
         const corners = moves.filter(([r, c]) => isCorner(r, c));
         if (corners.length > 0) return corners[0];
@@ -1628,7 +1834,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         return candidates[Math.floor(Math.random() * candidates.length)].move;
     }
 
-    // Lv.3 ルカ（アマ7級）：外側を囲いたがる（Xマス飛びつき20%）
     if (charConfig.id === 3) {
         const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
         if (dangerMoves.length > 0 && Math.random() < 0.20) {
@@ -1636,7 +1841,6 @@ function getComputerMove(targetBoard, player, charConfig) {
         }
     }
 
-    // Lv.5以上：定石データベース参照
     if (charConfig.bookMaxPly > 0) {
         const bookMoveObj = getBookMove(charConfig.bookMaxPly);
         if (bookMoveObj && moves.some(([r, c]) => r === bookMoveObj.move[0] && c === bookMoveObj.move[1])) {
@@ -1795,6 +1999,9 @@ function drawBoard() {
                         cell.classList.add("review-correct-cell");
                     }
                 }
+            } else {
+                // 👁️ デモモード時のマス専用ハイライト適用
+                applyDemoCellHighlights(cell, r, c);
             }
 
             if (board[r][c] !== 0) {
@@ -1865,14 +2072,12 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         };
     }
 
-    // 1. 序盤（1〜20手前後 / 空きマス44以上）の分析
     const openingMoves = playerMoveLogs.filter(l => l.emptyCount >= 44);
     const openingBad = openingMoves.find(l => l.rating === "BAD");
     let openingHtml = "";
     if (openingBad) {
         tacticsWorstIndex = openingBad.stepIndex;
         tacticsWorstAlternative = openingBad.objectiveBest;
-        const altNotation = tacticsWorstAlternative ? `【${toNotation(tacticsWorstAlternative[0], tacticsWorstAlternative[1])}】` : "内側の安全な手";
         
         openingHtml = `
             <div>序盤、第${openingBad.stepIndex}手【${openingBad.coord}】で外側の石を取りすぎ、相手に打てるマスを急増させてしまう隙が生じました。</div>
@@ -1886,11 +2091,8 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         `;
     }
 
-    // 2. 中盤・最大の勝負の分岐点（ターニングポイント）の特定
-    // 角を取った手、または最も相手を突き放した手を探索
     let turningMove = playerMoveLogs.find(l => l.isCornerMove);
     if (!turningMove) {
-        // 角がない場合、最もスコア評価が高かった手、または最善手
         turningMove = playerMoveLogs.find(l => l.isObjectiveBest) || playerMoveLogs[Math.floor(playerMoveLogs.length / 2)];
     }
 
@@ -1928,7 +2130,6 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         }
     }
 
-    // 3. 終盤の収束と結末の総括
     let endingHtml = "";
     if (isWin) {
         if (hStones >= 55) {
@@ -1946,7 +2147,6 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         endingHtml = `<div>終盤、相手に要所を封鎖され、反撃の手が届かず惜敗となりました。</div>`;
     }
 
-    // 大差完勝時の納得感フォロー文
     if (isWin && hStones >= 50 && openingBad) {
         openingHtml = `
             <div><b>【完勝の総括】</b>大局的には相手を圧倒した見事な勝利でした！ ただし序盤の第${openingBad.stepIndex}手【${openingBad.coord}】だけは、もし相手が上位有段者（Lv.7〜10）であれば角を突かれて反撃される隙が生じていた注意ポイントでした。</div>
@@ -1965,7 +2165,7 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
     };
 }
 
-/* 棋譜検証モードの特定の手へワンタップジャンプ */
+/* 実際の対局・棋譜検証モードの特定の手へワンタップジャンプ */
 function jumpToReviewStep(stepIndex) {
     if (stepIndex < 0 || stepIndex >= gameStepLogs.length) return;
     DOM.royalResultModal.classList.remove("show");
@@ -1976,18 +2176,27 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【👁️ 盤面ビジュアル解説モード】
+  【👁️ 3ステップ紙芝居型 盤面ビジュアル解説モード（抜本再構築）】
 ========================================================================== */
-function attachDemoBadge(r, c, text, className) {
-    const cell = DOM.board.children[r * 8 + c];
-    if (!cell) return;
+function applyDemoCellHighlights(cell, r, c) {
+    const themeKey = DEMO_THEMES[currentDemoThemeIndex];
+    const scenario = DEMO_SCENARIOS[themeKey];
+    if (!scenario) return;
+
+    const currentStepData = scenario.steps.find(s => s.stepNum === currentDemoStep) || scenario.steps[0];
+    const hit = currentStepData.highlights.find(h => h.r === r && h.c === c);
+    if (!hit) return;
+
+    cell.classList.add(`demo-cell-${hit.type}`);
+
+    // マスの中央に最小限の記号マークを美しく表示（文字重なりを完全排除）
     const badge = document.createElement("div");
-    badge.className = className;
-    badge.textContent = text;
+    badge.className = `demo-symbol-badge badge-sym-${hit.type}`;
+    badge.textContent = hit.label;
     cell.appendChild(badge);
 }
 
-function triggerBoardVisualDemo(demoType) {
+function triggerBoardVisualDemo(themeName) {
     if (isDemoMode) exitBoardVisualDemo();
 
     savedBoardStateForDemo = {
@@ -1998,8 +2207,10 @@ function triggerBoardVisualDemo(demoType) {
     };
 
     isDemoMode = true;
-    currentDemoType = demoType;
+    const foundIdx = DEMO_THEMES.indexOf(themeName);
+    currentDemoThemeIndex = (foundIdx >= 0) ? foundIdx : 0;
     currentDemoStep = 1;
+
     closeTermPopup();
     DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
@@ -2007,113 +2218,49 @@ function triggerBoardVisualDemo(demoType) {
     DOM.normalControlCard.style.display = "none";
     DOM.demoGuideCard.classList.add("show");
 
-    const dict = TERMS_DICTIONARY[demoType] || {
-        title: `👁️ ${demoType}の解説`,
-        situation: "オセロの基本局面です。",
-        reason: "盤面の要所を理解することで勝率が劇的に上がります。",
-        maxim: "『基本を制する者がオセロを制す』",
-        simBtnText: "変化を見る ▶"
-    };
-
-    DOM.demoGuideTitle.textContent = dict.title;
-    DOM.demoSituationText.textContent = dict.situation;
-    DOM.demoGuideReason.textContent = dict.reason;
-    DOM.demoMaximText.textContent = dict.maxim;
-    DOM.btnDemoSimulate.textContent = dict.simBtnText || "相手の番をシミュレート ▶";
-
-    setStatus("hint-thinking", `👁️ 盤面ビジュアル解説中：【${demoType}】（下のボタンで対局に復帰できます）`);
-
-    renderDemoBoardStep(demoType, 1);
+    updateDemoGuideUI();
 }
 
-function renderDemoBoardStep(demoType, step) {
-    currentDemoStep = step;
+function updateDemoGuideUI() {
+    const themeKey = DEMO_THEMES[currentDemoThemeIndex];
+    const scenario = DEMO_SCENARIOS[themeKey];
+    if (!scenario) return;
+
+    const stepData = scenario.steps.find(s => s.stepNum === currentDemoStep) || scenario.steps[0];
+
+    DOM.demoThemeNavTitle.textContent = scenario.title;
+
+    [DOM.demoStepTab1, DOM.demoStepTab2, DOM.demoStepTab3].forEach((tab, idx) => {
+        if (tab) tab.classList.toggle("active", (idx + 1) === currentDemoStep);
+    });
+
+    DOM.demoSituationText.textContent = stepData.situation;
+    DOM.demoGuideReason.textContent = stepData.reason;
+    DOM.demoMaximText.textContent = stepData.maxim;
+    DOM.btnDemoNextStep.textContent = stepData.btnText;
+
+    setStatus("hint-thinking", `👁️ 盤面ビジュアル解説中：【${themeKey}】（ステップ ${currentDemoStep}/3）`);
+
     board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    stepData.setup(board);
+    drawBoard();
+}
 
-    if (demoType === "角・X・C") {
-        if (step === 1) {
-            board[2][2] = BLACK; board[3][3] = WHITE; board[3][4] = BLACK;
-            board[4][3] = BLACK; board[4][4] = WHITE;
-            board[1][1] = BLACK; // Xマス
-            drawBoard();
+function nextDemoStep() {
+    currentDemoStep = (currentDemoStep >= 3) ? 1 : currentDemoStep + 1;
+    updateDemoGuideUI();
+}
 
-            cornerSquares.forEach(([cr, cc]) => attachDemoBadge(cr, cc, "👑 角", "demo-badge-corner"));
-            [[1,1]].forEach(([xr, xc]) => attachDemoBadge(xr, xc, "⚠️ Xマス(打点)", "demo-badge-x"));
-            [[0,1],[1,0]].forEach(([cr, cc]) => attachDemoBadge(cr, cc, "⚠️ Cマス", "demo-badge-c"));
-        } else {
-            board[0][0] = WHITE;
-            board[1][1] = WHITE; board[2][2] = WHITE;
-            board[3][3] = WHITE; board[3][4] = BLACK;
-            board[4][3] = BLACK; board[4][4] = WHITE;
-            drawBoard();
+function prevDemoTheme() {
+    currentDemoThemeIndex = (currentDemoThemeIndex - 1 + DEMO_THEMES.length) % DEMO_THEMES.length;
+    currentDemoStep = 1;
+    updateDemoGuideUI();
+}
 
-            attachDemoBadge(0, 0, "👑 角奪取！", "demo-badge-corner");
-            attachDemoBadge(1, 1, "💀 取られたX", "demo-badge-x");
-            DOM.demoSituationText.textContent = "白にA1の角を取られ、斜めの石がすべて白に裏返ってしまいました！";
-            DOM.demoGuideReason.textContent = "角を取られると相手の確定石となり、二度と取り返すことができません。";
-        }
-    } else if (demoType === "中割り") {
-        if (step === 1) {
-            board[2][3] = BLACK; board[2][4] = WHITE;
-            board[3][2] = BLACK; board[3][3] = WHITE; board[3][4] = WHITE; board[3][5] = BLACK;
-            board[4][2] = BLACK; board[4][3] = WHITE; board[4][4] = BLACK; board[4][5] = BLACK;
-            board[5][3] = BLACK; board[5][4] = BLACK;
-            drawBoard();
-
-            attachDemoBadge(3, 4, "🎯 ここ！(E4)", "demo-badge-cut");
-        } else {
-            board[2][3] = BLACK; board[2][4] = WHITE;
-            board[3][2] = BLACK; board[3][3] = BLACK; board[3][4] = BLACK; board[3][5] = BLACK;
-            board[4][2] = BLACK; board[4][3] = BLACK; board[4][4] = BLACK; board[4][5] = BLACK;
-            board[5][3] = BLACK; board[5][4] = BLACK;
-            drawBoard();
-
-            attachDemoBadge(3, 3, "🌱 内側だけ反転", "demo-badge-cut");
-            DOM.demoSituationText.textContent = "内側の白石だけが黒になり、外側の境界線は一切広がっていません！";
-            DOM.demoGuideReason.textContent = "外側に黒石が露出しないため、白（相手）は次に打てるマスがありません。";
-        }
-    } else if (demoType === "壁") {
-        if (step === 1) {
-            for (let c = 1; c <= 6; c++) board[1][c] = WHITE;
-            board[2][2] = WHITE; board[2][3] = BLACK; board[2][4] = BLACK;
-            drawBoard();
-
-            for (let c = 1; c <= 6; c++) attachDemoBadge(1, c, "🧱 壁", "demo-badge-wall");
-        } else {
-            for (let c = 1; c <= 6; c++) board[1][c] = WHITE;
-            board[0][2] = BLACK; board[0][3] = BLACK; board[0][4] = BLACK;
-            board[2][2] = WHITE; board[2][3] = BLACK; board[2][4] = BLACK;
-            drawBoard();
-
-            attachDemoBadge(0, 3, "🎯 相手の足場", "demo-badge-cut");
-            DOM.demoSituationText.textContent = "壁の外側を黒に囲まれ、白の打てる場所が完全に消滅しました。";
-            DOM.demoGuideReason.textContent = "外側に一直線に石を並べると、相手に無数の打点を与える最悪の敗着となります。";
-        }
-    } else if (demoType === "パリティ") {
-        board[3][3] = WHITE; board[3][4] = BLACK;
-        board[4][3] = BLACK; board[4][4] = WHITE;
-        drawBoard();
-
-        attachDemoBadge(0, 1, "偶数(2空き)", "demo-badge-even");
-        attachDemoBadge(0, 2, "偶数(2空き)", "demo-badge-even");
-        attachDemoBadge(0, 5, "奇数(1空き)", "demo-badge-odd");
-    } else if (demoType === "定石") {
-        board[3][3] = BLACK; board[3][4] = BLACK;
-        board[4][3] = BLACK; board[4][4] = WHITE;
-        board[4][5] = BLACK; board[5][5] = WHITE;
-        board[3][2] = BLACK;
-        drawBoard();
-
-        attachDemoBadge(3, 2, "🐮 牛定石C4", "demo-badge-cut");
-    } else {
-        board[0][0] = BLACK; board[0][1] = BLACK; board[0][2] = BLACK;
-        board[1][0] = BLACK; board[2][0] = BLACK;
-        drawBoard();
-
-        attachDemoBadge(0, 0, "👑 角(絶対安全)", "demo-badge-corner");
-        attachDemoBadge(0, 1, "💎 確定石", "demo-badge-corner");
-        attachDemoBadge(1, 0, "💎 確定石", "demo-badge-corner");
-    }
+function nextDemoTheme() {
+    currentDemoThemeIndex = (currentDemoThemeIndex + 1) % DEMO_THEMES.length;
+    currentDemoStep = 1;
+    updateDemoGuideUI();
 }
 
 function exitBoardVisualDemo() {
@@ -2126,7 +2273,6 @@ function exitBoardVisualDemo() {
     DOM.status.textContent = savedBoardStateForDemo.statusText;
 
     isDemoMode = false;
-    currentDemoType = null;
     currentDemoStep = 1;
     savedBoardStateForDemo = null;
 
@@ -2139,19 +2285,18 @@ function exitBoardVisualDemo() {
 }
 
 if (DOM.btnExitDemoMain) DOM.btnExitDemoMain.addEventListener("click", exitBoardVisualDemo);
-if (DOM.btnDemoSimulate) {
-    DOM.btnDemoSimulate.addEventListener("click", () => {
-        if (!isDemoMode || !currentDemoType) return;
-        const nextStep = (currentDemoStep === 1) ? 2 : 1;
-        renderDemoBoardStep(currentDemoType, nextStep);
-        DOM.btnDemoSimulate.textContent = (nextStep === 2) ? "◀ 最初の局面に戻す" : (TERMS_DICTIONARY[currentDemoType]?.simBtnText || "相手の番をシミュレート ▶");
-    });
-}
+if (DOM.btnDemoNextStep) DOM.btnDemoNextStep.addEventListener("click", nextDemoStep);
+if (DOM.btnDemoPrevTheme) DOM.btnDemoPrevTheme.addEventListener("click", prevDemoTheme);
+if (DOM.btnDemoNextTheme) DOM.btnDemoNextTheme.addEventListener("click", nextDemoTheme);
+
+if (DOM.demoStepTab1) DOM.demoStepTab1.addEventListener("click", () => { currentDemoStep = 1; updateDemoGuideUI(); });
+if (DOM.demoStepTab2) DOM.demoStepTab2.addEventListener("click", () => { currentDemoStep = 2; updateDemoGuideUI(); });
+if (DOM.demoStepTab3) DOM.demoStepTab3.addEventListener("click", () => { currentDemoStep = 3; updateDemoGuideUI(); });
 
 window.triggerBoardVisualDemo = triggerBoardVisualDemo;
 
 /* ==========================================================================
-  【ミニ解説ポップアップ】
+  【ミニ解説ポップアップ（対局盤面を壊さない安全設計）】
 ========================================================================= */
 let activePopupTerm = null;
 
@@ -2162,6 +2307,13 @@ function showTermPopup(termKey, event) {
 
     DOM.termPopupTitle.textContent = termData.title;
     DOM.termPopupBody.textContent = termData.desc;
+
+    // 対局中・レビューモード時はデモボタンを非表示にし、対局盤面の上書き事故を完全防止
+    if (gameOver || isReviewMode) {
+        DOM.termPopupDemoBtn.style.display = "none";
+    } else {
+        DOM.termPopupDemoBtn.style.display = "";
+    }
 
     const popup = DOM.termPopup;
     popup.style.display = "block";
@@ -2198,8 +2350,8 @@ if (DOM.termPopupClose) {
 if (DOM.termPopupDemoBtn) {
     DOM.termPopupDemoBtn.addEventListener("click", () => {
         if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
-        const demoType = TERMS_DICTIONARY[activePopupTerm].demoType;
-        triggerBoardVisualDemo(demoType);
+        const theme = TERMS_DICTIONARY[activePopupTerm].demoTheme || "角・X・C";
+        triggerBoardVisualDemo(theme);
     });
 }
 
@@ -2464,7 +2616,7 @@ function closeArchiveModal() {
 }
 
 /* ==========================================================================
-  【終局処理（ストーリー型戦局総括への全面刷新）】
+  【終局処理】
 ========================================================================== */
 function endGame() {
     gameOver = true;
@@ -2543,7 +2695,6 @@ function endGame() {
 
     DOM.resultQuoteBox.textContent = `「${quoteText}」`;
 
-    // 📜 ストーリー型戦局総括の生成と注入
     const story = generateTacticsStory(isWin, isDraw, hStones, cStones);
     if (DOM.carteStoryTimeline) {
         DOM.carteStoryTimeline.innerHTML = `
