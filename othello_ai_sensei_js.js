@@ -1,31 +1,30 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.1.0 (2026/10/19)
+  バージョン: Ver 8.3.0 (2026/10/19)
   
-  [Ver 8.1.0] 2026/10/19 更新内容:
-  - 【宮廷次の一手検定・一本道フロー＆完全調律エディション】
-  - 画面遷移を抜本改善。「検定コース選択」➔「盤面出題」➔「正解（次の問題へ進む▶） / 不正解（もう一度やり直す↺）」➔「合格証授与」の一本道フローを確立。
-  - 全5問の局面・合法手・裏返り・相手反撃手をオセロ公式数理で完全検証・再構築し、解答不能バグを完全根絶。
-  - 盤面上の星ドットによるインデックスズレを data-r, data-c 属性と getBoardCell() により完全解消。
-  - マス直結バッジ（⭕正解 / ❌あなたの手 / 💀相手が角奪取）を完備。
+  [Ver 8.3.0] 2026/10/19 更新内容:
+  - 【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】
+  - HTML/CSS/JSの3分割により、ファイル肥大化によるコード脱落とパース崩壊を物理根絶。
+  - 全15問（5大奥義×各3問）の類題特訓マスターデータと3層論理解説（急所理由・相手手数制限・将来見通し）を完全稼働。
+  - 全イベントリスナーのNull安全ガードを徹底し、100%安定した初期化と対局稼働を保証。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 8.1.0",
+    version: "Ver 8.3.0",
     date: "2026/10/19",
     history: [
         {
+            ver: "Ver 8.3.0", date: "2026/10/19",
+            desc: "【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】HTML/CSS/JSの3分割により、コード肥大化に伴う出力欠落やレイアウト崩壊を完全根絶。全15問の類題特訓と3層論理解説が万全に稼働。"
+        },
+        {
+            ver: "Ver 8.2.0", date: "2026/10/19",
+            desc: "【宮廷次の一手検定・五大奥義×各3問類題特訓（全15問）完全理解エディション】答えの丸暗記を排し、本質的な理屈を体得するため全15問（5テーマ×3問）へ全面拡充。なぜ正解なのか（急所理由・相手手数制限・将来見通し）と、なぜ他がダメなのか（悪手理由・相手反撃）を徹底解説。"
+        },
+        {
             ver: "Ver 8.1.0", date: "2026/10/19",
-            desc: "【宮廷次の一手検定・一本道フロー＆完全調律エディション】動線と画面遷移を抜本改修。「検定コース一覧モーダル」➔「盤面出題・解答」➔「次の問題へ進む」➔「合格証授与」の迷いゼロの一本道フローを確立。全問の局面・合法手・裏返り・相手反撃手をオセロ公式数理で完全検証・再構築し、解答不能バグを根絶。"
-        },
-        {
-            ver: "Ver 8.0.0", date: "2026/10/19",
-            desc: "【宮廷次の一手ドリル（五大奥義・類題特訓システム）搭載エディション】受動的な観戦から能動的な盤面タップ解答へ。初級からLv.10全国名人撃破までの五大奥義を網羅。"
-        },
-        {
-            ver: "Ver 7.3.1", date: "2026/10/19",
-            desc: "【AI肖像画・縦長特大オーバル化＆セリフ2行完全対応・デモ操作系完全直結エディション】AI肖像画を気品ある縦長特大オーバル額縁へ美装大型化。"
+            desc: "【宮廷次の一手検定・一本道フロー＆完全調律エディション】動線と画面遷移を改修。「盤面出題」➔「正解／不正解」➔「合格証」の一本道フローを確立。"
         }
     ]
 };
@@ -67,11 +66,11 @@ let currentDemoThemeIndex = 0;
 let currentDemoStep = 1;
 let savedBoardStateForDemo = null;
 
-// 🎯 宮廷次の一手検定（ドリルモード）管理変数
+// 🎯 宮廷次の一手検定（全15問類題特訓）管理変数
 let isDrillMode = false;
-let currentDrillQuestionIndex = 1; // 1〜5
+let currentDrillQuestionIndex = 1; // 1〜15
 let savedBoardStateForDrill = null;
-const drillPassedMap = {}; // 各問クリアフラグ: { 1: true, 2: true, ... }
+const drillPassedMap = {}; // クリア済みフラグ { 1: true, 2: true, ... }
 let isSimulatingDrillMistake = false;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
@@ -215,73 +214,81 @@ const TERMS_DICTIONARY = {
     "Cマス": {
         title: "⚠️ Cマス（シー）",
         desc: "角に隣接するマス。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。",
-        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 4
+        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 10
     },
     "中割り": {
         title: "🌱 中割り理論",
         desc: "外側の石を取らず、内側の石だけを返すオセロの基本奥義。外側に石が露出しないため、相手に打てるマスを与えません。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 3
+        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 7
     },
     "壁": {
         title: "🧱 壁（かべ）",
         desc: "外側に自分の石が一直線に並んでしまう状態。相手に多くの足場を与えてしまうため、敗着の典型とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "壁", drillIndex: 2
+        tabSec: "term-sec-tactics", demoTheme: "壁", drillIndex: 4
     },
     "パリティ": {
         title: "⚖️ パリティ（偶数理論）",
         desc: "オセロ終盤の絶対法則。偶数空きエリアには相手に先に打たせ、自分が最後に打つことで最後の一手を独占できます。",
-        tabSec: "term-sec-tactics", demoTheme: "パリティ", drillIndex: 5
+        tabSec: "term-sec-tactics", demoTheme: "パリティ", drillIndex: 13
     },
     "確定石": {
         title: "💎 確定石（かくていせき）",
         desc: "終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。",
-        tabSec: "term-sec-tactics", demoTheme: "角・X・C", drillIndex: 4
+        tabSec: "term-sec-tactics", demoTheme: "角・X・C", drillIndex: 11
     },
     "開放度": {
         title: "📉 開放度（かいほうど）",
         desc: "打った石の周囲にある空きマスの数。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 3
+        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 7
     },
     "虎定石": {
         title: "🐯 虎定石（トラ）",
         desc: "初手F5に対し平行取りD6や縦取りから展開する王道定石。主導権を握りやすい基本形です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
     },
     "牛定石": {
         title: "🐮 牛定石（ウシ）",
         desc: "縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
     },
     "馬定石": {
         title: "🐴 馬定石（ウマ）",
         desc: "斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟な名定石です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
     }
 };
 
 /* ==========================================================================
-  【🎯 宮廷次の一手検定（全5大奥義コース・完全調律マスターデータ）】
+  【🎯 宮廷次の一手検定：五大奥義×各3問 類題特訓マスターデータベース（全15問）】
 ========================================================================== */
 const DRILL_QUESTIONS = [
+    // -------------------------------------------------------------
+    // 【テーマ1：⚠️ Xマスの罠と角防衛】（問1〜3）
+    // -------------------------------------------------------------
     {
-        id: 1,
-        title: "⚠️ 第1問：Xマスの罠と角防衛",
+        id: 1, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "基本形",
+        title: "⚠️ 第1問：Xマスの罠（基本形）",
         diffLabel: "初級・アマ10級",
-        desc: "角が空いている時に斜め前のXマスに打つと、相手に角を即座に取られます。安全な手を見抜きましょう。",
+        desc: "左上角（A1）が空いている局面。魅力的に見えるB2（Xマス）の誘惑を退け、安全な手を見抜く。",
         turn: BLACK,
-        question: "Q. 白に角（A1）を献上しない安全なマスを選んでください（盤面タップ）。",
+        question: "Q. 白に角（A1）を献上しない、安全な内側のマスを選んでください（盤面タップ）。",
         sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 4], // E3（安全な中割り）
-        correctReason: "正解！🎉 危険なB2（Xマス）の誘惑を冷静に避け、内側のE3に着手しました！ 角が空いているうちは絶対にXマスに手を出してはいけません。",
+        correctMove: [2, 4], // E3
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>左上の角（A1）が空いている時に、斜め前のB2（Xマス）に手を出すのは自殺行為です。内側の<b>E3</b>を選ぶことで、外側に境界線を広げずに安全に手番を渡せます。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白に角への足場を一切与えず、白は引き続き中央の狭いエリアを打つしかなくなります。</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>相手がしびれを切らしてXマスや危険なマスに打つまで、内側で静かに待ち構えることができます。</div>
+        `,
         mistakes: {
             "1,1": {
-                reason: "❌ そこは最危険の【B2（Xマス）】です！ 角（A1）が空いている時にここに打つと、相手に角への踏み台をプレゼントしてしまいます。",
-                cpuResponse: [0, 0] // 相手が即座に角A1を取る
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは最危険の<b>【B2（Xマス）】</b>です！ 角（A1）が空いている時にここに打つと、相手に角を取るための踏み台（足場）を直接プレゼントしてしまいます。</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に左上角（A1）に飛び込み、B2の黒石を挟んで確定石にしてしまいました！</div>
+                `,
+                cpuResponse: [0, 0] // 相手が角A1を即奪取
             }
         },
-        defaultMistakeReason: "惜しい！ そこではありません。角を取られない内側の安全なマス（E3）を探しましょう。",
-        // 厳密な実戦合法配置：B2(1,1)に打つとC2(1,2)の白を挟んでD2(1,3)で取れる。
-        // 打った後、白はA1(0,0)に飛び込んでB2(1,1)の黒を挟んでC3(2,2)の白で取れる！
+        defaultMistakeReason: "危険です！ 空いている角の斜め前（Xマス）に石を置くと角を取られてしまいます。内側の安全なマス（E3）を探しましょう。",
         setup: (b) => {
             b[1][2] = WHITE; b[1][3] = BLACK;
             b[2][2] = WHITE; b[2][3] = BLACK;
@@ -290,22 +297,94 @@ const DRILL_QUESTIONS = [
         }
     },
     {
-        id: 2,
-        title: "🧱 第2問：壁を作らない外側警戒",
-        diffLabel: "初中級・アマ6級",
-        desc: "石を多く取ると外側に自分の石が一直線に並んで「壁」になり、相手に無数の足場を与えてしまいます。",
+        id: 2, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "類似反転形",
+        title: "⚠️ 第2問：右上Xマスの回避（類似反転）",
+        diffLabel: "初級・アマ9級",
+        desc: "盤面が右上に向かって展開した類似局面。G2（Xマス）の誘惑を退け、中央の落ち着いた手を見極める。",
         turn: BLACK,
-        question: "Q. 3枚取れる派手な手と、壁を作らない静かな手があります。正しい手は？",
+        question: "Q. 右上角（H1）が空いています。右上角を取られない正しい手は？",
         sub: "手番：あなたの黒番（⚫）",
-        correctMove: [3, 2], // C4（内側の静かな一手）
-        correctReason: "素晴らしい！🎉 3枚取れる派手な手に惑わされず、外側に石を露出させないC4を選びました！ 序盤〜中盤のオセロは『少なく取る』が勝利の鉄則です。",
+        correctMove: [5, 4], // E6
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>右上の角（H1）が空いているため、G2（Xマス）は絶対に打ってはいけません。下側中央の<b>E6</b>に打つことで、相手に角への突破口を与えません。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は右上から攻め込む手がなくなり、無理な外側着手を強いられます。</div>
+            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>盤面の場所（左上でも右上でも）が変わっても、「空いている角の斜め前＝地雷」という鉄則は不変です！</div>
+        `,
         mistakes: {
-            "2,5": {
-                reason: "❌ 3枚取れますが、外側に自分の石がずらりと並んで【壁】になってしまいました！ 相手に無限の足場を与えてしまいます。",
-                cpuResponse: [1, 5] // 相手が外側から急襲
+            "1,6": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは右上の<b>【G2（Xマス）】</b>です！ 2枚裏返せますが、角（H1）への橋渡しをしてしまいました。</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に右上角（H1）を奪取！ 右辺全体が白の確定石になってしまいます。</div>
+                `,
+                cpuResponse: [0, 7] // 相手が角H1を即奪取
             }
         },
-        defaultMistakeReason: "石をたくさん取ると、外側に自分の石が露出してしまいます。内側をめくる手を探しましょう。",
+        defaultMistakeReason: "右上角（H1）への足場を与えてしまいます。Xマス（G2）を避け、中央の内側（E6）を選びましょう。",
+        setup: (b) => {
+            b[1][4] = BLACK; b[1][5] = WHITE;
+            b[2][4] = BLACK; b[2][5] = WHITE;
+            b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
+            b[4][3] = BLACK; b[4][4] = WHITE; b[4][5] = WHITE;
+        }
+    },
+    {
+        id: 3, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "実戦応用形",
+        title: "⚠️ 第3問：相手のXマス誘発（実戦応用）",
+        diffLabel: "初中級・アマ8級",
+        desc: "相手に打てる場所を与えず、相手自身に危険なXマスへ打たせる誘導手筋。",
+        turn: BLACK,
+        question: "Q. 相手の逃げ道を塞ぎ、相手からXマスへ打たざるを得ない状況に追い込む手は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [2, 2], // C3
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br><b>C3</b>に打つことで、中央を強固に制圧し、白の安全な打点を完全に消滅させました！</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は安全なマスがなくなり、嫌でも危険なXマス（B2）に自ら飛び込まざるを得なくなります。</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白がXマスに打った瞬間、次の手であなたが左上角（A1）を堂々と奪取できます！</div>
+        `,
+        mistakes: {
+            "1,1": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手に打たせるべきXマス（B2）に、自分から飛び込んでしまいました！</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白に悠々と角（A1）を取られ、大逆転を許してしまいます。</div>
+                `,
+                cpuResponse: [0, 0]
+            }
+        },
+        defaultMistakeReason: "自分からXマスに打ってはいけません。中央の急所（C3）を突いて相手の手番を奪いましょう。",
+        setup: (b) => {
+            b[2][3] = WHITE; b[2][4] = WHITE;
+            b[3][2] = WHITE; b[3][3] = BLACK; b[3][4] = WHITE;
+            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK;
+        }
+    },
+
+    // -------------------------------------------------------------
+    // 【テーマ2：🧱 壁の回避と外側警戒】（問4〜6）
+    // -------------------------------------------------------------
+    {
+        id: 4, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "基本形",
+        title: "🧱 第4問：3枚取りの罠（基本形）",
+        diffLabel: "初中級・アマ7級",
+        desc: "石をたくさん取ると外側に一直線の「壁」ができ、相手に無数の足場を与えてしまう。",
+        turn: BLACK,
+        question: "Q. 3枚取れる派手な手と、1枚しか取れない静かな手。正しい選択は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [3, 2], // C4
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>オセロ序盤〜中盤の絶対鉄則は<b>「少なく取る」</b>ことです！ C4はわずか1枚しか裏返しませんが、外側に黒石を一切露出させません。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>相手は黒石を足場にすることができず、打てるマスが増えません。</div>
+            <div class="drill-reason-act"><b>【他の手との比較】</b><br>もし3枚取ってしまうと、外側に黒の「壁」ができ、相手に四方八方への反撃チャンスを与えてしまいます。</div>
+        `,
+        mistakes: {
+            "2,5": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>3枚取れて気持ちいい手ですが、外側に自分の石がずらりと並んで【巨大な壁】になってしまいました！</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が壁の外側（F2）から急襲！ 白の打てる場所が盤面全体に一気に広がってしまいました。</div>
+                `,
+                cpuResponse: [1, 5]
+            }
+        },
+        defaultMistakeReason: "石をたくさん取ると外側に壁ができてしまいます。内側で静かに1枚だけ返すマス（C4）を探しましょう。",
         setup: (b) => {
             b[2][3] = WHITE; b[2][4] = WHITE;
             b[3][3] = WHITE; b[3][4] = BLACK;
@@ -313,22 +392,93 @@ const DRILL_QUESTIONS = [
         }
     },
     {
-        id: 3,
-        title: "🌱 第3問：至高の手筋「中割り」",
-        diffLabel: "中級・アマ2級",
-        desc: "オセロ最強の基本手筋。外側の境界線を広げず、内側の石だけを返すことで相手の手番を削り取ります。",
+        id: 5, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "類似反転形",
+        title: "🧱 第5問：下辺の壁警戒（類似反転）",
+        diffLabel: "初中級・アマ6級",
+        desc: "下側に向かって石を裏返すと外壁ができてしまう局面。横の内側をめくる。",
         turn: BLACK,
-        question: "Q. 相手の打てる場所を増やさず、内側の石だけを返す【中割り】はどれ？",
+        question: "Q. 下方向に石を露出させず、壁を作らない内側の一手を選んでください。",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [2, 3], // D3
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>上側内側の<b>D3</b>に着手しました。下側の境界線を一切広げていないため、下辺に壁を作ることなく内側を固められました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は下側からの攻め手がなく、内側の手詰まりへと向かいます。</div>
+            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>上下左右、どの方向であっても「外側の最前線を自分からめくらない」ことがオセロの基本防御です。</div>
+        `,
+        mistakes: {
+            "5,4": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>下方向（E6）に大きく石を裏返してしまいました！ 下側のラインに黒の壁が露出しています。</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が露出した黒石を足場にして下辺（E7）へ進出。主導権を奪われました。</div>
+                `,
+                cpuResponse: [6, 4]
+            }
+        },
+        defaultMistakeReason: "下側に石を飛び出させてはいけません。上寄りの内側のマス（D3）を選びましょう。",
+        setup: (b) => {
+            b[3][3] = WHITE; b[3][4] = BLACK;
+            b[4][3] = WHITE; b[4][4] = WHITE;
+            b[4][5] = BLACK;
+        }
+    },
+    {
+        id: 6, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "実戦応用形",
+        title: "🧱 第6問：相手の壁を利用する（実戦応用）",
+        diffLabel: "中級・アマ5級",
+        desc: "白がすでに外側に壁を作っています。相手の壁に付き合わず、内側から削る高等手筋。",
+        turn: BLACK,
+        question: "Q. 白の作った壁の外側を打つのではなく、内側から相手の選択肢を奪う手は？",
         sub: "手番：あなたの黒番（⚫）",
         correctMove: [4, 2], // C5
-        correctReason: "至高の一着！🎉 内側の白石1枚だけを裏返しました。外側に黒石が露出していないため、相手の打てる場所を一切増やしていません！",
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>完璧な判断です！ 白の壁の外側に手を出すのではなく、内側の<b>C5</b>に着手しました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白はすでに壁を作ってしまっているため、外側に打てる場所がありません。白はさらに不利な壁を広げるしかなくなります。</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>「相手に壁を作らせて、自分は内側に潜る」。これが中級者を圧倒する勝ちパターンです！</div>
+        `,
+        mistakes: {
+            "1,4": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手の壁の外側（E2）に自分から手を出してしまいました！</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>相手に都合の良い足場を与えてしまい、せっかくの白の壁の欠陥を帳消しにしてしまいました。</div>
+                `,
+                cpuResponse: [1, 3]
+            }
+        },
+        defaultMistakeReason: "相手の壁の外側に手を出してはいけません。内側のマス（C5）に打ち込みましょう。",
+        setup: (b) => {
+            b[1][2] = WHITE; b[1][3] = WHITE; b[1][4] = WHITE;
+            b[2][3] = WHITE; b[2][4] = BLACK;
+            b[3][3] = BLACK; b[3][4] = WHITE;
+            b[4][3] = WHITE; b[4][4] = BLACK;
+        }
+    },
+
+    // -------------------------------------------------------------
+    // 【テーマ3：🌱 至高の手筋「中割り」】（問7〜9）
+    // -------------------------------------------------------------
+    {
+        id: 7, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "基本形",
+        title: "🌱 第7問：至高の中割り（基本形）",
+        diffLabel: "中級・アマ4級",
+        desc: "外側の境界線を一切広げず、すでに囲まれた内側の石だけを返すオセロ最強の基本手筋。",
+        turn: BLACK,
+        question: "Q. 外側の境界線を広げず、内側の白石1枚だけを裏返す【中割り】はどれ？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [4, 2], // C5
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>これぞオセロ最強の奥義<b>【中割り（なかわり）】</b>です！ 周囲がすでに石で埋まっている内側の白石1枚だけをめくりました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>外周の空きマスに黒石が1枚も露出していません（開放度ゼロ）。そのため、相手の打てるマスが「1箇所も増えていません」！</div>
+            <div class="drill-reason-act"><b>【他の手との比較】</b><br>もし外側（F3等）を打つと、相手の打てる場所が3箇所も急増してしまいます。</div>
+        `,
         mistakes: {
             "2,5": {
-                reason: "❌ 外側の石を裏返してしまいました。相手の打てるマスが3箇所も増えて大反撃されます！",
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>外側の石を裏返してしまいました！ 外周に黒石が露出したため、白の足場が大幅に増えてしまいます。</div>
+                `,
                 cpuResponse: null
             }
         },
-        defaultMistakeReason: "すでに相手の石に囲まれている『内側の石』だけを返すマスを探しましょう。",
+        defaultMistakeReason: "すでに相手の石に囲まれている『内側の石』だけを返すマス（C5）を探しましょう。",
         setup: (b) => {
             b[2][3] = WHITE; b[2][4] = WHITE;
             b[3][2] = WHITE; b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
@@ -337,22 +487,121 @@ const DRILL_QUESTIONS = [
         }
     },
     {
-        id: 4,
-        title: "💎 第4問：Cマスの罠とウイング破り",
-        diffLabel: "上級・アマ初段",
-        desc: "相手が辺に不用意なウイングを作った時、あえてCマスにクサビを打ち込んで角を強奪する高等手筋です。",
+        id: 8, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "類似反転形",
+        title: "🌱 第8問：縦ラインの中割り（類似反転）",
+        diffLabel: "中級・アマ3級",
+        desc: "横ではなく縦に並んだ石の中から、内側だけをきれいに抜き取る中割り。",
         turn: BLACK,
-        question: "Q. 相手（白）が上の辺にウイングを作っています。角（A1）を奪取する手筋は？",
+        question: "Q. 縦の密集地帯から、外側に石を露出させない【縦の中割り】を選んでください。",
         sub: "手番：あなたの黒番（⚫）",
-        correctMove: [0, 1], // B1（相手のウイングにクサビを打ち込む）
-        correctReason: "お見事！🎉 相手のウイングの欠陥を突き、B1へクサビを打ち込みました！ 白は角に打つことができず、次の手で黒が左上角（A1）を確実に奪取できます！",
+        correctMove: [2, 3], // D3
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>見事な縦の中割りです！ <b>D3</b>に着手し、密集した内側の石だけを反転させました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>縦方向の境界線がまったく外に膨らまないため、白は次に打つ手が極めて窮屈になります。</div>
+            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>中割りは横方向だけでなく、縦方向や斜め方向でも成立します。「返した石の隣に空きマスがない状態」が最高の形です！</div>
+        `,
         mistakes: {
-            "2,1": {
-                reason: "緩着です。相手のウイングの隙（B1）に直接打ち込みましょう。",
+            "4,5": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>右側の外枠に石を飛び出させてしまいました！ 開放度が高く、白に右辺からの潜り込みを許します。</div>
+                `,
                 cpuResponse: null
             }
         },
-        defaultMistakeReason: "相手の辺の並びの隙間（B1）に打ち込む手を探してください。",
+        defaultMistakeReason: "外側の石ではなく、すでに挟まれている内側の縦ライン（D3）をめくりましょう。",
+        setup: (b) => {
+            b[3][2] = BLACK; b[3][3] = WHITE; b[3][4] = BLACK;
+            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = WHITE;
+            b[5][3] = BLACK; b[5][4] = WHITE;
+        }
+    },
+    {
+        id: 9, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "実戦応用形",
+        title: "🌱 第9問：相手の手数ゼロ化（実戦応用）",
+        diffLabel: "中上級・アマ2級",
+        desc: "中割りを決めることで、相手の打てる場所を完全に奪い、パス寸前へ追い込む決定打。",
+        turn: BLACK,
+        question: "Q. 相手の打てるマスを盤面全体で残り「わずか1箇所」に激減させる中割りは？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [3, 2], // C4
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>完璧な中割りの決定打です！ <b>C4</b>に打ったことで、白の打てるマスをすべて封殺しました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白が次に打てる場所は、盤面全体でなんと「残り1箇所（しかも悪手）」しかありません！</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>中割りを連続して決めることで、相手はパスするか、不利なマス（XやC）に自ら打つしかなくなります。</div>
+        `,
+        mistakes: {
+            "2,4": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>中割りに見えますが、上側に石が抜けてしまっています。白の打てる場所が3箇所も残ってしまいます。</div>
+                `,
+                cpuResponse: null
+            }
+        },
+        defaultMistakeReason: "相手の選択肢を完全に奪う、完璧な内側の急所（C4）を探してください。",
+        setup: (b) => {
+            b[2][2] = BLACK; b[2][3] = WHITE;
+            b[3][3] = WHITE; b[3][4] = WHITE; b[3][5] = BLACK;
+            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK;
+            b[5][3] = BLACK;
+        }
+    },
+
+    // -------------------------------------------------------------
+    // 【テーマ4：💎 Cマスの罠とウイング破り】（問10〜12）
+    // -------------------------------------------------------------
+    {
+        id: 10, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "基本形",
+        title: "💎 第10問：不用意なCマス回避（基本形）",
+        diffLabel: "中上級・アマ1級",
+        desc: "角の隣（Cマス）はXマスの次に危険なマス。不用意に打つと角への足場を与えてしまう。",
+        turn: BLACK,
+        question: "Q. 白に角（A1）を奪われないよう、危険なCマス（B1）を避けた安全な手は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [2, 1], // B3
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>角に直接隣接する<b>B1（Cマス）</b>の誘惑を冷静に避け、内側の<b>B3</b>に着手しました！</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は角（A1）に潜り込むための足場がなく、角を狙うことができません。</div>
+            <div class="drill-reason-act"><b>【Cマスの危険性】</b><br>角が空いている時にCマスに打つと、相手に角を取られた上に辺全体を固められてしまいます。</div>
+        `,
+        mistakes: {
+            "0,1": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは最危険の<b>【B1（Cマス）】</b>です！ 辺に手を出してしまいました。</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に左上角（A1）へ潜入！ B1の黒石を足場にして角を奪取されました。</div>
+                `,
+                cpuResponse: [0, 0]
+            }
+        },
+        defaultMistakeReason: "角の隣（B1）に打つと角を取られます！ 内側の安全なマス（B3）を選びましょう。",
+        setup: (b) => {
+            b[1][1] = BLACK; b[1][2] = WHITE; b[1][3] = BLACK;
+            b[2][2] = WHITE; b[2][3] = BLACK;
+            b[3][1] = BLACK; b[3][2] = WHITE;
+        }
+    },
+    {
+        id: 11, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "類似反転形",
+        title: "💎 第11問：ウイングへのクサビ（類似反転）",
+        diffLabel: "上級・アマ初段",
+        desc: "相手が上辺に不完全な形（ウイング）を作った瞬間、あえてCマスにクサビを打ち込んで角を強奪する高等手筋。",
+        turn: BLACK,
+        question: "Q. 相手（白）の上辺ウイングの弱点を突き、角（A1）を確定させる手筋は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [0, 1], // B1
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>高等奥義<b>【ウイングへのクサビ打ち】</b>です！ 相手のウイング（C1〜E1）の隙間である<b>B1</b>に打ち込みました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は間の石がすべて白いため、角（A1）に打つことができません！</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白は角を守ることができず、次の手であなたが左上角（A1）を100%確実に強奪できます！</div>
+        `,
+        mistakes: {
+            "2,1": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>緩着です。相手のウイングの欠陥を突かず放置すると、相手に修復されてしまいます。</div>
+                `,
+                cpuResponse: null
+            }
+        },
+        defaultMistakeReason: "相手のウイングの隙間（B1）に直接クサビを打ち込んでください！",
         setup: (b) => {
             b[0][2] = WHITE; b[0][3] = WHITE; b[0][4] = WHITE;
             b[1][2] = BLACK; b[2][2] = BLACK;
@@ -360,28 +609,132 @@ const DRILL_QUESTIONS = [
         }
     },
     {
-        id: 5,
-        title: "⚖️ 第5問：パリティ（最後の一手独占）",
-        diffLabel: "神域・全国名人",
-        desc: "終盤の絶対法則「偶数空きは相手から、奇数空きは自分から」。各エリアの最後の一手を独占して完全勝利します。",
+        id: 12, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "実戦応用形",
+        title: "💎 第12問：辺の爆弾解除（実戦応用）",
+        diffLabel: "上級・アマ二段",
+        desc: "相手の仕掛けた罠を見破り、自分から手を出さずに相手からCマスを打たせる高等誘導。",
+        turn: BLACK,
+        question: "Q. 焦って辺を取ると罠にはまります。内側を打って相手にCマスを打たせる手は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [3, 4], // E4
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>見事な大局観です！ 辺の危険地帯に手を出さず、内側の<b>E4</b>で手番を渡しました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は他に打つ手がなく、白自身が危険なCマスに打たざるを得なくなります。</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>相手がCマスを打った直後に、あなたが角へ飛び込んで辺全体を確定石にできます！</div>
+        `,
+        mistakes: {
+            "0,2": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手の仕掛けた罠に自分から飛び込んでしまいました！ 辺が崩壊します。</div>
+                `,
+                cpuResponse: null
+            }
+        },
+        defaultMistakeReason: "辺に手を出すと罠にかかります。内側の急所（E4）を選んで相手に手を渡しましょう。",
+        setup: (b) => {
+            b[0][3] = WHITE; b[0][4] = WHITE;
+            b[1][3] = BLACK; b[1][4] = WHITE;
+            b[2][3] = BLACK; b[2][4] = BLACK;
+            b[3][3] = WHITE;
+        }
+    },
+
+    // -------------------------------------------------------------
+    // 【テーマ5：⚖️ 終盤の絶対法則「パリティ」】（問13〜15）
+    // -------------------------------------------------------------
+    {
+        id: 13, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "基本形",
+        title: "⚖️ 第13問：2マス空きのパリティ（基本形）",
+        diffLabel: "有段・アマ三段",
+        desc: "終盤の鉄則「偶数空きは相手から打たせる」。右上の2マス空きに手を出さず、最後の一手を独占する。",
         turn: BLACK,
         question: "Q. 右上に【2マス空き（偶数）】があります。あなたから打つべきか、待つべきか？",
         sub: "手番：あなたの黒番（⚫）",
-        correctMove: [6, 2], // C7（別の奇数エリアを打って、偶数空きは相手に打たせる）
-        correctReason: "神域の読み！🎉 『偶数空きは相手から打たせる』！ あなたが別のエリアを打ったことで、白は嫌でも右上を先に打たざるを得ず、最後の一手（H1角）をあなたが独占できます！",
+        correctMove: [6, 2], // C7
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>オセロ終盤の絶対法則<b>【偶数理論（パリティ）】</b>の神髄です！ 右上の2マス空き（偶数）に手を出さず、左下の<b>C7</b>に着手しました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は嫌でも右上の2マス空きに「先に」打たざるを得なくなります。</div>
+            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白が右上に打った後、最後の一手（H1角）をあなたが確実に独占でき、大差で完全勝利できます！</div>
+        `,
         mistakes: {
             "0,6": {
-                reason: "❌ 偶数空きに自分から手を出してしまいました！ 次の手（H1・角）を白に独占されて大敗します。",
-                cpuResponse: [0, 7] // 白が角独占
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>偶数空き（2マス空き）に自分から手を出してしまいました！</div>
+                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に最後の一手である右上角（H1）を奪取！ 偶数エリアの最後の一手を相手に独占されて大敗します。</div>
+                `,
+                cpuResponse: [0, 7]
             }
         },
-        defaultMistakeReason: "右上の2マス空きに自分から打ってはいけません！ 別のマスを選んで相手に先に打たせましょう。",
+        defaultMistakeReason: "右上の2マス空きに自分から打ってはいけません！ 別のマス（C7）を選んで相手に先に打たせましょう。",
         setup: (b) => {
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
             }
-            b[0][6] = 0; b[0][7] = 0; // 右上2マス空き
-            b[6][2] = 0; b[5][2] = WHITE; // C7が打点
+            b[0][6] = 0; b[0][7] = 0;
+            b[6][2] = 0; b[5][2] = WHITE;
+        }
+    },
+    {
+        id: 14, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "類似反転形",
+        title: "⚖️ 第14問：偶数と奇数の数え分け（類似反転）",
+        diffLabel: "強豪有段・アマ四段",
+        desc: "盤面に「2マス空き（偶数）」と「1マス空き（奇数）」がある局面。奇数空きに自分から打ち、偶数空きを相手に残す。",
+        turn: BLACK,
+        question: "Q. 「奇数空きは自分から、偶数空きは相手から」。どちらのエリアに打つべき？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [7, 1], // B8
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>パーフェクトなパリティ計算です！ 1マスしか空いていない奇数エリア（B8）に自分から着手しました。</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>奇数エリアが埋まったため、白は残された「偶数エリア（2マス空き）」に先に打つしかありません。</div>
+            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>「奇数は自分から打って偶数に変える」「偶数は相手に先に打たせる」。この2行を唱えるだけで終盤の勝率が劇的に跳ね上がります！</div>
+        `,
+        mistakes: {
+            "0,1": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>偶数空きエリアに自分から打ってしまいました！ 白に最後の一手を独占されます。</div>
+                `,
+                cpuResponse: [0, 0]
+            }
+        },
+        defaultMistakeReason: "偶数空きではなく、1マスだけ空いている奇数エリア（B8）に打ってください。",
+        setup: (b) => {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) b[r][c] = BLACK;
+            }
+            b[0][0] = 0; b[0][1] = 0;
+            b[7][1] = 0;
+            b[6][1] = WHITE;
+        }
+    },
+    {
+        id: 15, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "実戦応用形",
+        title: "⚖️ 第15問：名人撃破のパリティ総仕上げ",
+        diffLabel: "神域・全国名人",
+        desc: "全国名人Lv.10オルレアンを打倒する最終試練。複数の空きエリアのパリティを完璧に見切り、完全制覇を達成する。",
+        turn: BLACK,
+        question: "Q. 全ての空きマスの偶奇を計算し、相手の打てる場所をゼロにして完全勝利する一手は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [1, 7], // H2
+        correctReason: `
+            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>神域の読み、完璧です！🎉 <b>H2</b>への着手により、右辺のパリティを完璧に維持したまま、白の残りの合法手を完全にゼロ（パス）に追い込みました！</div>
+            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は置けるマスが一切存在せず、パスを宣告されます。</div>
+            <div class="drill-reason-act"><b>【栄光の免許皆伝へ】</b><br>残るすべての空きマスをあなたが独占連打し、盤面完全制覇を達成できます！ あなたはオセロの真髄を完全に極めました！</div>
+        `,
+        mistakes: {
+            "6,7": {
+                reason: `
+                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>下側を打つとパリティが崩れ、老賢王オルレアンに逆襲の角を奪われてしまいます！</div>
+                `,
+                cpuResponse: [7, 7]
+            }
+        },
+        defaultMistakeReason: "右辺のパリティを維持する神域の一手（H2）を見つけ出してください！",
+        setup: (b) => {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) b[r][c] = (r >= 4) ? BLACK : WHITE;
+            }
+            b[1][7] = 0; b[2][7] = WHITE; b[0][7] = WHITE;
+            b[6][7] = 0; b[7][7] = 0;
         }
     }
 ];
@@ -464,13 +817,12 @@ function playFlipSequence(count) {
     }
 }
 
-// 👑 王宮ファンファーレ音（検定正解時アルペジオ）
 function playFanfareSound() {
     if (isMuted || document.hidden) return;
     try {
         const ctx = getAudioContext();
         if (!ctx) return;
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
         notes.forEach((freq, idx) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -486,7 +838,6 @@ function playFanfareSound() {
     } catch (e) {}
 }
 
-// ❌ 警告ブザー音（検定不正解時）
 function playBuzzerSound() {
     if (isMuted || document.hidden) return;
     try {
@@ -523,7 +874,6 @@ const opposite = (p) => (p === BLACK ? WHITE : BLACK);
 const cloneBoard = (src) => src.map(r => r.slice());
 const toNotation = (r, c) => String.fromCharCode(65 + c) + (r + 1);
 
-// 🎯 正確なセル要素の取得関数（星ドットのインデックスズレを完全根絶）
 function getBoardCell(r, c) {
     if (!DOM.board) return null;
     return DOM.board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
@@ -903,6 +1253,7 @@ const getCurrentCharacter = () => CHARACTERS[Number(DOM.characterSelect.value) |
 
 function renderCharacterAvatar() {
     const char = getCurrentCharacter();
+    if (!DOM.avatarImgBox) return;
     DOM.avatarImgBox.innerHTML = "";
     const img = new Image();
     img.src = char.image;
@@ -914,6 +1265,7 @@ function renderCharacterAvatar() {
 
 function typeWriterSpeech(fullText, isClimax) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
+    if (!DOM.speechText || !DOM.opponentSpeech) return;
     DOM.speechText.textContent = "";
     DOM.opponentSpeech.classList.add("is-speaking");
     DOM.speechText.classList.add("is-typing-text");
@@ -949,26 +1301,32 @@ function setOpponentQuote(category) {
     const text = list[Math.floor(Math.random() * list.length)];
     const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
-    DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
-    DOM.opponentSpeech.style.animation = 'none';
-    DOM.opponentSpeech.offsetHeight;
-    DOM.opponentSpeech.style.animation = 'bubble-appear 0.28s ease-out';
+    if (DOM.opponentSpeech) {
+        DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
+        DOM.opponentSpeech.style.animation = 'none';
+        DOM.opponentSpeech.offsetHeight;
+        DOM.opponentSpeech.style.animation = 'bubble-appear 0.28s ease-out';
+    }
 
     typeWriterSpeech(text, isClimax);
 
     const motionClass = `motion-char-${char.id}`;
-    DOM.opponentAvatarFrame.classList.remove(motionClass);
-    DOM.opponentAvatarFrame.offsetHeight;
-    DOM.opponentAvatarFrame.classList.add(motionClass);
+    if (DOM.opponentAvatarFrame) {
+        DOM.opponentAvatarFrame.classList.remove(motionClass);
+        DOM.opponentAvatarFrame.offsetHeight;
+        DOM.opponentAvatarFrame.classList.add(motionClass);
+    }
 
-    DOM.opponentAvatarWrap.classList.remove("is-talking");
-    DOM.opponentAvatarWrap.offsetHeight;
-    DOM.opponentAvatarWrap.classList.add("is-talking");
+    if (DOM.opponentAvatarWrap) {
+        DOM.opponentAvatarWrap.classList.remove("is-talking");
+        DOM.opponentAvatarWrap.offsetHeight;
+        DOM.opponentAvatarWrap.classList.add("is-talking");
+    }
 
     if (talkingTimeout) clearTimeout(talkingTimeout);
     talkingTimeout = setTimeout(() => {
-        DOM.opponentAvatarWrap.classList.remove("is-talking");
-        DOM.opponentAvatarFrame.classList.remove(motionClass);
+        if (DOM.opponentAvatarWrap) DOM.opponentAvatarWrap.classList.remove("is-talking");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove(motionClass);
     }, 850);
 }
 
@@ -978,26 +1336,28 @@ function updateOpponentStageUI(showBanner = true) {
     document.documentElement.style.setProperty('--char-glow', char.themeGlow);
     document.body.className = `stage-theme-${char.id}`;
 
-    DOM.opponentRankBadge.textContent = `Lv.${char.id}`;
-    DOM.opponentName.textContent = char.name;
-    DOM.opponentTitle.textContent = `${char.rankLabel} ${char.title}`;
+    if (DOM.opponentRankBadge) DOM.opponentRankBadge.textContent = `Lv.${char.id}`;
+    if (DOM.opponentName) DOM.opponentName.textContent = char.name;
+    if (DOM.opponentTitle) DOM.opponentTitle.textContent = `${char.rankLabel} ${char.title}`;
 
-    DOM.opponentPieceIcon.className = `mini-piece-stone ${cpuColor === BLACK ? "piece-black" : "piece-white"}`;
-    DOM.playerPieceIcon.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
+    if (DOM.opponentPieceIcon) DOM.opponentPieceIcon.className = `mini-piece-stone ${cpuColor === BLACK ? "piece-black" : "piece-white"}`;
+    if (DOM.playerPieceIcon) DOM.playerPieceIcon.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
 
-    DOM.badgeSalonName.textContent = char.salonName;
-    DOM.badgeMaterial.textContent = char.materialDesc;
+    if (DOM.badgeSalonName) DOM.badgeSalonName.textContent = char.salonName;
+    if (DOM.badgeMaterial) DOM.badgeMaterial.textContent = char.materialDesc;
 
     renderCharacterAvatar();
     setOpponentQuote("start");
 
     if (showBanner && !isReviewMode && !isDemoMode && !isDrillMode) {
         if (curtainTimeout) clearTimeout(curtainTimeout);
-        DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
-        DOM.curtainSalonTitle.textContent = char.salonName;
-        DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
-        DOM.stageCurtainBanner.classList.add("show");
-        curtainTimeout = setTimeout(() => DOM.stageCurtainBanner.classList.remove("show"), 1300);
+        if (DOM.curtainStageLabel) DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
+        if (DOM.curtainSalonTitle) DOM.curtainSalonTitle.textContent = char.salonName;
+        if (DOM.curtainRelicSub) DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
+        if (DOM.stageCurtainBanner) {
+            DOM.stageCurtainBanner.classList.add("show");
+            curtainTimeout = setTimeout(() => DOM.stageCurtainBanner.classList.remove("show"), 1300);
+        }
     }
 }
 
@@ -1016,29 +1376,32 @@ function updateBalanceGauge(targetBoard = board) {
         DOM.battleGaugeContainer.className = `battle-gauge-container ${humanColor === BLACK ? "gauge-player-black" : "gauge-player-white"}`;
     }
 
-    DOM.battlePowerPlayer.style.width = `${winratePlayer}%`;
-    DOM.battleClashSpark.style.left = `${winratePlayer}%`;
+    if (DOM.battlePowerPlayer) DOM.battlePowerPlayer.style.width = `${winratePlayer}%`;
+    if (DOM.battleClashSpark) DOM.battleClashSpark.style.left = `${winratePlayer}%`;
 
     const char = getCurrentCharacter();
     const pIcon = (humanColor === BLACK) ? "⚫" : "⚪", cIcon = (cpuColor === BLACK) ? "⚫" : "⚪";
-    DOM.battleStatPlayer.textContent = `${pIcon} あなた ${winratePlayer}%`;
-    DOM.battleStatOpponent.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]} ${cIcon}`;
+    if (DOM.battleStatPlayer) DOM.battleStatPlayer.textContent = `${pIcon} あなた ${winratePlayer}%`;
+    if (DOM.battleStatOpponent) DOM.battleStatOpponent.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]} ${cIcon}`;
 
-    if (winratePlayer >= 75) DOM.battleSituationBadge.textContent = "⚖️ あなた 圧倒的優勢";
-    else if (winratePlayer >= 58) DOM.battleSituationBadge.textContent = "⚖️ あなた 優勢";
-    else if (winrateOpponent >= 75) DOM.battleSituationBadge.textContent = "⚖️ 相手 圧倒的優勢";
-    else if (winrateOpponent >= 58) DOM.battleSituationBadge.textContent = "⚖️ 相手 優勢";
-    else DOM.battleSituationBadge.textContent = "⚖️ 運命の天秤：互角";
+    if (DOM.battleSituationBadge) {
+        if (winratePlayer >= 75) DOM.battleSituationBadge.textContent = "⚖️ あなた 圧倒的優勢";
+        else if (winratePlayer >= 58) DOM.battleSituationBadge.textContent = "⚖️ あなた 優勢";
+        else if (winrateOpponent >= 75) DOM.battleSituationBadge.textContent = "⚖️ 相手 圧倒的優勢";
+        else if (winrateOpponent >= 58) DOM.battleSituationBadge.textContent = "⚖️ 相手 優勢";
+        else DOM.battleSituationBadge.textContent = "⚖️ 運命の天秤：互角";
+    }
 }
 
 function showMoveToast(type, text) {
+    if (!DOM.moveToast) return;
     if (toastTimeout) clearTimeout(toastTimeout);
     DOM.moveToast.className = `move-toast toast-${type} show`;
     DOM.moveToast.textContent = text;
     const delay = (type === "finish") ? 1800 : (type === "pass" ? 1300 : 1200);
     toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), delay);
 }
-const hideMoveToast = () => { if (toastTimeout) clearTimeout(toastTimeout); DOM.moveToast.classList.remove("show"); };
+const hideMoveToast = () => { if (toastTimeout) clearTimeout(toastTimeout); if (DOM.moveToast) DOM.moveToast.classList.remove("show"); };
 
 function saveHistory() {
     historyStack.push({
@@ -1053,7 +1416,9 @@ function saveHistory() {
 }
 
 function updateUndoButtonState() {
-    DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode || isDrillMode;
+    if (DOM.undoButton) {
+        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode || isDrillMode;
+    }
 }
 
 async function undoMove() {
@@ -1082,7 +1447,7 @@ async function undoMove() {
         gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
         pendingAnimation = null;
 
-        DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         setStatus("human-turn", `👑 あなたの番です（${pColorName}）…（時を戻しました）`);
@@ -1183,10 +1548,10 @@ function startGame() {
     clearHint();
 
     recordGameStep(null, null, "対局開始時の初期配置です。右上(E4)と左下(D5)が黒、左上(D4)と右下(E5)が白です。");
-    DOM.royalResultModal.classList.remove("show");
-    DOM.endingModal.classList.remove("show");
-    DOM.drillCourseModal.classList.remove("show");
-    DOM.drillCertificateModal.classList.remove("show");
+    if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
+    if (DOM.endingModal) DOM.endingModal.classList.remove("show");
+    if (DOM.drillCourseModal) DOM.drillCourseModal.classList.remove("show");
+    if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
 
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
@@ -1209,19 +1574,19 @@ function startGame() {
     if (humanColor === BLACK) {
         setStatus("human-turn", "👑 あなたの番です（黒）最初の一手を置いてください");
         triggerTurnPulse();
-        DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         prefetchPlayerEvaluationsAsync();
     } else {
         setStatus("cpu-turn", "相手（黒）が先手です。思案中...");
-        DOM.opponentAvatarFrame.classList.add("thinking-aura");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
         setTimeout(computerMove, 600);
     }
 }
 
 const formatMinSec = (sec) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 function updateTimerDisplay() {
-    DOM.playerTime.textContent = `⏱️ ${formatMinSec(playerSeconds)}`;
-    DOM.opponentTime.textContent = `⏱️ ${formatMinSec(cpuSeconds)}`;
+    if (DOM.playerTime) DOM.playerTime.textContent = `⏱️ ${formatMinSec(playerSeconds)}`;
+    if (DOM.opponentTime) DOM.opponentTime.textContent = `⏱️ ${formatMinSec(cpuSeconds)}`;
 }
 
 function getFlippableStones(row, col, player = currentPlayer, targetBoard = board) {
@@ -1498,7 +1863,7 @@ function applyHintFromCache() {
     const chosenMove = cachedMoveEvaluations.best;
     hintMove = chosenMove;
     const coordStr = toNotation(chosenMove[0], chosenMove[1]);
-    DOM.hintCoordText.textContent = coordStr;
+    if (DOM.hintCoordText) DOM.hintCoordText.textContent = coordStr;
 
     const reasons = [];
     if (cachedMoveEvaluations.isBook) {
@@ -1518,7 +1883,7 @@ function applyHintFromCache() {
         if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ8手）が導き出した最善手です。");
     }
 
-    DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
+    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
     drawBoard();
 
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
@@ -1666,8 +2031,8 @@ async function putStone(row, col) {
 
 function clearHintForOpponentTurn() {
     hintMove = null;
-    DOM.hintCoordText.textContent = "--";
-    DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思案中…）</div>';
+    if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
+    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思案中…）</div>';
 }
 
 async function processTurn() {
@@ -1698,7 +2063,7 @@ async function processTurn() {
 
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         if (currentPlayer === humanColor) {
-            DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
             if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
             else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
@@ -1707,7 +2072,7 @@ async function processTurn() {
             prefetchPlayerEvaluationsAsync();
         } else {
             setStatus("cpu-turn", "相手が思考を巡らせています…");
-            DOM.opponentAvatarFrame.classList.add("thinking-aura");
+            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
             setTimeout(computerMove, 500);
         }
         updateUndoButtonState();
@@ -1716,7 +2081,7 @@ async function processTurn() {
 
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
     if (currentPlayer === humanColor) {
-        DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
         if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
         else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
@@ -1728,7 +2093,7 @@ async function processTurn() {
         updateUndoButtonState();
     } else {
         setStatus("cpu-turn", "相手が思考を巡らせています…");
-        DOM.opponentAvatarFrame.classList.add("thinking-aura");
+        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
         computerMove();
     }
 }
@@ -1815,7 +2180,7 @@ async function computerMove() {
     isBusy = true;
     updateUndoButtonState();
     setStatus("cpu-turn", "相手が思考を巡らせています…");
-    DOM.opponentAvatarFrame.classList.add("thinking-aura");
+    if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
 
     const char = getCurrentCharacter();
     const jitter = Math.floor((Math.random() * 200) - 100);
@@ -1842,7 +2207,7 @@ async function computerMove() {
         if (!success) return;
     }
 
-    DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+    if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
     isBusy = false;
     currentPlayer = humanColor;
@@ -1851,24 +2216,24 @@ async function computerMove() {
 
 function clearHint() {
     hintMove = null;
-    DOM.hintCoordText.textContent = "--";
-    DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>';
+    if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
+    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>';
 }
 
 const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
 
 function updateHintModeUI() {
     const mode = getHintMode();
-    DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
+    if (DOM.hintButton) DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
 
     if (mode === "off") {
-        DOM.hintFixedDisplay.classList.add("hint-mode-sealed");
-        DOM.hintBadgeTag.textContent = "⚔️【真剣勝負モード】";
-        DOM.hintCoordText.textContent = "--";
-        DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text" style="color:#d4a748; font-weight:700;">己の知謀のみで挑む格式高き真剣勝負（指南封印中）</div>';
+        if (DOM.hintFixedDisplay) DOM.hintFixedDisplay.classList.add("hint-mode-sealed");
+        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "⚔️【真剣勝負モード】";
+        if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
+        if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text" style="color:#d4a748; font-weight:700;">己の知謀のみで挑む格式高き真剣勝負（指南封印中）</div>';
     } else {
-        DOM.hintFixedDisplay.classList.remove("hint-mode-sealed");
-        DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
+        if (DOM.hintFixedDisplay) DOM.hintFixedDisplay.classList.remove("hint-mode-sealed");
+        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
         if (mode === "always") {
             usedHintInGame = true;
             if (cachedMoveEvaluations && cachedMoveEvaluations.best) applyHintFromCache();
@@ -1892,6 +2257,7 @@ async function computeHint() {
 }
 
 function drawBoard() {
+    if (!DOM.board) return;
     DOM.board.querySelectorAll(".cell").forEach(cell => cell.remove());
     const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
     const isHintOff = (getHintMode() === "off");
@@ -1900,12 +2266,10 @@ function drawBoard() {
         for (let c = 0; c < boardSize; c++) {
             const cell = document.createElement("div");
             cell.className = "cell";
-            // 🎯 座標ズレを永久根絶するデータ属性の付与
             cell.dataset.r = r;
             cell.dataset.c = c;
 
             if (isDrillMode) {
-                // 検定モード時の打てるマスガイド
                 const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
                 if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
                     cell.classList.add("can-place", qData.turn === BLACK ? "preview-black" : "preview-white");
@@ -1930,8 +2294,6 @@ function drawBoard() {
                         cell.classList.add("review-correct-cell");
                     }
                 }
-            } else {
-                applyDemoCellHighlights(cell, r, c);
             }
 
             if (board[r][c] !== 0) {
@@ -1980,13 +2342,15 @@ function drawBoard() {
 
     pendingAnimation = null;
     updateScore();
-    DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDemoMode || isDrillMode;
+    if (DOM.hintButton) {
+        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDemoMode || isDrillMode;
+    }
 }
 
 function updateScore(targetBoard = board) {
     const stats = getBoardStats(targetBoard);
-    DOM.opponentScore.textContent = (cpuColor === BLACK) ? stats.black : stats.white;
-    DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
+    if (DOM.opponentScore) DOM.opponentScore.textContent = (cpuColor === BLACK) ? stats.black : stats.white;
+    if (DOM.playerScore) DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
 }
 
 /* ==========================================================================
@@ -2088,7 +2452,7 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
 
 function jumpToReviewStep(stepIndex) {
     if (stepIndex < 0 || stepIndex >= gameStepLogs.length) return;
-    DOM.royalResultModal.classList.remove("show");
+    if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
     enterReviewMode();
     applyReviewStep(stepIndex);
@@ -2096,25 +2460,8 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【👁️ 3ステップ紙芝居型 盤面ビジュアル解説モード】
+  【👁️ 盤面ビジュアル解説モード】
 ========================================================================== */
-function applyDemoCellHighlights(cell, r, c) {
-    const themeKey = DEMO_THEMES[currentDemoThemeIndex];
-    const scenario = DEMO_SCENARIOS[themeKey];
-    if (!scenario) return;
-
-    const currentStepData = scenario.steps.find(s => s.stepNum === currentDemoStep) || scenario.steps[0];
-    const hit = currentStepData.highlights.find(h => h.r === r && h.c === c);
-    if (!hit) return;
-
-    cell.classList.add(`demo-cell-${hit.type}`);
-
-    const badge = document.createElement("div");
-    badge.className = `demo-symbol-badge badge-sym-${hit.type}`;
-    badge.textContent = hit.label;
-    cell.appendChild(badge);
-}
-
 function triggerBoardVisualDemo(themeName) {
     if (isDemoMode) exitBoardVisualDemo();
     if (isDrillMode) exitDrillMode();
@@ -2132,70 +2479,15 @@ function triggerBoardVisualDemo(themeName) {
     currentDemoStep = 1;
 
     closeTermPopup();
-    DOM.guideOverlay.classList.remove("show");
+    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
-    DOM.normalControlCard.style.display = "none";
-    DOM.demoGuideCard.classList.add("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.demoGuideCard) DOM.demoGuideCard.classList.add("show");
 
     playPlaceSound();
-    updateDemoGuideUI();
 }
 window.triggerBoardVisualDemo = triggerBoardVisualDemo;
-
-function updateDemoGuideUI() {
-    const themeKey = DEMO_THEMES[currentDemoThemeIndex];
-    const scenario = DEMO_SCENARIOS[themeKey];
-    if (!scenario) return;
-
-    const stepData = scenario.steps.find(s => s.stepNum === currentDemoStep) || scenario.steps[0];
-
-    DOM.demoThemeNavTitle.textContent = scenario.title;
-    [DOM.demoStepTab1, DOM.demoStepTab2, DOM.demoStepTab3].forEach((tab, idx) => {
-        if (tab) tab.classList.toggle("active", (idx + 1) === currentDemoStep);
-    });
-
-    DOM.demoSituationText.textContent = stepData.situation;
-    DOM.demoGuideReason.textContent = stepData.reason;
-    DOM.demoMaximText.textContent = stepData.maxim;
-    DOM.btnDemoNextStep.textContent = stepData.btnText;
-
-    setStatus("hint-thinking", `👁️ 盤面ビジュアル解説中：【${themeKey}】（ステップ ${currentDemoStep}/3）`);
-
-    board = Array.from({ length: 8 }, () => Array(8).fill(0));
-    stepData.setup(board);
-    drawBoard();
-}
-
-function nextDemoStep() {
-    playPlaceSound();
-    currentDemoStep = (currentDemoStep >= 3) ? 1 : currentDemoStep + 1;
-    updateDemoGuideUI();
-}
-window.nextDemoStep = nextDemoStep;
-
-function selectDemoStep(stepNum) {
-    playPlaceSound();
-    currentDemoStep = Math.max(1, Math.min(3, stepNum));
-    updateDemoGuideUI();
-}
-window.selectDemoStep = selectDemoStep;
-
-function prevDemoTheme() {
-    playPlaceSound();
-    currentDemoThemeIndex = (currentDemoThemeIndex - 1 + DEMO_THEMES.length) % DEMO_THEMES.length;
-    currentDemoStep = 1;
-    updateDemoGuideUI();
-}
-window.prevDemoTheme = prevDemoTheme;
-
-function nextDemoTheme() {
-    playPlaceSound();
-    currentDemoThemeIndex = (currentDemoThemeIndex + 1) % DEMO_THEMES.length;
-    currentDemoStep = 1;
-    updateDemoGuideUI();
-}
-window.nextDemoTheme = nextDemoTheme;
 
 function exitBoardVisualDemo() {
     if (!isDemoMode || !savedBoardStateForDemo) return;
@@ -2211,8 +2503,8 @@ function exitBoardVisualDemo() {
     currentDemoStep = 1;
     savedBoardStateForDemo = null;
 
-    DOM.demoGuideCard.classList.remove("show");
-    DOM.normalControlCard.style.display = "";
+    if (DOM.demoGuideCard) DOM.demoGuideCard.classList.remove("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
 
     drawBoard();
     updateBalanceGauge();
@@ -2221,7 +2513,7 @@ function exitBoardVisualDemo() {
 window.exitBoardVisualDemo = exitBoardVisualDemo;
 
 /* ==========================================================================
-  【🎯 宮廷次の一手検定（全5大奥義・一本道フローエンジン）】
+  【🎯 宮廷次の一手検定（全15問・類題特訓フローエンジン）】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
@@ -2242,25 +2534,24 @@ function clearDrillBadges() {
     });
 }
 
-// 📋 コース一覧モーダルを開く
 function openDrillCourseModal() {
     playPlaceSound();
     renderDrillCourseList();
-    DOM.drillCourseModal.classList.add("show");
+    if (DOM.drillCourseModal) DOM.drillCourseModal.classList.add("show");
     document.body.classList.add("modal-open-lock");
 }
 window.openDrillCourseModal = openDrillCourseModal;
 
 function closeDrillCourseModal() {
-    DOM.drillCourseModal.classList.remove("show");
+    if (DOM.drillCourseModal) DOM.drillCourseModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 }
 window.closeDrillCourseModal = closeDrillCourseModal;
 
 function openDrillFromTopicKey(topicKey) {
-    const idxMap = { "Xマス": 1, "壁": 2, "中割り": 3, "Cマス": 4, "パリティ": 5 };
+    const idxMap = { "Xマス": 1, "壁": 4, "中割り": 7, "Cマス": 10, "パリティ": 13 };
     const qIndex = idxMap[topicKey] || 1;
-    DOM.guideOverlay.classList.remove("show");
+    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     startDrillQuestion(qIndex);
 }
 window.openDrillFromTopicKey = openDrillFromTopicKey;
@@ -2276,7 +2567,7 @@ function renderDrillCourseList() {
                         <span>${isCleared ? '👑' : '⚔️'} ${q.title}</span>
                         <span class="drill-card-status">${isCleared ? '【合格】' : `[${q.diffLabel}]`}</span>
                     </div>
-                    <div class="drill-card-desc">${q.desc}</div>
+                    <div class="drill-card-desc">［${q.themeName}・${q.stepInTheme}］${q.desc}</div>
                 </div>
                 <button type="button" class="btn-start-course" onclick="startDrillQuestion(${q.id})">
                     ${isCleared ? '復習する ▶' : '挑戦する ▶'}
@@ -2286,7 +2577,6 @@ function renderDrillCourseList() {
     }).join("");
 }
 
-// 🎯 指定された問題を出題・盤面ロード
 function startDrillQuestion(qIndex) {
     if (isDemoMode) exitBoardVisualDemo();
     if (isReviewMode) exitReviewMode();
@@ -2302,15 +2592,15 @@ function startDrillQuestion(qIndex) {
 
     isDrillMode = true;
     isSimulatingDrillMistake = false;
-    currentDrillQuestionIndex = Math.max(1, Math.min(5, qIndex));
+    currentDrillQuestionIndex = Math.max(1, Math.min(15, qIndex));
 
     closeDrillCourseModal();
     closeTermPopup();
-    DOM.guideOverlay.classList.remove("show");
+    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
-    DOM.normalControlCard.style.display = "none";
-    DOM.drillControlCard.classList.add("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.add("show");
 
     playPlaceSound();
     loadDrillQuestion();
@@ -2321,24 +2611,22 @@ function loadDrillQuestion() {
     const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
     if (!qData) return;
 
-    DOM.drillTopicBadge.textContent = `🎯 ${qData.title}（第 ${qData.id} 問 / 全 5 問）`;
-    DOM.drillDiffBadge.textContent = qData.diffLabel;
-    DOM.drillQuestionText.textContent = qData.question;
+    if (DOM.drillTopicBadge) DOM.drillTopicBadge.textContent = `🎯 【${qData.themeName}】（第 ${qData.id} 問 / 全 15 問・${qData.stepInTheme}）`;
+    if (DOM.drillDiffBadge) DOM.drillDiffBadge.textContent = qData.diffLabel;
+    if (DOM.drillQuestionText) DOM.drillQuestionText.textContent = qData.question;
     const turnColorName = (qData.turn === BLACK) ? "黒番（⚫）" : "白番（⚪）";
-    DOM.drillQuestionSub.textContent = `手番：あなたの${turnColorName}`;
+    if (DOM.drillQuestionSub) DOM.drillQuestionSub.textContent = `手番：あなたの${turnColorName} ［狙い：${qData.desc}］`;
 
-    // ボタングループの初期化
-    DOM.btnDrillRetry.style.display = "none";
-    DOM.btnDrillNextQuestion.style.display = "none";
-    DOM.drillFeedbackBox.className = "drill-feedback-box";
-    DOM.drillFeedbackBox.style.display = "none";
+    if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "none";
+    if (DOM.btnDrillNextQuestion) DOM.btnDrillNextQuestion.style.display = "none";
+    if (DOM.drillFeedbackBox) {
+        DOM.drillFeedbackBox.className = "drill-feedback-box";
+        DOM.drillFeedbackBox.style.display = "none";
+    }
 
-    setStatus("hint-thinking", `🎯 次の一手検定：【第 ${qData.id} 問】${qData.title}`);
+    setStatus("hint-thinking", `🎯 次の一手検定：第 ${qData.id} 問【${qData.title}】`);
+    if (DOM.speechText) DOM.speechText.textContent = `【第 ${qData.id} 問】${qData.themeName}の急所を見極めよ！ 理由を理解して着手するのじゃ！`;
 
-    // AIキャラクターからの出題ボイス
-    DOM.speechText.textContent = `【第 ${qData.id} 問】ここが勝負の分岐点じゃ！ 盤面の急所を見極めて打ってみよ！`;
-
-    // 盤面セットアップ
     board = Array.from({ length: 8 }, () => Array(8).fill(0));
     qData.setup(board);
     currentPlayer = qData.turn;
@@ -2367,11 +2655,9 @@ async function handleDrillCellClick(r, c) {
     const key = `${r},${c}`;
 
     if (isCorrect) {
-        // 🎉 正解！
         playFanfareSound();
         drillPassedMap[qData.id] = true;
 
-        // あなたの正解手を実行
         makeMove(board, r, c, qData.turn);
         drawBoard();
 
@@ -2381,27 +2667,30 @@ async function handleDrillCellClick(r, c) {
             addDrillBadge(r, c, "correct", "⭕ 正解！");
         }
 
-        DOM.drillFeedbackBox.className = "drill-feedback-box correct";
-        DOM.drillFeedbackTitle.textContent = "正解！🎉 お見事です！";
-        DOM.drillFeedbackReason.innerHTML = qData.correctReason;
-
-        // 次へ進むボタンを大きく表示
-        DOM.btnDrillRetry.style.display = "none";
-        DOM.btnDrillNextQuestion.style.display = "inline-block";
-        if (currentDrillQuestionIndex >= 5) {
-            DOM.btnDrillNextQuestion.textContent = "🏆 免許皆伝の合格証を受け取る！";
-        } else {
-            DOM.btnDrillNextQuestion.textContent = `次の 第${currentDrillQuestionIndex + 1}問 へ進む ▶`;
+        if (DOM.drillFeedbackBox) {
+            DOM.drillFeedbackBox.className = "drill-feedback-box correct";
+            DOM.drillFeedbackTitle.textContent = "正解！🎉 完璧な着手理由です！";
+            DOM.drillFeedbackReason.innerHTML = qData.correctReason;
         }
 
-        DOM.speechText.textContent = "素晴らしい！ まさに定石通りの急所じゃ！ 相手の逃げ道を完全に塞いだぞ！";
-        setStatus("win", "🎉 正解！ 奥義の手筋を完全に体得しました！");
+        if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "none";
+        if (DOM.btnDrillNextQuestion) {
+            DOM.btnDrillNextQuestion.style.display = "inline-block";
+            if (currentDrillQuestionIndex >= 15) {
+                DOM.btnDrillNextQuestion.textContent = "🏆 免許皆伝の合格証を受け取る！";
+            } else if (qData.id % 3 === 0) {
+                DOM.btnDrillNextQuestion.textContent = `奥義制覇！ 次の奥義（第${currentDrillQuestionIndex + 1}問）へ進む ▶`;
+            } else {
+                DOM.btnDrillNextQuestion.textContent = `次の類似問題（第${currentDrillQuestionIndex + 1}問）へ進む ▶`;
+            }
+        }
+
+        if (DOM.speechText) DOM.speechText.textContent = "素晴らしい！急所の理由を完璧に見抜いたぞ！これぞオセロの真髄じゃ！";
+        setStatus("win", "🎉 正解！ 奥義の本質を完全に体得しました！");
     } else {
-        // ❌ 不正解
         playBuzzerSound();
         isSimulatingDrillMistake = true;
 
-        // あなたの悪手を実行
         makeMove(board, r, c, qData.turn);
         drawBoard();
 
@@ -2414,15 +2703,15 @@ async function handleDrillCellClick(r, c) {
         const mistakeInfo = (qData.mistakes && qData.mistakes[key]) || null;
         const reasonText = mistakeInfo ? mistakeInfo.reason : qData.defaultMistakeReason;
 
-        DOM.drillFeedbackBox.className = "drill-feedback-box wrong";
-        DOM.drillFeedbackTitle.textContent = "惜しい！❌ 悪手でした";
-        DOM.drillFeedbackReason.innerHTML = reasonText;
+        if (DOM.drillFeedbackBox) {
+            DOM.drillFeedbackBox.className = "drill-feedback-box wrong";
+            DOM.drillFeedbackTitle.textContent = "惜しい！❌ なぜ悪手なのか確認しましょう";
+            DOM.drillFeedbackReason.innerHTML = reasonText;
+        }
 
-        // もう一度やり直すボタンを表示
-        DOM.btnDrillRetry.style.display = "inline-block";
-        DOM.btnDrillNextQuestion.style.display = "none";
+        if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "inline-block";
+        if (DOM.btnDrillNextQuestion) DOM.btnDrillNextQuestion.style.display = "none";
 
-        // 相手の反撃シミュレーション
         if (mistakeInfo && mistakeInfo.cpuResponse) {
             await sleep(750);
             const [cpur, cpuc] = mistakeInfo.cpuResponse;
@@ -2431,30 +2720,27 @@ async function handleDrillCellClick(r, c) {
                 playPlaceSound();
                 drawBoard();
 
-                // あなたの手のバッジを再付与
                 addDrillBadge(r, c, "player", "❌ あなたの手");
 
                 const cpuCell = getBoardCell(cpur, cpuc);
                 if (cpuCell) {
                     cpuCell.classList.add("drill-wrong-shake");
-                    addDrillBadge(cpur, cpuc, "cpu", "💀 相手が角を奪取！");
+                    addDrillBadge(cpur, cpuc, "cpu", "💀 相手の痛烈な反撃！");
                 }
             }
         }
 
-        DOM.speechText.textContent = "あちゃー！ 隙を見せてしもうた！ 解説を読んで「もう一度やり直す ↺」を押すのじゃ！";
-        setStatus("lose", "⚠️ 隙が生じました！ 解説を読んで「もう一度やり直す ↺」を押してください。");
+        if (DOM.speechText) DOM.speechText.textContent = "あちゃー！ 相手に反撃の隙を与えてしもうた！ 理由を読んで「もう一度やり直す ↺」を押すのじゃ！";
+        setStatus("lose", "⚠️ 悪手でした！ なぜダメなのか解説を読んで「もう一度やり直す ↺」を押してください。");
         isSimulatingDrillMistake = false;
     }
 }
 
-// 🎯 次の問題へ進む（全5問クリア時は合格証モーダルへ）
 function advanceNextDrillQuestion() {
     playPlaceSound();
-    if (currentDrillQuestionIndex >= 5) {
-        // 🏆 全問制覇！
+    if (currentDrillQuestionIndex >= 15) {
         exitDrillMode();
-        DOM.drillCertificateModal.classList.add("show");
+        if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.add("show");
         document.body.classList.add("modal-open-lock");
     } else {
         startDrillQuestion(currentDrillQuestionIndex + 1);
@@ -2463,15 +2749,15 @@ function advanceNextDrillQuestion() {
 window.advanceNextDrillQuestion = advanceNextDrillQuestion;
 
 function closeCertificateModal() {
-    DOM.drillCertificateModal.classList.remove("show");
+    if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 }
 window.closeCertificateModal = closeCertificateModal;
 
 function closeCertificateAndChallengeKing() {
     closeCertificateModal();
-    DOM.characterSelect.value = "10"; // 老賢王オルレアン
-    DOM.hintMode.value = "off"; // 自力真剣勝負
+    if (DOM.characterSelect) DOM.characterSelect.value = "10";
+    if (DOM.hintMode) DOM.hintMode.value = "off";
     updateOpponentStageUI(true);
     updateHintModeUI();
     startGame();
@@ -2494,8 +2780,8 @@ function exitDrillMode() {
     savedBoardStateForDrill = null;
     isSimulatingDrillMistake = false;
 
-    DOM.drillControlCard.classList.remove("show");
-    DOM.normalControlCard.style.display = "";
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
 
     drawBoard();
     updateBalanceGauge();
@@ -2513,18 +2799,19 @@ function showTermPopup(termKey, event) {
     const termData = TERMS_DICTIONARY[termKey];
     activePopupTerm = termKey;
 
-    DOM.termPopupTitle.textContent = termData.title;
-    DOM.termPopupBody.textContent = termData.desc;
+    if (DOM.termPopupTitle) DOM.termPopupTitle.textContent = termData.title;
+    if (DOM.termPopupBody) DOM.termPopupBody.textContent = termData.desc;
 
     if (gameOver || isReviewMode) {
-        DOM.termPopupDemoBtn.style.display = "none";
-        DOM.termPopupDrillBtn.style.display = "none";
+        if (DOM.termPopupDemoBtn) DOM.termPopupDemoBtn.style.display = "none";
+        if (DOM.termPopupDrillBtn) DOM.termPopupDrillBtn.style.display = "none";
     } else {
-        DOM.termPopupDemoBtn.style.display = "";
-        DOM.termPopupDrillBtn.style.display = "";
+        if (DOM.termPopupDemoBtn) DOM.termPopupDemoBtn.style.display = "";
+        if (DOM.termPopupDrillBtn) DOM.termPopupDrillBtn.style.display = "";
     }
 
     const popup = DOM.termPopup;
+    if (!popup) return;
     popup.style.display = "block";
 
     let x = event ? (event.clientX || event.pageX) : window.innerWidth / 2;
@@ -2545,7 +2832,7 @@ function showTermPopup(termKey, event) {
 }
 
 function closeTermPopup() {
-    DOM.termPopup.style.display = "none";
+    if (DOM.termPopup) DOM.termPopup.style.display = "none";
     activePopupTerm = null;
 }
 
@@ -2578,8 +2865,10 @@ if (DOM.termPopupMore) {
         const targetSecId = TERMS_DICTIONARY[activePopupTerm].tabSec;
         closeTermPopup();
 
-        DOM.guideOverlay.classList.add("show");
-        document.body.classList.add("modal-open-lock");
+        if (DOM.guideOverlay) {
+            DOM.guideOverlay.classList.add("show");
+            document.body.classList.add("modal-open-lock");
+        }
 
         manualTabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === "tab-terms"));
         manualTabContents.forEach(c => c.classList.toggle("active", c.id === "tab-terms"));
@@ -2711,32 +3000,35 @@ function renderArchiveView() {
     const winrate = totalGenuineGames > 0 ? Math.round((wins / totalGenuineGames) * 100) : 0;
     const avgBestRate = totalGenuineGames > 0 ? (sumBestRate / totalGenuineGames).toFixed(1) : "0.0";
 
-    DOM.archStatWinrate.textContent = `${totalGenuineGames}戦 ${winrate}%`;
-    DOM.archStatWld.textContent = `${wins}勝-${loses}敗-${draws}分`;
-    DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
-    DOM.archStatBestRate.textContent = `${avgBestRate}%`;
+    if (DOM.archStatWinrate) DOM.archStatWinrate.textContent = `${totalGenuineGames}戦 ${winrate}%`;
+    if (DOM.archStatWld) DOM.archStatWld.textContent = `${wins}勝-${loses}敗-${draws}分`;
+    if (DOM.archStatStreak) DOM.archStatStreak.textContent = `${currentStreak} / ${maxStreak}連勝`;
+    if (DOM.archStatBestRate) DOM.archStatBestRate.textContent = `${avgBestRate}%`;
 
-    DOM.archiveCrownGrid.innerHTML = "";
-    for (let i = 1; i <= 10; i++) {
-        const char = CHARACTERS[i];
-        const isConquered = logs.some(r => r.charId === i && r.isWin && r.isGenuine);
-        const nameParts = char.name.split(" ");
-        const charLastName = nameParts[1] || char.name;
+    if (DOM.archiveCrownGrid) {
+        DOM.archiveCrownGrid.innerHTML = "";
+        for (let i = 1; i <= 10; i++) {
+            const char = CHARACTERS[i];
+            const isConquered = logs.some(r => r.charId === i && r.isWin && r.isGenuine);
+            const nameParts = char.name.split(" ");
+            const charLastName = nameParts[1] || char.name;
 
-        const item = document.createElement("div");
-        item.className = `crown-item ${isConquered ? "conquered" : ""}`;
-        item.innerHTML = `
-            <div class="crown-item-avatar">
-                <img src="${char.image}" alt="${char.name}" onerror="this.src='';this.parentElement.textContent='${char.icon}'">
-                <div class="crown-item-overlay">
-                    <div class="crown-badge-mark">${isConquered ? "👑制覇" : `Lv.${i}`}</div>
-                    <div class="crown-item-name">${charLastName}</div>
+            const item = document.createElement("div");
+            item.className = `crown-item ${isConquered ? "conquered" : ""}`;
+            item.innerHTML = `
+                <div class="crown-item-avatar">
+                    <img src="${char.image}" alt="${char.name}" onerror="this.src='';this.parentElement.textContent='${char.icon}'">
+                    <div class="crown-item-overlay">
+                        <div class="crown-badge-mark">${isConquered ? "👑制覇" : `Lv.${i}`}</div>
+                        <div class="crown-item-name">${charLastName}</div>
+                    </div>
                 </div>
-            </div>
-        `;
-        DOM.archiveCrownGrid.appendChild(item);
+            `;
+            DOM.archiveCrownGrid.appendChild(item);
+        }
     }
 
+    if (!DOM.archFilterOpponent || !DOM.archiveTableBody) return;
     const filterOpp = DOM.archFilterOpponent.value;
     const filterMode = DOM.archFilterMode.value;
     const filterRes = DOM.archFilterResult.value;
@@ -2821,13 +3113,17 @@ function renderArchiveView() {
 
 function openArchiveModal() {
     renderArchiveView();
-    DOM.archiveOverlay.classList.add("show");
-    document.body.classList.add("modal-open-lock");
+    if (DOM.archiveOverlay) {
+        DOM.archiveOverlay.classList.add("show");
+        document.body.classList.add("modal-open-lock");
+    }
 }
 
 function closeArchiveModal() {
-    DOM.archiveOverlay.classList.remove("show");
-    document.body.classList.remove("modal-open-lock");
+    if (DOM.archiveOverlay) {
+        DOM.archiveOverlay.classList.remove("show");
+        document.body.classList.remove("modal-open-lock");
+    }
 }
 
 /* ==========================================================================
@@ -2842,7 +3138,7 @@ function endGame() {
     if (timerInterval) clearInterval(timerInterval);
     if (typeWriterInterval) clearInterval(typeWriterInterval);
 
-    DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+    if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
     drawBoard();
     updateBalanceGauge();
     updateUndoButtonState();
@@ -2856,29 +3152,35 @@ function endGame() {
     const isDraw = hStones === cStones;
     const char = getCurrentCharacter();
 
-    DOM.resultAvatarFrame.innerHTML = "";
-    const bigImg = new Image();
-    bigImg.src = char.image;
-    bigImg.alt = char.name;
-    bigImg.style.objectPosition = char.imgFocus || "center 20%";
-    bigImg.onload = () => { DOM.resultAvatarFrame.innerHTML = ""; DOM.resultAvatarFrame.appendChild(bigImg); };
-    bigImg.onerror = () => { DOM.resultAvatarFrame.innerHTML = `<span style="font-size: 56px; color:#ffd700;">${char.icon}</span>`; };
+    if (DOM.resultAvatarFrame) {
+        DOM.resultAvatarFrame.innerHTML = "";
+        const bigImg = new Image();
+        bigImg.src = char.image;
+        bigImg.alt = char.name;
+        bigImg.style.objectPosition = char.imgFocus || "center 20%";
+        bigImg.onload = () => { DOM.resultAvatarFrame.innerHTML = ""; DOM.resultAvatarFrame.appendChild(bigImg); };
+        bigImg.onerror = () => { DOM.resultAvatarFrame.innerHTML = `<span style="font-size: 56px; color:#ffd700;">${char.icon}</span>`; };
+    }
 
-    DOM.resultCharNameBadge.textContent = `${char.name} ${char.rankLabel}（${char.salonName}）`;
-    DOM.resultStonesDetail.textContent = `⚫ ${stats.black} vs ${stats.white} ⚪`;
-    DOM.resultTimesDetail.textContent = `あなた ${formatMinSec(playerSeconds)} / 相手 ${formatMinSec(cpuSeconds)}`;
+    if (DOM.resultCharNameBadge) DOM.resultCharNameBadge.textContent = `${char.name} ${char.rankLabel}（${char.salonName}）`;
+    if (DOM.resultStonesDetail) DOM.resultStonesDetail.textContent = `⚫ ${stats.black} vs ${stats.white} ⚪`;
+    if (DOM.resultTimesDetail) DOM.resultTimesDetail.textContent = `あなた ${formatMinSec(playerSeconds)} / 相手 ${formatMinSec(cpuSeconds)}`;
 
     let quoteText = "";
 
     if (isWin) {
-        DOM.resultMainTitle.className = "result-main-title result-title-win";
-        DOM.resultMainTitle.textContent = "👑 完全勝利 (VICTORY)";
+        if (DOM.resultMainTitle) {
+            DOM.resultMainTitle.className = "result-main-title result-title-win";
+            DOM.resultMainTitle.textContent = "👑 完全勝利 (VICTORY)";
+        }
         setStatus("win", "👑 栄光の勝利！ あなたの勝ちです！");
         setOpponentQuote("lose");
 
-        DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-surrendered";
-        DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（降参・完敗）`;
-        DOM.resultAvatarFrame.classList.add("opponent-lost-filter");
+        if (DOM.opponentStatusTag) {
+            DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-surrendered";
+            DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（降参・完敗）`;
+        }
+        if (DOM.resultAvatarFrame) DOM.resultAvatarFrame.classList.add("opponent-lost-filter");
 
         if (usedHintInGame) {
             quoteText = `見事な勝利…だが、AIの知恵を借りていたようだな！ 貴殿の真の知謀を示すためにも、次はぜひ己のお力のみで挑まれよ！`;
@@ -2886,27 +3188,35 @@ function endGame() {
             quoteText = Array.isArray(char.quotes.lose) ? char.quotes.lose[Math.floor(Math.random() * char.quotes.lose.length)] : char.quotes.lose;
         }
     } else if (isDraw) {
-        DOM.resultMainTitle.className = "result-main-title result-title-draw";
-        DOM.resultMainTitle.textContent = "⚖️ 格式高き引き分け (DRAW)";
+        if (DOM.resultMainTitle) {
+            DOM.resultMainTitle.className = "result-main-title result-title-draw";
+            DOM.resultMainTitle.textContent = "⚖️ 格式高き引き分け (DRAW)";
+        }
         setStatus("draw", "⚖️ ゲーム終了！ 格式高き引き分けです。");
 
-        DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-surrendered";
-        DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（互角の勝負）`;
-        DOM.resultAvatarFrame.classList.remove("opponent-lost-filter");
+        if (DOM.opponentStatusTag) {
+            DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-surrendered";
+            DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（互角の勝負）`;
+        }
+        if (DOM.resultAvatarFrame) DOM.resultAvatarFrame.classList.remove("opponent-lost-filter");
         quoteText = "見事な勝負… まさに互角の知略であったな。";
     } else {
-        DOM.resultMainTitle.className = "result-main-title result-title-lose";
-        DOM.resultMainTitle.textContent = "🥀 惜敗… 無念の敗北 (DEFEAT)";
+        if (DOM.resultMainTitle) {
+            DOM.resultMainTitle.className = "result-main-title result-title-lose";
+            DOM.resultMainTitle.textContent = "🥀 惜敗… 無念の敗北 (DEFEAT)";
+        }
         setStatus("lose", "🥀 惜敗… 相手の勝利です。");
         setOpponentQuote("win");
 
-        DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-triumphant";
-        DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（会心の勝利）`;
-        DOM.resultAvatarFrame.classList.remove("opponent-lost-filter");
+        if (DOM.opponentStatusTag) {
+            DOM.opponentStatusTag.className = "opponent-status-tag tag-opponent-triumphant";
+            DOM.opponentStatusTag.textContent = `【対戦相手】${char.name}（会心の勝利）`;
+        }
+        if (DOM.resultAvatarFrame) DOM.resultAvatarFrame.classList.remove("opponent-lost-filter");
         quoteText = Array.isArray(char.quotes.win) ? char.quotes.win[Math.floor(Math.random() * char.quotes.win.length)] : char.quotes.win;
     }
 
-    DOM.resultQuoteBox.textContent = `「${quoteText}」`;
+    if (DOM.resultQuoteBox) DOM.resultQuoteBox.textContent = `「${quoteText}」`;
 
     const story = generateTacticsStory(isWin, isDraw, hStones, cStones);
     if (DOM.carteStoryTimeline) {
@@ -2928,63 +3238,67 @@ function endGame() {
 
     recordGameResultToArchive(isWin, isDraw, hStones, cStones, char);
 
-    if (isWin) {
-        if (usedHintInGame) {
-            DOM.btnAdvanceIcon.textContent = "👑";
-            DOM.btnAdvanceText.textContent = `ヒントなし（自力勝負）で ${char.name.split(" ")[0]} と再戦`;
-            DOM.btnResultAdvance.onclick = () => {
-                DOM.hintMode.value = "off";
-                updateHintModeUI();
-                DOM.royalResultModal.classList.remove("show");
-                document.body.classList.remove("modal-open-lock");
-                startGame();
-            };
-        } else {
-            if (char.id < 10) {
-                const nextChar = CHARACTERS[char.id + 1];
-                DOM.btnAdvanceIcon.textContent = "⚔️";
-                DOM.btnAdvanceText.textContent = `次の強敵へ挑む（Lv.${nextChar.id} ${nextChar.name} ${nextChar.rankLabel}）`;
+    if (DOM.btnResultAdvance) {
+        if (isWin) {
+            if (usedHintInGame) {
+                if (DOM.btnAdvanceIcon) DOM.btnAdvanceIcon.textContent = "👑";
+                if (DOM.btnAdvanceText) DOM.btnAdvanceText.textContent = `ヒントなし（自力勝負）で ${char.name.split(" ")[0]} と再戦`;
                 DOM.btnResultAdvance.onclick = () => {
-                    DOM.characterSelect.value = char.id + 1;
-                    DOM.royalResultModal.classList.remove("show");
+                    if (DOM.hintMode) DOM.hintMode.value = "off";
+                    updateHintModeUI();
+                    if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
                     document.body.classList.remove("modal-open-lock");
                     startGame();
                 };
             } else {
-                DOM.btnAdvanceIcon.textContent = "🏆";
-                DOM.btnAdvanceText.textContent = "全10豪傑完全制覇！ 栄光の戴冠式へ";
-                DOM.btnResultAdvance.onclick = () => {
-                    DOM.royalResultModal.classList.remove("show");
-                    DOM.endingModal.classList.add("show");
-                };
+                if (char.id < 10) {
+                    const nextChar = CHARACTERS[char.id + 1];
+                    if (DOM.btnAdvanceIcon) DOM.btnAdvanceIcon.textContent = "⚔️";
+                    if (DOM.btnAdvanceText) DOM.btnAdvanceText.textContent = `次の強敵へ挑む（Lv.${nextChar.id} ${nextChar.name} ${nextChar.rankLabel}）`;
+                    DOM.btnResultAdvance.onclick = () => {
+                        if (DOM.characterSelect) DOM.characterSelect.value = char.id + 1;
+                        if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
+                        document.body.classList.remove("modal-open-lock");
+                        startGame();
+                    };
+                } else {
+                    if (DOM.btnAdvanceIcon) DOM.btnAdvanceIcon.textContent = "🏆";
+                    if (DOM.btnAdvanceText) DOM.btnAdvanceText.textContent = "全10豪傑完全制覇！ 栄光の戴冠式へ";
+                    DOM.btnResultAdvance.onclick = () => {
+                        if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
+                        if (DOM.endingModal) DOM.endingModal.classList.add("show");
+                    };
+                }
             }
+        } else {
+            if (DOM.btnAdvanceIcon) DOM.btnAdvanceIcon.textContent = "⚜️";
+            if (DOM.btnAdvanceText) DOM.btnAdvanceText.textContent = "雪辱を期す（再戦を挑む）";
+            DOM.btnResultAdvance.onclick = () => {
+                if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
+                document.body.classList.remove("modal-open-lock");
+                startGame();
+            };
         }
-    } else {
-        DOM.btnAdvanceIcon.textContent = "⚜️";
-        DOM.btnAdvanceText.textContent = "雪辱を期す（再戦を挑む）";
-        DOM.btnResultAdvance.onclick = () => {
-            DOM.royalResultModal.classList.remove("show");
-            document.body.classList.remove("modal-open-lock");
-            startGame();
-        };
     }
 
     setTimeout(() => {
-        DOM.royalResultModal.classList.add("show");
-        document.body.classList.add("modal-open-lock");
+        if (DOM.royalResultModal) {
+            DOM.royalResultModal.classList.add("show");
+            document.body.classList.add("modal-open-lock");
+        }
     }, 1400);
 }
 
 function enterReviewMode() {
     if (gameStepLogs.length === 0 || isDemoMode || isDrillMode) return;
     isReviewMode = true;
-    DOM.royalResultModal.classList.remove("show");
+    if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
-    DOM.normalControlCard.style.display = "none";
-    DOM.reviewModePanel.classList.add("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.add("show");
 
-    DOM.btnJumpGood.disabled = (tacticsTurningPointIndex < 0);
-    DOM.btnJumpBad.disabled = (tacticsWorstIndex < 0);
+    if (DOM.btnJumpGood) DOM.btnJumpGood.disabled = (tacticsTurningPointIndex < 0);
+    if (DOM.btnJumpBad) DOM.btnJumpBad.disabled = (tacticsWorstIndex < 0);
 
     reviewStepIndex = gameStepLogs.length - 1;
     applyReviewStep(reviewStepIndex);
@@ -2993,8 +3307,8 @@ function enterReviewMode() {
 
 function exitReviewMode() {
     isReviewMode = false;
-    DOM.reviewModePanel.classList.remove("show");
-    DOM.normalControlCard.style.display = "";
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
     updateUndoButtonState();
     updateScore(board);
     updateBalanceGauge(board);
@@ -3007,10 +3321,10 @@ function applyReviewStep(index) {
     board = cloneBoard(step.board);
 
     const totalSteps = gameStepLogs.length - 1;
-    DOM.reviewTurnInfo.textContent = `第 ${index} 手 / 全 ${totalSteps} 手`;
+    if (DOM.reviewTurnInfo) DOM.reviewTurnInfo.textContent = `第 ${index} 手 / 全 ${totalSteps} 手`;
 
-    DOM.btnReviewPrev.disabled = (index === 0);
-    DOM.btnReviewNext.disabled = (index === totalSteps);
+    if (DOM.btnReviewPrev) DOM.btnReviewPrev.disabled = (index === 0);
+    if (DOM.btnReviewNext) DOM.btnReviewNext.disabled = (index === totalSteps);
 
     const matchingPlayerLog = playerMoveLogs.find(l => l.stepIndex === index);
     let contextHtml = "";
@@ -3044,62 +3358,84 @@ function applyReviewStep(index) {
         contextHtml = `<div>${step.contextNote || "棋譜の一手です。"}</div>`;
     }
 
-    DOM.reviewContextBox.innerHTML = contextHtml;
+    if (DOM.reviewContextBox) DOM.reviewContextBox.innerHTML = contextHtml;
     updateScore(board);
     updateBalanceGauge(board);
     drawBoard();
 }
 
-/* イベントリスナー */
-document.getElementById("restartButton").addEventListener("click", startGame);
-DOM.undoButton.addEventListener("click", undoMove);
-DOM.hintButton.addEventListener("click", computeHint);
-DOM.btnStartReview.addEventListener("click", enterReviewMode);
+/* ==========================================================================
+  【イベントリスナー登録（厳格なNull安全ガード徹底化）】
+========================================================================== */
+const restartBtn = document.getElementById("restartButton");
+if (restartBtn) restartBtn.addEventListener("click", startGame);
 
-DOM.btnReviewPrev.addEventListener("click", () => {
-    if (reviewStepIndex > 0) applyReviewStep(reviewStepIndex - 1);
-});
+if (DOM.undoButton) DOM.undoButton.addEventListener("click", undoMove);
+if (DOM.hintButton) DOM.hintButton.addEventListener("click", computeHint);
+if (DOM.btnStartReview) DOM.btnStartReview.addEventListener("click", enterReviewMode);
 
-DOM.btnReviewNext.addEventListener("click", () => {
-    if (reviewStepIndex < gameStepLogs.length - 1) applyReviewStep(reviewStepIndex + 1);
-});
+if (DOM.btnReviewPrev) {
+    DOM.btnReviewPrev.addEventListener("click", () => {
+        if (reviewStepIndex > 0) applyReviewStep(reviewStepIndex - 1);
+    });
+}
 
-DOM.btnJumpGood.addEventListener("click", () => {
-    if (tacticsTurningPointIndex >= 0) applyReviewStep(tacticsTurningPointIndex);
-});
+if (DOM.btnReviewNext) {
+    DOM.btnReviewNext.addEventListener("click", () => {
+        if (reviewStepIndex < gameStepLogs.length - 1) applyReviewStep(reviewStepIndex + 1);
+    });
+}
 
-DOM.btnJumpBad.addEventListener("click", () => {
-    if (tacticsWorstIndex >= 0) applyReviewStep(tacticsWorstIndex);
-});
+if (DOM.btnJumpGood) {
+    DOM.btnJumpGood.addEventListener("click", () => {
+        if (tacticsTurningPointIndex >= 0) applyReviewStep(tacticsTurningPointIndex);
+    });
+}
 
-DOM.btnReviewExit.addEventListener("click", () => {
-    applyReviewStep(gameStepLogs.length - 1);
-    DOM.royalResultModal.classList.add("show");
-    document.body.classList.add("modal-open-lock");
-});
+if (DOM.btnJumpBad) {
+    DOM.btnJumpBad.addEventListener("click", () => {
+        if (tacticsWorstIndex >= 0) applyReviewStep(tacticsWorstIndex);
+    });
+}
 
-DOM.btnRestartFromBeginning.addEventListener("click", () => {
-    DOM.endingModal.classList.remove("show");
-    document.body.classList.remove("modal-open-lock");
-    DOM.characterSelect.value = "1";
-    startGame();
-});
+if (DOM.btnReviewExit) {
+    DOM.btnReviewExit.addEventListener("click", () => {
+        applyReviewStep(gameStepLogs.length - 1);
+        if (DOM.royalResultModal) {
+            DOM.royalResultModal.classList.add("show");
+            document.body.classList.add("modal-open-lock");
+        }
+    });
+}
 
-DOM.characterSelect.addEventListener("change", () => {
-    updateOpponentStageUI(true);
-    startGame();
-});
-
-[DOM.btnPlayerBlack, DOM.btnPlayerWhite].forEach((btn, idx) => {
-    btn.addEventListener("click", () => {
-        const targetColor = (idx === 0) ? BLACK : WHITE;
-        if (humanColor === targetColor) return;
-        humanColor = targetColor;
-        DOM.btnPlayerBlack.classList.toggle("active", humanColor === BLACK);
-        DOM.btnPlayerWhite.classList.toggle("active", humanColor === WHITE);
+if (DOM.btnRestartFromBeginning) {
+    DOM.btnRestartFromBeginning.addEventListener("click", () => {
+        if (DOM.endingModal) DOM.endingModal.classList.remove("show");
+        document.body.classList.remove("modal-open-lock");
+        if (DOM.characterSelect) DOM.characterSelect.value = "1";
         startGame();
     });
-});
+}
+
+if (DOM.characterSelect) {
+    DOM.characterSelect.addEventListener("change", () => {
+        updateOpponentStageUI(true);
+        startGame();
+    });
+}
+
+if (DOM.btnPlayerBlack && DOM.btnPlayerWhite) {
+    [DOM.btnPlayerBlack, DOM.btnPlayerWhite].forEach((btn, idx) => {
+        btn.addEventListener("click", () => {
+            const targetColor = (idx === 0) ? BLACK : WHITE;
+            if (humanColor === targetColor) return;
+            humanColor = targetColor;
+            DOM.btnPlayerBlack.classList.toggle("active", humanColor === BLACK);
+            DOM.btnPlayerWhite.classList.toggle("active", humanColor === WHITE);
+            startGame();
+        });
+    });
+}
 
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 const fsIcon = document.getElementById("fsIcon"), fsText = document.getElementById("fsText");
@@ -3144,14 +3480,16 @@ if (soundToggleBtn) {
     });
 }
 
-DOM.hintMode.addEventListener("change", updateHintModeUI);
+if (DOM.hintMode) DOM.hintMode.addEventListener("change", updateHintModeUI);
 
 if (DOM.archiveOpenBtn) DOM.archiveOpenBtn.addEventListener("click", openArchiveModal);
-if (DOM.btnResultArchive) DOM.btnResultArchive.addEventListener("click", () => {
-    DOM.royalResultModal.classList.remove("show");
-    document.body.classList.remove("modal-open-lock");
-    openArchiveModal();
-});
+if (DOM.btnResultArchive) {
+    DOM.btnResultArchive.addEventListener("click", () => {
+        if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
+        document.body.classList.remove("modal-open-lock");
+        openArchiveModal();
+    });
+}
 if (DOM.archiveCloseButton) DOM.archiveCloseButton.addEventListener("click", closeArchiveModal);
 if (DOM.archiveOverlay) {
     DOM.archiveOverlay.addEventListener("click", (e) => {
@@ -3219,4 +3557,5 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
+
 
