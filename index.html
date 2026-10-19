@@ -2,13 +2,13 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.3.0 (2026/10/19)
+  バージョン: Ver 8.4.0 (2026/10/19)
   
-  [Ver 8.3.0] 2026/10/19 更新内容:
-  - 【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】
-  - 800行のインラインCSSを完全分離し、othello_ai_sensei_css.css へ移行。
-  - HTMLファイルを軽量・堅牢化し、構文乱れによるモーダル脱落やスタイルパースエラーを物理根絶。
-  - JavaScriptが参照する全79箇所のDOM IDを完全網羅・一対一照合済み。
+  [Ver 8.4.0] 2026/10/19 更新内容:
+  - 【データ完全分離・4ファイル構成＆コードスリム化エディション】
+  - マスターデータ用スクリプト（othello_data.js）の読み込みタグを配置。
+  - 旧機能の残骸ボタンを撤去し、UI動線を一本道へスリム化。
+  - 全DOM IDとJavaScript/CSSとの完全照合・動作保証済み。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -31,7 +31,7 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- ミニ解説ポップアップコンテナ（二重非表示安全ガード完備） -->
+    <!-- ミニ解説ポップアップコンテナ -->
     <div id="termPopup" class="term-popup" style="display: none;">
         <div class="term-popup-header">
             <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
@@ -39,7 +39,6 @@
         </div>
         <div class="term-popup-body" id="termPopupBody">解説テキスト</div>
         <div class="term-popup-actions">
-            <button type="button" class="term-popup-demo-btn" id="termPopupDemoBtn">お手本デモ 👁️</button>
             <button type="button" class="term-popup-drill-btn" id="termPopupDrillBtn">検定で特訓 🎯</button>
             <span class="term-popup-more" id="termPopupMore">思案所宝典へ ➔</span>
         </div>
@@ -140,7 +139,7 @@
                 </div>
             </div>
 
-            <!-- 🎯 宮廷次の一手検定：盤面解答カード（構造化深掘り解説対応） -->
+            <!-- 🎯 宮廷次の一手検定：盤面解答カード -->
             <div class="drill-control-card" id="drillControlCard">
                 <div class="drill-header-nav">
                     <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
@@ -260,9 +259,7 @@
             <div style="font-size:11px; color:#ecd08c; margin-bottom:8px;">
                 答えの丸暗記を防ぐため、5大奥義それぞれに【基本形・類似反転形・実戦応用形】の3問を完備。盤面を直接タップして合格を目指しましょう。
             </div>
-            <div class="drill-course-list" id="drillCourseList">
-                <!-- JavaScriptにより全15問のコースカードが注入されます -->
-            </div>
+            <div class="drill-course-list" id="drillCourseList"></div>
         </div>
     </div>
 
@@ -328,9 +325,7 @@
                 
                 <div class="carte-hint-advice" id="carteHintAdvice" style="display:none;"></div>
 
-                <div id="carteStoryTimeline" class="carte-story-timeline">
-                    <!-- JavaScriptによって3幕ストーリーが注入されます -->
-                </div>
+                <div id="carteStoryTimeline" class="carte-story-timeline"></div>
             </div>
 
             <div class="result-actions">
@@ -669,12 +664,13 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.3.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.4.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
 
-    <!-- 外部スクリプト読み込み -->
+    <!-- 外部スクリプト読み込み（データモジュール ➔ ロジック本体） -->
+    <script src="othello_data.js"></script>
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>

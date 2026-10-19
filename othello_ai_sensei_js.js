@@ -1,36 +1,17 @@
+
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.3.0 (2026/10/19)
+  バージョン: Ver 8.4.0 (2026/10/19)
   
-  [Ver 8.3.0] 2026/10/19 更新内容:
-  - 【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】
-  - HTML/CSS/JSの3分割により、ファイル肥大化によるコード脱落とパース崩壊を物理根絶。
-  - 全15問（5大奥義×各3問）の類題特訓マスターデータと3層論理解説（急所理由・相手手数制限・将来見通し）を完全稼働。
-  - 全イベントリスナーのNull安全ガードを徹底し、100%安定した初期化と対局稼働を保証。
+  [Ver 8.4.0] 2026/10/19 更新内容:
+  - 【データ完全分離・4ファイル構成＆コードスリム化エディション】
+  - マスターデータを othello_data.js へ完全分離し、ファイル行数を半減・スリム化。
+  - HTML側に存在しない旧デモ機能の死にコードを完全撤去し、実行パフォーマンスを向上。
+  - 全10豪傑AI思考エンジン、全15問検定エンジン、戦後会見・戦績録を万全に稼働。
 ========================================================================== */
 
-const SYSTEM_VERSION_INFO = {
-    version: "Ver 8.3.0",
-    date: "2026/10/19",
-    history: [
-        {
-            ver: "Ver 8.3.0", date: "2026/10/19",
-            desc: "【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】HTML/CSS/JSの3分割により、コード肥大化に伴う出力欠落やレイアウト崩壊を完全根絶。全15問の類題特訓と3層論理解説が万全に稼働。"
-        },
-        {
-            ver: "Ver 8.2.0", date: "2026/10/19",
-            desc: "【宮廷次の一手検定・五大奥義×各3問類題特訓（全15問）完全理解エディション】答えの丸暗記を排し、本質的な理屈を体得するため全15問（5テーマ×3問）へ全面拡充。なぜ正解なのか（急所理由・相手手数制限・将来見通し）と、なぜ他がダメなのか（悪手理由・相手反撃）を徹底解説。"
-        },
-        {
-            ver: "Ver 8.1.0", date: "2026/10/19",
-            desc: "【宮廷次の一手検定・一本道フロー＆完全調律エディション】動線と画面遷移を改修。「盤面出題」➔「正解／不正解」➔「合格証」の一本道フローを確立。"
-        }
-    ]
-};
-
 const boardSize = 8;
-const BLACK = 1, WHITE = 2;
 
 let humanColor = BLACK, cpuColor = WHITE;
 let board, currentPlayer, gameOver, isBusy = false, isMuted = false;
@@ -59,18 +40,11 @@ let isPrefetching = false;
 // 探索高速化用トランスポジションテーブル（置換表）
 const transpositionTable = new Map();
 
-// 👁️ 盤面ビジュアル解説（デモモード）管理変数
-let isDemoMode = false;
-const DEMO_THEMES = ["角・X・C", "中割り", "壁", "パリティ"];
-let currentDemoThemeIndex = 0;
-let currentDemoStep = 1;
-let savedBoardStateForDemo = null;
-
 // 🎯 宮廷次の一手検定（全15問類題特訓）管理変数
 let isDrillMode = false;
-let currentDrillQuestionIndex = 1; // 1〜15
+let currentDrillQuestionIndex = 1;
 let savedBoardStateForDrill = null;
-const drillPassedMap = {}; // クリア済みフラグ { 1: true, 2: true, ... }
+const drillPassedMap = {};
 let isSimulatingDrillMistake = false;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
@@ -167,23 +141,9 @@ const DOM = {
     termPopupTitle: document.getElementById("termPopupTitle"),
     termPopupClose: document.getElementById("termPopupClose"),
     termPopupBody: document.getElementById("termPopupBody"),
-    termPopupDemoBtn: document.getElementById("termPopupDemoBtn"),
     termPopupDrillBtn: document.getElementById("termPopupDrillBtn"),
     termPopupMore: document.getElementById("termPopupMore"),
     guideOverlay: document.getElementById("guideOverlay"),
-    // 3ステップ紙芝居型 特製ビジュアル解説カード
-    demoGuideCard: document.getElementById("demoGuideCard"),
-    demoThemeNavTitle: document.getElementById("demoThemeNavTitle"),
-    btnDemoPrevTheme: document.getElementById("btnDemoPrevTheme"),
-    btnDemoNextTheme: document.getElementById("btnDemoNextTheme"),
-    demoStepTab1: document.getElementById("demoStepTab1"),
-    demoStepTab2: document.getElementById("demoStepTab2"),
-    demoStepTab3: document.getElementById("demoStepTab3"),
-    demoSituationText: document.getElementById("demoSituationText"),
-    demoGuideReason: document.getElementById("demoGuideReason"),
-    demoMaximText: document.getElementById("demoMaximText"),
-    btnDemoNextStep: document.getElementById("btnDemoNextStep"),
-    btnExitDemoMain: document.getElementById("btnExitDemoMain"),
     // 🎯 宮廷次の一手検定用DOM
     drillControlCard: document.getElementById("drillControlCard"),
     drillTopicBadge: document.getElementById("drillTopicBadge"),
@@ -201,543 +161,6 @@ const DOM = {
     drillCourseList: document.getElementById("drillCourseList"),
     drillCertificateModal: document.getElementById("drillCertificateModal")
 };
-
-/* ==========================================================================
-  【オセロ専門用語・定石辞書データ】
-========================================================================== */
-const TERMS_DICTIONARY = {
-    "Xマス": {
-        title: "⚠️ Xマス（エックス）",
-        desc: "角の斜め前（B2, G2, B7, G7）にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。",
-        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 1
-    },
-    "Cマス": {
-        title: "⚠️ Cマス（シー）",
-        desc: "角に隣接するマス。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。",
-        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 10
-    },
-    "中割り": {
-        title: "🌱 中割り理論",
-        desc: "外側の石を取らず、内側の石だけを返すオセロの基本奥義。外側に石が露出しないため、相手に打てるマスを与えません。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 7
-    },
-    "壁": {
-        title: "🧱 壁（かべ）",
-        desc: "外側に自分の石が一直線に並んでしまう状態。相手に多くの足場を与えてしまうため、敗着の典型とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "壁", drillIndex: 4
-    },
-    "パリティ": {
-        title: "⚖️ パリティ（偶数理論）",
-        desc: "オセロ終盤の絶対法則。偶数空きエリアには相手に先に打たせ、自分が最後に打つことで最後の一手を独占できます。",
-        tabSec: "term-sec-tactics", demoTheme: "パリティ", drillIndex: 13
-    },
-    "確定石": {
-        title: "💎 確定石（かくていせき）",
-        desc: "終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。",
-        tabSec: "term-sec-tactics", demoTheme: "角・X・C", drillIndex: 11
-    },
-    "開放度": {
-        title: "📉 開放度（かいほうど）",
-        desc: "打った石の周囲にある空きマスの数。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 7
-    },
-    "虎定石": {
-        title: "🐯 虎定石（トラ）",
-        desc: "初手F5に対し平行取りD6や縦取りから展開する王道定石。主導権を握りやすい基本形です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
-    },
-    "牛定石": {
-        title: "🐮 牛定石（ウシ）",
-        desc: "縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
-    },
-    "馬定石": {
-        title: "🐴 馬定石（ウマ）",
-        desc: "斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟な名定石です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 7
-    }
-};
-
-/* ==========================================================================
-  【🎯 宮廷次の一手検定：五大奥義×各3問 類題特訓マスターデータベース（全15問）】
-========================================================================== */
-const DRILL_QUESTIONS = [
-    // -------------------------------------------------------------
-    // 【テーマ1：⚠️ Xマスの罠と角防衛】（問1〜3）
-    // -------------------------------------------------------------
-    {
-        id: 1, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "基本形",
-        title: "⚠️ 第1問：Xマスの罠（基本形）",
-        diffLabel: "初級・アマ10級",
-        desc: "左上角（A1）が空いている局面。魅力的に見えるB2（Xマス）の誘惑を退け、安全な手を見抜く。",
-        turn: BLACK,
-        question: "Q. 白に角（A1）を献上しない、安全な内側のマスを選んでください（盤面タップ）。",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 4], // E3
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>左上の角（A1）が空いている時に、斜め前のB2（Xマス）に手を出すのは自殺行為です。内側の<b>E3</b>を選ぶことで、外側に境界線を広げずに安全に手番を渡せます。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白に角への足場を一切与えず、白は引き続き中央の狭いエリアを打つしかなくなります。</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>相手がしびれを切らしてXマスや危険なマスに打つまで、内側で静かに待ち構えることができます。</div>
-        `,
-        mistakes: {
-            "1,1": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは最危険の<b>【B2（Xマス）】</b>です！ 角（A1）が空いている時にここに打つと、相手に角を取るための踏み台（足場）を直接プレゼントしてしまいます。</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に左上角（A1）に飛び込み、B2の黒石を挟んで確定石にしてしまいました！</div>
-                `,
-                cpuResponse: [0, 0] // 相手が角A1を即奪取
-            }
-        },
-        defaultMistakeReason: "危険です！ 空いている角の斜め前（Xマス）に石を置くと角を取られてしまいます。内側の安全なマス（E3）を探しましょう。",
-        setup: (b) => {
-            b[1][2] = WHITE; b[1][3] = BLACK;
-            b[2][2] = WHITE; b[2][3] = BLACK;
-            b[3][2] = WHITE; b[3][3] = BLACK; b[3][4] = WHITE;
-            b[4][2] = BLACK; b[4][3] = BLACK; b[4][4] = BLACK;
-        }
-    },
-    {
-        id: 2, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "類似反転形",
-        title: "⚠️ 第2問：右上Xマスの回避（類似反転）",
-        diffLabel: "初級・アマ9級",
-        desc: "盤面が右上に向かって展開した類似局面。G2（Xマス）の誘惑を退け、中央の落ち着いた手を見極める。",
-        turn: BLACK,
-        question: "Q. 右上角（H1）が空いています。右上角を取られない正しい手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [5, 4], // E6
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>右上の角（H1）が空いているため、G2（Xマス）は絶対に打ってはいけません。下側中央の<b>E6</b>に打つことで、相手に角への突破口を与えません。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は右上から攻め込む手がなくなり、無理な外側着手を強いられます。</div>
-            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>盤面の場所（左上でも右上でも）が変わっても、「空いている角の斜め前＝地雷」という鉄則は不変です！</div>
-        `,
-        mistakes: {
-            "1,6": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは右上の<b>【G2（Xマス）】</b>です！ 2枚裏返せますが、角（H1）への橋渡しをしてしまいました。</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に右上角（H1）を奪取！ 右辺全体が白の確定石になってしまいます。</div>
-                `,
-                cpuResponse: [0, 7] // 相手が角H1を即奪取
-            }
-        },
-        defaultMistakeReason: "右上角（H1）への足場を与えてしまいます。Xマス（G2）を避け、中央の内側（E6）を選びましょう。",
-        setup: (b) => {
-            b[1][4] = BLACK; b[1][5] = WHITE;
-            b[2][4] = BLACK; b[2][5] = WHITE;
-            b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
-            b[4][3] = BLACK; b[4][4] = WHITE; b[4][5] = WHITE;
-        }
-    },
-    {
-        id: 3, themeId: 1, themeName: "Xマスの罠と角防衛", stepInTheme: "実戦応用形",
-        title: "⚠️ 第3問：相手のXマス誘発（実戦応用）",
-        diffLabel: "初中級・アマ8級",
-        desc: "相手に打てる場所を与えず、相手自身に危険なXマスへ打たせる誘導手筋。",
-        turn: BLACK,
-        question: "Q. 相手の逃げ道を塞ぎ、相手からXマスへ打たざるを得ない状況に追い込む手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 2], // C3
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br><b>C3</b>に打つことで、中央を強固に制圧し、白の安全な打点を完全に消滅させました！</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は安全なマスがなくなり、嫌でも危険なXマス（B2）に自ら飛び込まざるを得なくなります。</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白がXマスに打った瞬間、次の手であなたが左上角（A1）を堂々と奪取できます！</div>
-        `,
-        mistakes: {
-            "1,1": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手に打たせるべきXマス（B2）に、自分から飛び込んでしまいました！</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白に悠々と角（A1）を取られ、大逆転を許してしまいます。</div>
-                `,
-                cpuResponse: [0, 0]
-            }
-        },
-        defaultMistakeReason: "自分からXマスに打ってはいけません。中央の急所（C3）を突いて相手の手番を奪いましょう。",
-        setup: (b) => {
-            b[2][3] = WHITE; b[2][4] = WHITE;
-            b[3][2] = WHITE; b[3][3] = BLACK; b[3][4] = WHITE;
-            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK;
-        }
-    },
-
-    // -------------------------------------------------------------
-    // 【テーマ2：🧱 壁の回避と外側警戒】（問4〜6）
-    // -------------------------------------------------------------
-    {
-        id: 4, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "基本形",
-        title: "🧱 第4問：3枚取りの罠（基本形）",
-        diffLabel: "初中級・アマ7級",
-        desc: "石をたくさん取ると外側に一直線の「壁」ができ、相手に無数の足場を与えてしまう。",
-        turn: BLACK,
-        question: "Q. 3枚取れる派手な手と、1枚しか取れない静かな手。正しい選択は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [3, 2], // C4
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>オセロ序盤〜中盤の絶対鉄則は<b>「少なく取る」</b>ことです！ C4はわずか1枚しか裏返しませんが、外側に黒石を一切露出させません。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>相手は黒石を足場にすることができず、打てるマスが増えません。</div>
-            <div class="drill-reason-act"><b>【他の手との比較】</b><br>もし3枚取ってしまうと、外側に黒の「壁」ができ、相手に四方八方への反撃チャンスを与えてしまいます。</div>
-        `,
-        mistakes: {
-            "2,5": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>3枚取れて気持ちいい手ですが、外側に自分の石がずらりと並んで【巨大な壁】になってしまいました！</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が壁の外側（F2）から急襲！ 白の打てる場所が盤面全体に一気に広がってしまいました。</div>
-                `,
-                cpuResponse: [1, 5]
-            }
-        },
-        defaultMistakeReason: "石をたくさん取ると外側に壁ができてしまいます。内側で静かに1枚だけ返すマス（C4）を探しましょう。",
-        setup: (b) => {
-            b[2][3] = WHITE; b[2][4] = WHITE;
-            b[3][3] = WHITE; b[3][4] = BLACK;
-            b[4][3] = BLACK; b[4][4] = WHITE;
-        }
-    },
-    {
-        id: 5, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "類似反転形",
-        title: "🧱 第5問：下辺の壁警戒（類似反転）",
-        diffLabel: "初中級・アマ6級",
-        desc: "下側に向かって石を裏返すと外壁ができてしまう局面。横の内側をめくる。",
-        turn: BLACK,
-        question: "Q. 下方向に石を露出させず、壁を作らない内側の一手を選んでください。",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 3], // D3
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>上側内側の<b>D3</b>に着手しました。下側の境界線を一切広げていないため、下辺に壁を作ることなく内側を固められました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は下側からの攻め手がなく、内側の手詰まりへと向かいます。</div>
-            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>上下左右、どの方向であっても「外側の最前線を自分からめくらない」ことがオセロの基本防御です。</div>
-        `,
-        mistakes: {
-            "5,4": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>下方向（E6）に大きく石を裏返してしまいました！ 下側のラインに黒の壁が露出しています。</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が露出した黒石を足場にして下辺（E7）へ進出。主導権を奪われました。</div>
-                `,
-                cpuResponse: [6, 4]
-            }
-        },
-        defaultMistakeReason: "下側に石を飛び出させてはいけません。上寄りの内側のマス（D3）を選びましょう。",
-        setup: (b) => {
-            b[3][3] = WHITE; b[3][4] = BLACK;
-            b[4][3] = WHITE; b[4][4] = WHITE;
-            b[4][5] = BLACK;
-        }
-    },
-    {
-        id: 6, themeId: 2, themeName: "壁の回避と外側警戒", stepInTheme: "実戦応用形",
-        title: "🧱 第6問：相手の壁を利用する（実戦応用）",
-        diffLabel: "中級・アマ5級",
-        desc: "白がすでに外側に壁を作っています。相手の壁に付き合わず、内側から削る高等手筋。",
-        turn: BLACK,
-        question: "Q. 白の作った壁の外側を打つのではなく、内側から相手の選択肢を奪う手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [4, 2], // C5
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>完璧な判断です！ 白の壁の外側に手を出すのではなく、内側の<b>C5</b>に着手しました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白はすでに壁を作ってしまっているため、外側に打てる場所がありません。白はさらに不利な壁を広げるしかなくなります。</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>「相手に壁を作らせて、自分は内側に潜る」。これが中級者を圧倒する勝ちパターンです！</div>
-        `,
-        mistakes: {
-            "1,4": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手の壁の外側（E2）に自分から手を出してしまいました！</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>相手に都合の良い足場を与えてしまい、せっかくの白の壁の欠陥を帳消しにしてしまいました。</div>
-                `,
-                cpuResponse: [1, 3]
-            }
-        },
-        defaultMistakeReason: "相手の壁の外側に手を出してはいけません。内側のマス（C5）に打ち込みましょう。",
-        setup: (b) => {
-            b[1][2] = WHITE; b[1][3] = WHITE; b[1][4] = WHITE;
-            b[2][3] = WHITE; b[2][4] = BLACK;
-            b[3][3] = BLACK; b[3][4] = WHITE;
-            b[4][3] = WHITE; b[4][4] = BLACK;
-        }
-    },
-
-    // -------------------------------------------------------------
-    // 【テーマ3：🌱 至高の手筋「中割り」】（問7〜9）
-    // -------------------------------------------------------------
-    {
-        id: 7, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "基本形",
-        title: "🌱 第7問：至高の中割り（基本形）",
-        diffLabel: "中級・アマ4級",
-        desc: "外側の境界線を一切広げず、すでに囲まれた内側の石だけを返すオセロ最強の基本手筋。",
-        turn: BLACK,
-        question: "Q. 外側の境界線を広げず、内側の白石1枚だけを裏返す【中割り】はどれ？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [4, 2], // C5
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>これぞオセロ最強の奥義<b>【中割り（なかわり）】</b>です！ 周囲がすでに石で埋まっている内側の白石1枚だけをめくりました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>外周の空きマスに黒石が1枚も露出していません（開放度ゼロ）。そのため、相手の打てるマスが「1箇所も増えていません」！</div>
-            <div class="drill-reason-act"><b>【他の手との比較】</b><br>もし外側（F3等）を打つと、相手の打てる場所が3箇所も急増してしまいます。</div>
-        `,
-        mistakes: {
-            "2,5": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>外側の石を裏返してしまいました！ 外周に黒石が露出したため、白の足場が大幅に増えてしまいます。</div>
-                `,
-                cpuResponse: null
-            }
-        },
-        defaultMistakeReason: "すでに相手の石に囲まれている『内側の石』だけを返すマス（C5）を探しましょう。",
-        setup: (b) => {
-            b[2][3] = WHITE; b[2][4] = WHITE;
-            b[3][2] = WHITE; b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
-            b[4][3] = WHITE; b[4][4] = BLACK;
-            b[5][4] = BLACK;
-        }
-    },
-    {
-        id: 8, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "類似反転形",
-        title: "🌱 第8問：縦ラインの中割り（類似反転）",
-        diffLabel: "中級・アマ3級",
-        desc: "横ではなく縦に並んだ石の中から、内側だけをきれいに抜き取る中割り。",
-        turn: BLACK,
-        question: "Q. 縦の密集地帯から、外側に石を露出させない【縦の中割り】を選んでください。",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 3], // D3
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>見事な縦の中割りです！ <b>D3</b>に着手し、密集した内側の石だけを反転させました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>縦方向の境界線がまったく外に膨らまないため、白は次に打つ手が極めて窮屈になります。</div>
-            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>中割りは横方向だけでなく、縦方向や斜め方向でも成立します。「返した石の隣に空きマスがない状態」が最高の形です！</div>
-        `,
-        mistakes: {
-            "4,5": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>右側の外枠に石を飛び出させてしまいました！ 開放度が高く、白に右辺からの潜り込みを許します。</div>
-                `,
-                cpuResponse: null
-            }
-        },
-        defaultMistakeReason: "外側の石ではなく、すでに挟まれている内側の縦ライン（D3）をめくりましょう。",
-        setup: (b) => {
-            b[3][2] = BLACK; b[3][3] = WHITE; b[3][4] = BLACK;
-            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = WHITE;
-            b[5][3] = BLACK; b[5][4] = WHITE;
-        }
-    },
-    {
-        id: 9, themeId: 3, themeName: "至高の手筋「中割り」", stepInTheme: "実戦応用形",
-        title: "🌱 第9問：相手の手数ゼロ化（実戦応用）",
-        diffLabel: "中上級・アマ2級",
-        desc: "中割りを決めることで、相手の打てる場所を完全に奪い、パス寸前へ追い込む決定打。",
-        turn: BLACK,
-        question: "Q. 相手の打てるマスを盤面全体で残り「わずか1箇所」に激減させる中割りは？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [3, 2], // C4
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>完璧な中割りの決定打です！ <b>C4</b>に打ったことで、白の打てるマスをすべて封殺しました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白が次に打てる場所は、盤面全体でなんと「残り1箇所（しかも悪手）」しかありません！</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>中割りを連続して決めることで、相手はパスするか、不利なマス（XやC）に自ら打つしかなくなります。</div>
-        `,
-        mistakes: {
-            "2,4": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>中割りに見えますが、上側に石が抜けてしまっています。白の打てる場所が3箇所も残ってしまいます。</div>
-                `,
-                cpuResponse: null
-            }
-        },
-        defaultMistakeReason: "相手の選択肢を完全に奪う、完璧な内側の急所（C4）を探してください。",
-        setup: (b) => {
-            b[2][2] = BLACK; b[2][3] = WHITE;
-            b[3][3] = WHITE; b[3][4] = WHITE; b[3][5] = BLACK;
-            b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK;
-            b[5][3] = BLACK;
-        }
-    },
-
-    // -------------------------------------------------------------
-    // 【テーマ4：💎 Cマスの罠とウイング破り】（問10〜12）
-    // -------------------------------------------------------------
-    {
-        id: 10, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "基本形",
-        title: "💎 第10問：不用意なCマス回避（基本形）",
-        diffLabel: "中上級・アマ1級",
-        desc: "角の隣（Cマス）はXマスの次に危険なマス。不用意に打つと角への足場を与えてしまう。",
-        turn: BLACK,
-        question: "Q. 白に角（A1）を奪われないよう、危険なCマス（B1）を避けた安全な手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [2, 1], // B3
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>角に直接隣接する<b>B1（Cマス）</b>の誘惑を冷静に避け、内側の<b>B3</b>に着手しました！</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は角（A1）に潜り込むための足場がなく、角を狙うことができません。</div>
-            <div class="drill-reason-act"><b>【Cマスの危険性】</b><br>角が空いている時にCマスに打つと、相手に角を取られた上に辺全体を固められてしまいます。</div>
-        `,
-        mistakes: {
-            "0,1": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>そこは最危険の<b>【B1（Cマス）】</b>です！ 辺に手を出してしまいました。</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に左上角（A1）へ潜入！ B1の黒石を足場にして角を奪取されました。</div>
-                `,
-                cpuResponse: [0, 0]
-            }
-        },
-        defaultMistakeReason: "角の隣（B1）に打つと角を取られます！ 内側の安全なマス（B3）を選びましょう。",
-        setup: (b) => {
-            b[1][1] = BLACK; b[1][2] = WHITE; b[1][3] = BLACK;
-            b[2][2] = WHITE; b[2][3] = BLACK;
-            b[3][1] = BLACK; b[3][2] = WHITE;
-        }
-    },
-    {
-        id: 11, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "類似反転形",
-        title: "💎 第11問：ウイングへのクサビ（類似反転）",
-        diffLabel: "上級・アマ初段",
-        desc: "相手が上辺に不完全な形（ウイング）を作った瞬間、あえてCマスにクサビを打ち込んで角を強奪する高等手筋。",
-        turn: BLACK,
-        question: "Q. 相手（白）の上辺ウイングの弱点を突き、角（A1）を確定させる手筋は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [0, 1], // B1
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>高等奥義<b>【ウイングへのクサビ打ち】</b>です！ 相手のウイング（C1〜E1）の隙間である<b>B1</b>に打ち込みました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は間の石がすべて白いため、角（A1）に打つことができません！</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白は角を守ることができず、次の手であなたが左上角（A1）を100%確実に強奪できます！</div>
-        `,
-        mistakes: {
-            "2,1": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>緩着です。相手のウイングの欠陥を突かず放置すると、相手に修復されてしまいます。</div>
-                `,
-                cpuResponse: null
-            }
-        },
-        defaultMistakeReason: "相手のウイングの隙間（B1）に直接クサビを打ち込んでください！",
-        setup: (b) => {
-            b[0][2] = WHITE; b[0][3] = WHITE; b[0][4] = WHITE;
-            b[1][2] = BLACK; b[2][2] = BLACK;
-            b[3][3] = WHITE; b[4][4] = BLACK;
-        }
-    },
-    {
-        id: 12, themeId: 4, themeName: "Cマスの罠とウイング破り", stepInTheme: "実戦応用形",
-        title: "💎 第12問：辺の爆弾解除（実戦応用）",
-        diffLabel: "上級・アマ二段",
-        desc: "相手の仕掛けた罠を見破り、自分から手を出さずに相手からCマスを打たせる高等誘導。",
-        turn: BLACK,
-        question: "Q. 焦って辺を取ると罠にはまります。内側を打って相手にCマスを打たせる手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [3, 4], // E4
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>見事な大局観です！ 辺の危険地帯に手を出さず、内側の<b>E4</b>で手番を渡しました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は他に打つ手がなく、白自身が危険なCマスに打たざるを得なくなります。</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>相手がCマスを打った直後に、あなたが角へ飛び込んで辺全体を確定石にできます！</div>
-        `,
-        mistakes: {
-            "0,2": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>相手の仕掛けた罠に自分から飛び込んでしまいました！ 辺が崩壊します。</div>
-                `,
-                cpuResponse: null
-            }
-        },
-        defaultMistakeReason: "辺に手を出すと罠にかかります。内側の急所（E4）を選んで相手に手を渡しましょう。",
-        setup: (b) => {
-            b[0][3] = WHITE; b[0][4] = WHITE;
-            b[1][3] = BLACK; b[1][4] = WHITE;
-            b[2][3] = BLACK; b[2][4] = BLACK;
-            b[3][3] = WHITE;
-        }
-    },
-
-    // -------------------------------------------------------------
-    // 【テーマ5：⚖️ 終盤の絶対法則「パリティ」】（問13〜15）
-    // -------------------------------------------------------------
-    {
-        id: 13, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "基本形",
-        title: "⚖️ 第13問：2マス空きのパリティ（基本形）",
-        diffLabel: "有段・アマ三段",
-        desc: "終盤の鉄則「偶数空きは相手から打たせる」。右上の2マス空きに手を出さず、最後の一手を独占する。",
-        turn: BLACK,
-        question: "Q. 右上に【2マス空き（偶数）】があります。あなたから打つべきか、待つべきか？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [6, 2], // C7
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>オセロ終盤の絶対法則<b>【偶数理論（パリティ）】</b>の神髄です！ 右上の2マス空き（偶数）に手を出さず、左下の<b>C7</b>に着手しました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は嫌でも右上の2マス空きに「先に」打たざるを得なくなります。</div>
-            <div class="drill-reason-act"><b>【今後の見通し】</b><br>白が右上に打った後、最後の一手（H1角）をあなたが確実に独占でき、大差で完全勝利できます！</div>
-        `,
-        mistakes: {
-            "0,6": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>偶数空き（2マス空き）に自分から手を出してしまいました！</div>
-                    <div class="drill-reason-act"><b>【何が起きたか？】</b><br>白が即座に最後の一手である右上角（H1）を奪取！ 偶数エリアの最後の一手を相手に独占されて大敗します。</div>
-                `,
-                cpuResponse: [0, 7]
-            }
-        },
-        defaultMistakeReason: "右上の2マス空きに自分から打ってはいけません！ 別のマス（C7）を選んで相手に先に打たせましょう。",
-        setup: (b) => {
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
-            }
-            b[0][6] = 0; b[0][7] = 0;
-            b[6][2] = 0; b[5][2] = WHITE;
-        }
-    },
-    {
-        id: 14, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "類似反転形",
-        title: "⚖️ 第14問：偶数と奇数の数え分け（類似反転）",
-        diffLabel: "強豪有段・アマ四段",
-        desc: "盤面に「2マス空き（偶数）」と「1マス空き（奇数）」がある局面。奇数空きに自分から打ち、偶数空きを相手に残す。",
-        turn: BLACK,
-        question: "Q. 「奇数空きは自分から、偶数空きは相手から」。どちらのエリアに打つべき？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [7, 1], // B8
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>パーフェクトなパリティ計算です！ 1マスしか空いていない奇数エリア（B8）に自分から着手しました。</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>奇数エリアが埋まったため、白は残された「偶数エリア（2マス空き）」に先に打つしかありません。</div>
-            <div class="drill-reason-act"><b>【類似問題のポイント】</b><br>「奇数は自分から打って偶数に変える」「偶数は相手に先に打たせる」。この2行を唱えるだけで終盤の勝率が劇的に跳ね上がります！</div>
-        `,
-        mistakes: {
-            "0,1": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>偶数空きエリアに自分から打ってしまいました！ 白に最後の一手を独占されます。</div>
-                `,
-                cpuResponse: [0, 0]
-            }
-        },
-        defaultMistakeReason: "偶数空きではなく、1マスだけ空いている奇数エリア（B8）に打ってください。",
-        setup: (b) => {
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) b[r][c] = BLACK;
-            }
-            b[0][0] = 0; b[0][1] = 0;
-            b[7][1] = 0;
-            b[6][1] = WHITE;
-        }
-    },
-    {
-        id: 15, themeId: 5, themeName: "終盤の絶対法則「パリティ」", stepInTheme: "実戦応用形",
-        title: "⚖️ 第15問：名人撃破のパリティ総仕上げ",
-        diffLabel: "神域・全国名人",
-        desc: "全国名人Lv.10オルレアンを打倒する最終試練。複数の空きエリアのパリティを完璧に見切り、完全制覇を達成する。",
-        turn: BLACK,
-        question: "Q. 全ての空きマスの偶奇を計算し、相手の打てる場所をゼロにして完全勝利する一手は？",
-        sub: "手番：あなたの黒番（⚫）",
-        correctMove: [1, 7], // H2
-        correctReason: `
-            <div class="drill-reason-act"><b>【なぜ正解なのか？】</b><br>神域の読み、完璧です！🎉 <b>H2</b>への着手により、右辺のパリティを完璧に維持したまま、白の残りの合法手を完全にゼロ（パス）に追い込みました！</div>
-            <div class="drill-reason-act"><b>【相手への影響】</b><br>白は置けるマスが一切存在せず、パスを宣告されます。</div>
-            <div class="drill-reason-act"><b>【栄光の免許皆伝へ】</b><br>残るすべての空きマスをあなたが独占連打し、盤面完全制覇を達成できます！ あなたはオセロの真髄を完全に極めました！</div>
-        `,
-        mistakes: {
-            "6,7": {
-                reason: `
-                    <div class="drill-reason-act"><b>【なぜダメなのか？】</b><br>下側を打つとパリティが崩れ、老賢王オルレアンに逆襲の角を奪われてしまいます！</div>
-                `,
-                cpuResponse: [7, 7]
-            }
-        },
-        defaultMistakeReason: "右辺のパリティを維持する神域の一手（H2）を見つけ出してください！",
-        setup: (b) => {
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) b[r][c] = (r >= 4) ? BLACK : WHITE;
-            }
-            b[1][7] = 0; b[2][7] = WHITE; b[0][7] = WHITE;
-            b[6][7] = 0; b[7][7] = 0;
-        }
-    }
-];
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
 const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
@@ -931,49 +354,6 @@ function triggerTurnPulse() {
     pulseTimeout = setTimeout(() => DOM.normalControlCard.classList.remove("turn-notify-pulse"), 800);
 }
 
-/* ==========================================================================
-  【公式プロ定石データベース】
-========================================================================== */
-const OPENING_BOOK = {
-    "": [{ move: [4, 5], name: "黒初手（F5）", weight: 100 }],
-    "F5": [
-        { move: [3, 5], name: "斜め取り（F4・馬定石）", weight: 45 },
-        { move: [5, 5], name: "縦取り（F6・牛定石）", weight: 35 },
-        { move: [5, 3], name: "平行取り（D6・虎定石）", weight: 20 }
-    ],
-    "F5-F4": [
-        { move: [2, 4], name: "馬定石（E3）", weight: 70 },
-        { move: [2, 2], name: "飛行機定石（C3）", weight: 30 }
-    ],
-    "F5-F4-E3": [{ move: [3, 5], name: "馬定石（F6）", weight: 80 }],
-    "F5-F4-E3-F6": [
-        { move: [4, 2], name: "馬定石（C5）", weight: 75 },
-        { move: [5, 4], name: "馬定石（E6）", weight: 25 }
-    ],
-    "F5-F6": [
-        { move: [3, 2], name: "牛定石（C4）", weight: 65 },
-        { move: [2, 3], name: "虎定石（D3）", weight: 35 }
-    ],
-    "F5-F6-C4": [
-        { move: [2, 2], name: "牛定石（C3）", weight: 75 },
-        { move: [2, 4], name: "牛定石変化（E3）", weight: 25 }
-    ],
-    "F5-F6-C4-C3": [{ move: [3, 3], name: "牛定石（D3）", weight: 85 }],
-    "F5-F6-C4-C3-D3": [
-        { move: [2, 3], name: "牛定石（D2）", weight: 80 },
-        { move: [2, 4], name: "牛定石変化（E3）", weight: 20 }
-    ],
-    "F5-F6-C4-C3-D3-D2": [{ move: [2, 4], name: "牛定石本線（E3）", weight: 90 }],
-    "F5-D6": [
-        { move: [4, 2], name: "正統虎定石（C5）", weight: 85 },
-        { move: [5, 4], name: "平行取り変化（E6）", weight: 15 }
-    ],
-    "F5-D6-C5": [
-        { move: [3, 5], name: "虎定石本線（F4）", weight: 80 },
-        { move: [5, 5], name: "虎定石変化（F6）", weight: 20 }
-    ]
-};
-
 const baseStaticWeights = [
     [ 1200, -2500,   80,   20,   20,   80, -2500, 1200],
     [-2500, -3000,  -30,  -30,  -30,  -30, -3000, -2500],
@@ -1023,232 +403,6 @@ function getDynamicCellWeights(targetBoard, perspectivePlayer) {
     return weights;
 }
 
-/* ==========================================================================
-  【全10大豪傑キャラクター定義】
-========================================================================== */
-const CHARACTERS = {
-    1: {
-        id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ12級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
-        imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)",
-        bookMaxPly: 0, depth: 0, exact: 0,
-        salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
-        thinkingBaseMs: 650,
-        quotes: {
-            start: ["ヒヒッ！王宮のオセロへようこそ！サイコロ転がすみたいに遊ぼうヨ！"],
-            thinking: ["どこに置こうかニャ〜？ 適当にポンと置いちゃおっかナ！"],
-            playerGood: ["ヒエ〜ッ！？ そこ置かれたらボクの逃げ道がなくなっちゃうデス〜！"],
-            playerBad: ["おやおや〜？ そこ置いちゃってホントにいいの？ いただきまーす！"],
-            bigReversal: ["ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！"],
-            cpuCorner: ["やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！"],
-            playerCorner: ["あちゃー！ 大事な角っこを取られちゃったヨ〜！"],
-            climax: ["もう盤面が埋まっちゃうヨ！ どっちが勝つのかニャ〜！？"],
-            losing: ["ヒエ〜ッ！ ボクの石が数えるほどしかないヨ〜！"],
-            cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
-            playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
-            win: ["ヒヒッ！ボクの大・勝・利〜！たまには道化師だって王様を負かしちゃうでゴザイマス！"],
-            lose: ["参った参った〜！さすが貴方様、コテンパンの完敗でゴザイマス！拍手喝采〜！"]
-        }
-    },
-    2: {
-        id: 2, name: "侍女 コレット", rankLabel: "【初級入門・アマ9級】", title: "（見習い侍女）", icon: "🎀", image: "images/char2.png",
-        imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)",
-        bookMaxPly: 0, depth: 1, exact: 0,
-        salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
-        thinkingBaseMs: 700,
-        quotes: {
-            start: ["お茶の準備の合間に…一生懸命お相手いたします！よろしくお願いしますねっ！"],
-            thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？"],
-            playerGood: ["きゃっ！？ そんな綺麗にひっくり返されちゃうなんて…すごいです…！"],
-            playerBad: ["えっ…そこに置いちゃって大丈夫なんですか…？ 私、取っちゃいますよ…？"],
-            bigReversal: ["わぁぁっ！？ こんなにたくさん取られちゃうなんて…！"],
-            cpuCorner: ["わぁっ！ 角が取れちゃいました！ 嬉しいです！"],
-            playerCorner: ["そんな…！ 私の大切な角が…うぅ…！"],
-            climax: ["もうすぐおしまいですね…！ 心臓がドキドキしてきました…！"],
-            losing: ["うぅ…！ どんどん私の石が減っちゃってます…！"],
-            cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
-            playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
-            win: ["勝てちゃいました…！えへへ、私でも勝てるなんて夢みたいです！また遊んでくださいねっ！"],
-            lose: ["うぅ…！完敗です…！もっと本を読んで定石を勉強してきますっ…次こそは…！"]
-        }
-    },
-    3: {
-        id: 3, name: "庭園番 ルカ", rankLabel: "【初級・アマ7級】", title: "（少年庭師）", icon: "🌱", image: "images/char7.png",
-        imgFocus: "center 22%", themeColor: "#52b788", themeGlow: "rgba(82, 183, 136, 0.65)",
-        bookMaxPly: 0, depth: 2, exact: 0,
-        salonName: "王宮の大温室", materialDesc: "翠緑碧玉 × 薄黄琥珀", boardDesc: "フォレスト苔調盤",
-        thinkingBaseMs: 750,
-        quotes: {
-            start: ["王宮の大温室へようこそ！草花を育てるように、緑いっぱいの盤面にしようね！"],
-            thinking: ["お花を育てるみたいに… 外側からじっくり囲んでいこうかな！"],
-            playerGood: ["わっ、そこに来るんだ！？ 木陰に隠れたつもりだったのに…見事だなぁ！"],
-            playerBad: ["えへへ、そこ空けちゃったの？ ぐんぐん枝を伸ばしちゃうよ！"],
-            bigReversal: ["うわぁっ！ せっかく咲いたお花が一気に散っちゃった…！"],
-            cpuCorner: ["やったぁ！ 大事な温室の角を確保しました！"],
-            playerCorner: ["ああっ！ 僕の温室の角が取られちゃった…！"],
-            climax: ["もうすぐ満開だね！ どっちがたくさん咲くかなぁ！"],
-            losing: ["うぅ…僕の緑が全然足りないよぉ…！"],
-            cpuPass: ["水やりはお休み…置ける場所がないのでパスです！"],
-            playerPass: ["僕の番ですね！ 元気に石を置いちゃいます！"],
-            win: ["僕の勝ちだぁ！盤面いっぱいに綺麗なお花畑が完成したよ！楽しかったね！"],
-            lose: ["参りましたぁ…！貴方様のオセロは、嵐にもびくともしない立派な大樹のようです！"]
-        }
-    },
-    4: {
-        id: 4, name: "錬金術師 ニコラ", rankLabel: "【初中級・アマ4級】", title: "（宮廷学者見習い）", icon: "🔮", image: "images/char8.png",
-        imgFocus: "center 20%", themeColor: "#9b5de5", themeGlow: "rgba(155, 93, 229, 0.65)",
-        bookMaxPly: 0, depth: 3, exact: 0,
-        salonName: "宮廷錬金実験室", materialDesc: "紫水晶 × 黄鉄鉱", boardDesc: "スレート鉱物盤",
-        thinkingBaseMs: 800,
-        quotes: {
-            start: ["幾何学と論理の結晶…私の錬金術オセロ、理論通りの一手をお見せしましょう。"],
-            thinking: ["角の座標エネルギーを計算中… Xマスを避けて展開する。"],
-            playerGood: ["ほう…！理論的に急所を突く手を打たれるとは。実に興味深い反応だ。"],
-            playerBad: ["不合理な一手ですね。私のフラスコの中に自ら飛び込んでいただきました。"],
-            bigReversal: ["なっ…！？ 元素配列がこれほど一気に逆転するとは…！"],
-            cpuCorner: ["角の幾何学的確保に成功。想定通りの展開です。"],
-            playerCorner: ["しまっ…！ その角の引力を見誤ったというのか…！？"],
-            climax: ["終盤の臨界点に達しました。最後の反応を見届けましょう。"],
-            losing: ["計算が…！ 反応式が崩壊していく…！"],
-            cpuPass: ["試薬が尽きました。パスとして貴殿の反応を待ちます。"],
-            playerPass: ["貴殿の選択肢はゼロ。私のフラスコの中ですよ。"],
-            win: ["私の計算通りです。すべての元素が完璧に結合した、論理的必然の勝利ですね。"],
-            lose: ["素晴らしい知性です…私の導き出した勝利の方程式が、跡形もなく崩壊するとは…！"]
-        }
-    },
-    5: {
-        id: 5, name: "騎士 ローラン", rankLabel: "【中級・アマ2級】", title: "（近衛騎士）", icon: "⚔️", image: "images/char3.png",
-        imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)",
-        bookMaxPly: 4, depth: 4, exact: 0,
-        salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアン鋼鉄盤",
-        thinkingBaseMs: 850,
-        quotes: {
-            start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！いざ、尋常に勝負！"],
-            thinking: ["我が陣形を立て直す… 次の一手はここだ！"],
-            playerGood: ["見事な太刀筋…！ 盤面の急所を寸分の狂いもなく突いてくるとは！"],
-            playerBad: ["ふっ… 隙を見せたな！ 我が防陣の前に油断は禁物だぞ！"],
-            bigReversal: ["なんと…！？ 我が前線が一気に崩壊しただと…！？"],
-            cpuCorner: ["要衝を確保！ この角は我が騎士団の防衛線だ！"],
-            playerCorner: ["不覚…！ 陣地の角を突破されるとは！"],
-            climax: ["ここが関ヶ原… 雌雄を決する時が来たようだな！"],
-            losing: ["ぬうう…！ 我が軍がここまで追い詰められるとは…！"],
-            cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
-            playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
-            win: ["王国の勝利だ！我が騎士団の鉄壁の陣形、そう易々と崩せはせん！"],
-            lose: ["見事な用兵…完敗だ！貴殿の鋭き知謀に、近衛騎士としての最大限の敬意を表する！"]
-        }
-    },
-    6: {
-        id: 6, name: "吟遊詩人 ジュリアン", rankLabel: "【中上級・アマ1級】", title: "（麗しの宮廷楽士）", icon: "🪕", image: "images/char9.png",
-        imgFocus: "center 22%", themeColor: "#c94b63", themeGlow: "rgba(201, 75, 99, 0.65)",
-        bookMaxPly: 6, depth: 5, exact: 0,
-        salonName: "音楽と詩の回廊", materialDesc: "黒真珠 × 白蝶貝", boardDesc: "ローズウッド木目金盤",
-        thinkingBaseMs: 950,
-        quotes: {
-            start: ["リュートの調べに乗せて、優雅なる盤上詩を奏でましょう。美しき一局を。"],
-            thinking: ["内側の旋律を大切に… 中割りのリズムを崩しませんよ。"],
-            playerGood: ["おや… 息を呑むほど美しい一節を奏でてくださいますね。胸に響きますよ。"],
-            playerBad: ["ふふ、リズムが乱れましたよ？ 隙のある音色は聞き逃しません。"],
-            bigReversal: ["なんと劇的な転調…！ 盤上の交響詩が一変しましたね！"],
-            cpuCorner: ["この角の響きは、我がリュートが美しく奏で奪いましょう。"],
-            playerCorner: ["ああ…！ 私の美しい角の調べが奪われるなんて…！"],
-            climax: ["いよいよ最終楽章… 華麗なるコーダへと参りましょう。"],
-            losing: ["不協和音が… 私の指先から旋律が零れていく…！"],
-            cpuPass: ["ふむ、静寂の休符ですね。貴方の調べを聴かせてください。"],
-            playerPass: ["休符ですね。私の独奏を存分にお楽しみください。"],
-            win: ["勝利のロンド…貴方とのアンサンブル、実に甘美で優雅なひとときでございました。"],
-            lose: ["ブラボー！…完璧な名曲を聴かせていただきました。私の指先、完全に沈黙いたしました。"]
-        }
-    },
-    7: {
-        id: 7, name: "伯爵夫人 エリザベート", rankLabel: "【上級・アマ初段】", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
-        imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)",
-        bookMaxPly: 6, depth: 5, exact: 0,
-        salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × 白蝶貝", boardDesc: "深紅ベルベット盤",
-        thinkingBaseMs: 1050,
-        quotes: {
-            start: ["薔薇の舞踏会サロンへようこそ。手加減など野暮なことはいたしませんわ。"],
-            thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。"],
-            playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。少し熱くなりましたわ。"],
-            playerBad: ["うふふ… 甘いお方。わたくしの仕掛けた薔薇の棘に、自ら囚われましたわね。"],
-            bigReversal: ["まあ！ わたくしの薔薇が一気に散らされるなんて…！"],
-            cpuCorner: ["美しき角は、わたくしが優雅に頂戴いたしますわ。"],
-            playerCorner: ["まあ！ わたくしの角を奪うなんて… 許せませんこと！"],
-            climax: ["最後のワルツ… 存分に踊り明かしましょう。"],
-            losing: ["まさか… わたくしが劣勢に立たされるなんて…！"],
-            cpuPass: ["あら、打つ手がございませんの？ 待ってさしあげますわ。"],
-            playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
-            win: ["チェックメイト…美と知性の勝利ですわ。紅茶が冷めないうちに終わって良かったですこと。"],
-            lose: ["お見事でございましたわ…！わたくしの薔薇をここまで散らす殿方に出会えるとは思いませんでしたわ。"]
-        }
-    },
-    8: {
-        id: 8, name: "近衛総督 フェルディナント", rankLabel: "【強豪有段・アマ三段】", title: "（歴戦の老将軍）", icon: "🛡️", image: "images/char10.png",
-        imgFocus: "center 20%", themeColor: "#b56c36", themeGlow: "rgba(181, 108, 54, 0.7)",
-        bookMaxPly: 8, depth: 6, exact: 8,
-        salonName: "宮廷軍議作戦室", materialDesc: "赤銅石 × 白銀チタン", boardDesc: "ブロンズ盤",
-        thinkingBaseMs: 1150,
-        quotes: {
-            start: ["盤上は戦場そのもの。我が重装軍団の鉄壁を破ってみせよ、若き将帥よ！"],
-            thinking: ["敵の戦線を誘引し、包囲殲滅の機を窺う…緩着は許さん。"],
-            playerGood: ["ほう… 前線の急所を突く見事な用兵！老躯を本気配備にさせるとはな！"],
-            playerBad: ["愚かな突撃だな！ その一手で自らの退路を断ったと知れ！"],
-            bigReversal: ["なにっ…！？ 我が防衛陣が一瞬で突破されただと…！？"],
-            cpuCorner: ["要塞を制圧！ ここから反撃の鉄槌を下す！"],
-            playerCorner: ["ぬうっ…！ 我が防衛ラインの要衝を奪われるとは…！"],
-            climax: ["総力戦だ… 生死を賭けた決着をつけようぞ！"],
-            losing: ["我が軍団が… ここまで押し返されるとは…！"],
-            cpuPass: ["陣形を立て直す。貴殿の進軍を見届けよう。"],
-            playerPass: ["包囲完了だ。退路を塞がれた敵に勝機はない。"],
-            win: ["鉄壁の勝利だ！ 百戦錬磨の我が防衛線、付け焼き刃の策で破れるものか！"],
-            lose: ["見事な統率力…！ 我が軍門に降ろう。貴殿こそ、王国全軍を率いるに相応しき名将だ！"]
-        }
-    },
-    9: {
-        id: 9, name: "宰相 ヴォルフガング", rankLabel: "【宮廷最強・アマ五段】", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
-        imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)",
-        bookMaxPly: 8, depth: 6, exact: 12,
-        salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × 大理石", boardDesc: "黒大理石盤",
-        thinkingBaseMs: 1200,
-        quotes: {
-            start: ["盤上の戦いは国家統治の縮図。冷徹な知略とパリティの前に、私情は無用だ。"],
-            thinking: ["数手先の展開はすべて計算済みだ…パリティを維持する。"],
-            playerGood: ["ほう… その急所を正確に見切っていたか。底知れぬ男だな。"],
-            playerBad: ["愚策だな。その一手で自らの首を絞めたことに、まだ気づいておらんのか？"],
-            bigReversal: ["なに…！？ 瞬時に盤面の均衡を崩しただと…！？"],
-            cpuCorner: ["定石通り、この要所は我が手中に収めさせてもらった。"],
-            playerCorner: ["我が計算の裏をかいて角を突いてくるとは…！"],
-            climax: ["詰みだ… 貴公に逆転の筋は残されていない。"],
-            losing: ["計算が… 狂ったというのか！？ この私が…！"],
-            cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
-            playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
-            win: ["偶数理論を制したのは私だ。数手前より貴公の敗北は決定していた。良き盤上遊戯であった。"],
-            lose: ["この私が…読み負けたというのか！？…認めよう、貴公の知謀は国家の枠をも超越している。"]
-        }
-    },
-    10: {
-        id: 10, name: "老賢王 オルレアン", rankLabel: "【神域・全国名人】", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
-        imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)",
-        bookMaxPly: 12, depth: 7, exact: 14,
-        salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
-        thinkingBaseMs: 1350,
-        quotes: {
-            start: ["我が玉座の盤上へよくぞ参った。そなたの知恵の深さ、余に余すところなく見せてみよ！"],
-            thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。"],
-            playerGood: ["見事…！ 実に見事な一手だ！ 久方ぶりに余の胸が高鳴っておるぞ！"],
-            playerBad: ["迷いが出たな。王の威圧に呑まれては、盤上の真理は見えぬぞ。"],
-            bigReversal: ["おお…！ 盤上が一変したか！ 実に豪快な一手よ！"],
-            cpuCorner: ["天地の理に従い、余がこの角を統べようぞ！"],
-            playerCorner: ["見事なり…！ 王の領域を奪う覚悟、しかと認めた！"],
-            climax: ["神域の読み合い… 最後の決着をつけようぞ！"],
-            losing: ["かっかっか！ よもや余が王手をかけられるとはな！ 痛快である！"],
-            cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次の一手を待とう。"],
-            playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
-            win: ["良き戦いであったぞ、若人よ！余の玉座は揺るがぬが、そなたの気概、しかと見届けたぞ！"],
-            lose: ["天晴れだ…！王国の覇者たる資格、そなたへと託そうぞ！堂々の戴冠である！全臣民、勝者を讃えよ！"]
-        }
-    }
-};
-
 const getCurrentCharacter = () => CHARACTERS[Number(DOM.characterSelect.value) || 1] || CHARACTERS[1];
 
 function renderCharacterAvatar() {
@@ -1286,7 +440,7 @@ function typeWriterSpeech(fullText, isClimax) {
 }
 
 function setOpponentQuote(category) {
-    if (isReviewMode || isDemoMode || isDrillMode) return;
+    if (isReviewMode || isDrillMode) return;
     const char = getCurrentCharacter();
     let targetCategory = category;
     const emptyCount = getEmptyCount(board);
@@ -1349,7 +503,7 @@ function updateOpponentStageUI(showBanner = true) {
     renderCharacterAvatar();
     setOpponentQuote("start");
 
-    if (showBanner && !isReviewMode && !isDemoMode && !isDrillMode) {
+    if (showBanner && !isReviewMode && !isDrillMode) {
         if (curtainTimeout) clearTimeout(curtainTimeout);
         if (DOM.curtainStageLabel) DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
         if (DOM.curtainSalonTitle) DOM.curtainSalonTitle.textContent = char.salonName;
@@ -1362,7 +516,7 @@ function updateOpponentStageUI(showBanner = true) {
 }
 
 function updateBalanceGauge(targetBoard = board) {
-    if (!targetBoard || isDemoMode || isDrillMode) return;
+    if (!targetBoard || isDrillMode) return;
     const emptyCount = getEmptyCount(targetBoard);
     const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
     const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 600))) * 100)));
@@ -1417,12 +571,12 @@ function saveHistory() {
 
 function updateUndoButtonState() {
     if (DOM.undoButton) {
-        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode || isDrillMode;
+        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode;
     }
 }
 
 async function undoMove() {
-    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode || isDrillMode) return;
+    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode) return;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     clearHint();
@@ -1521,7 +675,6 @@ function getBestCounterBookMove() {
 function startGame() {
     tryPlayBgm();
     exitReviewMode();
-    exitBoardVisualDemo();
     exitDrillMode();
     currentGameSessionId++;
     cachedMoveEvaluations = null;
@@ -1556,7 +709,7 @@ function startGame() {
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDemoMode && !isDrillMode) {
+        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDrillMode) {
             elapsedSeconds++;
             if (currentPlayer === humanColor && !isBusy) playerSeconds++;
             else if (currentPlayer === cpuColor || isBusy) cpuSeconds++;
@@ -1795,7 +948,7 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
   【ヒント探索エンジン】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
-    if (gameOver || isReviewMode || isDemoMode || isDrillMode || currentPlayer !== humanColor || isPrefetching) return;
+    if (gameOver || isReviewMode || isDrillMode || currentPlayer !== humanColor || isPrefetching) return;
     const session = currentGameSessionId;
     isPrefetching = true;
 
@@ -1928,7 +1081,7 @@ async function putStone(row, col) {
         handleDrillCellClick(row, col);
         return;
     }
-    if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isDemoMode) return;
+    if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
 
     saveHistory();
@@ -2036,7 +1189,7 @@ function clearHintForOpponentTurn() {
 }
 
 async function processTurn() {
-    if (gameOver || isReviewMode || isDemoMode || isDrillMode) return;
+    if (gameOver || isReviewMode || isDrillMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
 
     if (currentMoves.length === 0) {
@@ -2173,7 +1326,7 @@ function getComputerMove(targetBoard, player, charConfig) {
 }
 
 async function computerMove() {
-    if (gameOver || isReviewMode || isDemoMode || isDrillMode) return;
+    if (gameOver || isReviewMode || isDrillMode) return;
     const session = currentGameSessionId;
 
     clearHintForOpponentTurn();
@@ -2187,7 +1340,7 @@ async function computerMove() {
     const thinkingWaitMs = Math.max(400, (char.thinkingBaseMs || 850) + jitter);
 
     await sleep(thinkingWaitMs);
-    if (session !== currentGameSessionId || gameOver || isReviewMode || isDemoMode || isDrillMode) return;
+    if (session !== currentGameSessionId || gameOver || isReviewMode || isDrillMode) return;
 
     const move = getComputerMove(board, cpuColor, char);
     if (move) {
@@ -2246,7 +1399,7 @@ function updateHintModeUI() {
 }
 
 async function computeHint() {
-    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDemoMode || isDrillMode) return;
+    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDrillMode) return;
     usedHintInGame = true;
 
     if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) {
@@ -2274,7 +1427,7 @@ function drawBoard() {
                 if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
                     cell.classList.add("can-place", qData.turn === BLACK ? "preview-black" : "preview-white");
                 }
-            } else if (!isDemoMode) {
+            } else {
                 if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
                     cell.classList.add("can-place", previewClass);
                 }
@@ -2300,7 +1453,7 @@ function drawBoard() {
                 const wrapper = document.createElement("div");
                 wrapper.className = "stone-wrapper";
 
-                const isFlipping = !isDemoMode && !isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
+                const isFlipping = !isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
                 if (isFlipping) {
                     const flipWrap = document.createElement("div");
                     flipWrap.className = "stone-flip-wrapper";
@@ -2325,7 +1478,7 @@ function drawBoard() {
                 } else {
                     const stone = document.createElement("div");
                     stone.className = `stone ${board[r][c] === BLACK ? "black-stone" : "white-stone"}`;
-                    if (!isDemoMode && !isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
+                    if (!isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
                         stone.classList.add("stone-new");
                     }
                     wrapper.appendChild(stone);
@@ -2333,7 +1486,7 @@ function drawBoard() {
                 cell.appendChild(wrapper);
             }
 
-            if (!isReviewMode && !isDemoMode) {
+            if (!isReviewMode) {
                 cell.addEventListener("click", () => putStone(r, c));
             }
             DOM.board.appendChild(cell);
@@ -2343,7 +1496,7 @@ function drawBoard() {
     pendingAnimation = null;
     updateScore();
     if (DOM.hintButton) {
-        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDemoMode || isDrillMode;
+        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDrillMode;
     }
 }
 
@@ -2460,59 +1613,6 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【👁️ 盤面ビジュアル解説モード】
-========================================================================== */
-function triggerBoardVisualDemo(themeName) {
-    if (isDemoMode) exitBoardVisualDemo();
-    if (isDrillMode) exitDrillMode();
-
-    savedBoardStateForDemo = {
-        board: cloneBoard(board),
-        currentPlayer, lastMove,
-        statusType: DOM.status.className,
-        statusText: DOM.status.textContent
-    };
-
-    isDemoMode = true;
-    const foundIdx = DEMO_THEMES.indexOf(themeName);
-    currentDemoThemeIndex = (foundIdx >= 0) ? foundIdx : 0;
-    currentDemoStep = 1;
-
-    closeTermPopup();
-    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
-    document.body.classList.remove("modal-open-lock");
-
-    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
-    if (DOM.demoGuideCard) DOM.demoGuideCard.classList.add("show");
-
-    playPlaceSound();
-}
-window.triggerBoardVisualDemo = triggerBoardVisualDemo;
-
-function exitBoardVisualDemo() {
-    if (!isDemoMode || !savedBoardStateForDemo) return;
-    playPlaceSound();
-    board = cloneBoard(savedBoardStateForDemo.board);
-    currentPlayer = savedBoardStateForDemo.currentPlayer;
-    lastMove = savedBoardStateForDemo.lastMove;
-
-    DOM.status.className = savedBoardStateForDemo.statusType;
-    DOM.status.textContent = savedBoardStateForDemo.statusText;
-
-    isDemoMode = false;
-    currentDemoStep = 1;
-    savedBoardStateForDemo = null;
-
-    if (DOM.demoGuideCard) DOM.demoGuideCard.classList.remove("show");
-    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
-
-    drawBoard();
-    updateBalanceGauge();
-    updateUndoButtonState();
-}
-window.exitBoardVisualDemo = exitBoardVisualDemo;
-
-/* ==========================================================================
   【🎯 宮廷次の一手検定（全15問・類題特訓フローエンジン）】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
@@ -2578,7 +1678,6 @@ function renderDrillCourseList() {
 }
 
 function startDrillQuestion(qIndex) {
-    if (isDemoMode) exitBoardVisualDemo();
     if (isReviewMode) exitReviewMode();
 
     if (!isDrillMode) {
@@ -2803,10 +1902,8 @@ function showTermPopup(termKey, event) {
     if (DOM.termPopupBody) DOM.termPopupBody.textContent = termData.desc;
 
     if (gameOver || isReviewMode) {
-        if (DOM.termPopupDemoBtn) DOM.termPopupDemoBtn.style.display = "none";
         if (DOM.termPopupDrillBtn) DOM.termPopupDrillBtn.style.display = "none";
     } else {
-        if (DOM.termPopupDemoBtn) DOM.termPopupDemoBtn.style.display = "";
         if (DOM.termPopupDrillBtn) DOM.termPopupDrillBtn.style.display = "";
     }
 
@@ -2840,14 +1937,6 @@ if (DOM.termPopupClose) {
     DOM.termPopupClose.addEventListener("click", (e) => {
         e.stopPropagation();
         closeTermPopup();
-    });
-}
-
-if (DOM.termPopupDemoBtn) {
-    DOM.termPopupDemoBtn.addEventListener("click", () => {
-        if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
-        const theme = TERMS_DICTIONARY[activePopupTerm].demoTheme || "角・X・C";
-        triggerBoardVisualDemo(theme);
     });
 }
 
@@ -3290,7 +2379,7 @@ function endGame() {
 }
 
 function enterReviewMode() {
-    if (gameStepLogs.length === 0 || isDemoMode || isDrillMode) return;
+    if (gameStepLogs.length === 0 || isDrillMode) return;
     isReviewMode = true;
     if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
@@ -3365,7 +2454,7 @@ function applyReviewStep(index) {
 }
 
 /* ==========================================================================
-  【イベントリスナー登録（厳格なNull安全ガード徹底化）】
+  【イベントリスナー登録】
 ========================================================================== */
 const restartBtn = document.getElementById("restartButton");
 if (restartBtn) restartBtn.addEventListener("click", startGame);
@@ -3545,7 +2634,6 @@ document.addEventListener("keydown", (e) => {
             .forEach(m => m.classList.remove("show"));
         document.body.classList.remove("modal-open-lock");
         closeTermPopup();
-        if (isDemoMode) exitBoardVisualDemo();
         if (isDrillMode) exitDrillMode();
     }
 });
@@ -3557,5 +2645,4 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
-
 

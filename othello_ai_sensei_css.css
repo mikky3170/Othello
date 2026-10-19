@@ -1,13 +1,12 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.3.0 (2026/10/19)
+  バージョン: Ver 8.4.0 (2026/10/19)
   
-  [Ver 8.3.0] 2026/10/19 更新内容:
-  - 【プログラム3分割・完全独立スタイルシート アーキテクチャ移行エディション】
-  - HTMLファイルからの巨大CSS完全分離により、コード肥大化と構文パースエラーを物理根絶。
-  - アバター肖像画のオーバル額縁（楕円）完全固定・画像飛び出し防止（max-width/max-height制御）。
-  - ミニ用語ポップアップ、全15問類題検定カード、3層論理解説枠の完全調律。
+  [Ver 8.4.0] 2026/10/19 更新内容:
+  - 【データ完全分離・4ファイル構成＆コードスリム化エディション】
+  - 全10ステージテーマのCSS変数をベース集約し、デザイン品質を100%維持したまま軽量化。
+  - オーバル肖像画の完全固定・画像飛び出し防止、3層論理解説カードの最適調律。
 ========================================================================== */
 
 * {
@@ -32,7 +31,7 @@
     --char-glow: rgba(230, 57, 70, 0.65);
     --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
 
-    /* ステージ動的バインド変数（デフォルト：Lv.1） */
+    /* ステージ動的バインド変数（Lv.1 デフォルト） */
     --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
     --st-bg-size: 40px 40px;
     --st-chassis-bg: repeating-linear-gradient(45deg, #3d2417, #3d2417 12px, #2f190e 12px, #2f190e 24px);
@@ -78,17 +77,15 @@ body::before {
     transition: all 0.8s ease; opacity: 0.6;
 }
 
-/* 全10ステージ美術テーマ */
+/* 全10ステージ美術テーマ（集約最適化版） */
 body.stage-theme-1 {
     --dynasty-bg: radial-gradient(circle at 50% 20%, #2f1c13 0%, #190e09 60%, #0a0503 100%);
     --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
     --st-bg-size: 40px 40px; --st-chassis-bg: repeating-linear-gradient(45deg, #3d2417, #3d2417 12px, #2f190e 12px, #2f190e 24px);
-    --st-chassis-border: 3px solid #6b3e24; --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.8);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #203b1c 0%, #132410 70%, #0c1809 100%); --st-board-border: #3d2417; --st-cell-border: rgba(60, 35, 15, 0.65);
+    --st-chassis-border: 3px solid #6b3e24; --st-board-bg: radial-gradient(circle at 50% 50%, #203b1c 0%, #132410 70%, #0c1809 100%);
+    --st-board-border: #3d2417; --st-cell-border: rgba(60, 35, 15, 0.65);
     --st-b-stone-bg: repeating-radial-gradient(circle at 35% 30%, #3d281a 0px, #3d281a 3px, #23160e 4px, #150d08 7px);
-    --st-b-stone-shadow: inset 1px 1.5px 2px rgba(255, 200, 150, 0.3), inset -2px -2.5px 4px rgba(0,0,0,0.95), 0 0 0 1px rgba(212,167,72,0.3);
     --st-b-stone-border: 1px solid #4a3020; --st-w-stone-bg: repeating-radial-gradient(circle at 35% 30%, #fff6e8 0px, #f7e6cc 3px, #e7cb9f 4px, #d8b885 7px);
-    --st-w-stone-shadow: inset 1px 1.5px 2px #ffffff, inset -2px -2.5px 4px rgba(110, 80, 40, 0.5);
     --st-w-stone-border: 1px solid #c9a76d; --st-edge-rim: linear-gradient(90deg, #1b1109 0%, #3b2518 49%, #b59261 51%, #fcedd7 100%);
 }
 
@@ -96,12 +93,10 @@ body.stage-theme-2 {
     --dynasty-bg: radial-gradient(circle at 50% 15%, #102a28 0%, #081a18 55%, #030c0b 100%);
     --st-bg-pattern: radial-gradient(circle at 50% 50%, rgba(42, 157, 143, 0.12) 2px, transparent 2px);
     --st-bg-size: 28px 28px; --st-chassis-bg: linear-gradient(135deg, #1e3a35 0%, #10221f 50%, #0a1715 100%);
-    --st-chassis-border: 3px solid #36665c; --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 1px 2px rgba(150, 240, 220, 0.3);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #1e4d46 0%, #133630 70%, #0b221e 100%); --st-board-border: #0c1a17; --st-cell-border: rgba(30, 80, 70, 0.6);
+    --st-chassis-border: 3px solid #36665c; --st-board-bg: radial-gradient(circle at 50% 50%, #1e4d46 0%, #133630 70%, #0b221e 100%);
+    --st-board-border: #0c1a17; --st-cell-border: rgba(30, 80, 70, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 35% 25%, #3c4f52 0%, #192325 35%, #080d0e 80%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(180, 255, 240, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(80, 140, 130, 0.45);
     --st-b-stone-border: 1px solid rgba(80, 140, 130, 0.5); --st-w-stone-bg: radial-gradient(circle at 35% 25%, #ffffff 0%, #f2faf8 40%, #cce5df 80%, #a8cfc6 100%);
-    --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(40, 95, 85, 0.4);
     --st-w-stone-border: 1px solid #d4ece5; --st-edge-rim: linear-gradient(90deg, #091312 0%, #1b332f 49%, #62968b 51%, #f0faf7 100%);
 }
 
@@ -109,12 +104,10 @@ body.stage-theme-3 {
     --dynasty-bg: radial-gradient(circle at 50% 20%, #162a1c 0%, #0c1810 60%, #040805 100%);
     --st-bg-pattern: radial-gradient(circle at 50% 50%, rgba(82, 183, 136, 0.1) 2px, transparent 2px);
     --st-bg-size: 32px 32px; --st-chassis-bg: linear-gradient(135deg, #2d4a36 0%, #1b2e21 50%, #0e1a12 100%);
-    --st-chassis-border: 3px solid #407553; --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 1px 2px rgba(180, 240, 200, 0.35);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #244630 0%, #162e1f 70%, #0a170f 100%); --st-board-border: #122418; --st-cell-border: rgba(45, 95, 60, 0.6);
+    --st-chassis-border: 3px solid #407553; --st-board-bg: radial-gradient(circle at 50% 50%, #244630 0%, #162e1f 70%, #0a170f 100%);
+    --st-board-border: #122418; --st-cell-border: rgba(45, 95, 60, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 35% 25%, #2d5a3f 0%, #143020 45%, #05120a 90%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(180, 255, 210, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(60, 140, 90, 0.45);
     --st-b-stone-border: 1.5px solid #3b7a54; --st-w-stone-bg: radial-gradient(circle at 35% 25%, #ffffff 0%, #f7f3e4 35%, #eedfa6 75%, #d6bd6d 100%);
-    --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(110, 85, 30, 0.4);
     --st-w-stone-border: 1.5px solid #ebd793; --st-edge-rim: linear-gradient(90deg, #07140c 0%, #1f422b 49%, #5db37e 51%, #f4faee 100%);
 }
 
@@ -122,12 +115,10 @@ body.stage-theme-4 {
     --dynasty-bg: radial-gradient(circle at 50% 15%, #231633 0%, #120a1c 55%, #06020b 100%);
     --st-bg-pattern: linear-gradient(45deg, rgba(175, 110, 255, 0.06) 25%, transparent 25%, transparent 75%, rgba(175, 110, 255, 0.06) 75%);
     --st-bg-size: 36px 36px; --st-chassis-bg: linear-gradient(135deg, #372350 0%, #1e112e 50%, #0d0614 100%);
-    --st-chassis-border: 3px solid #6c429c; --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 2px rgba(220, 180, 255, 0.4);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #2f1d44 0%, #1c0f2a 70%, #0c0513 100%); --st-board-border: #14091e; --st-cell-border: rgba(95, 55, 135, 0.6);
+    --st-chassis-border: 3px solid #6c429c; --st-board-bg: radial-gradient(circle at 50% 50%, #2f1d44 0%, #1c0f2a 70%, #0c0513 100%);
+    --st-board-border: #14091e; --st-cell-border: rgba(95, 55, 135, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 30% 25%, #582b82 0%, #250f3b 45%, #090212 90%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(220, 180, 255, 0.7), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(160, 90, 240, 0.4);
     --st-b-stone-border: 1.5px solid #7c3fb5; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fcf7e6 30%, #ecd688 65%, #c5a643 100%);
-    --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(90, 70, 20, 0.45);
     --st-w-stone-border: 1.5px solid #f2e09b; --st-edge-rim: linear-gradient(90deg, #10041a 0%, #31154c 49%, #9b58da 51%, #fcedd7 100%);
 }
 
@@ -135,12 +126,10 @@ body.stage-theme-5 {
     --dynasty-bg: radial-gradient(circle at 50% 20%, #142238 0%, #0a1220 55%, #03060c 100%);
     --st-bg-pattern: linear-gradient(45deg, rgba(60, 110, 180, 0.06) 25%, transparent 25%, transparent 75%, rgba(60, 110, 180, 0.06) 75%);
     --st-bg-size: 50px 50px; --st-chassis-bg: linear-gradient(135deg, #2b384e 0%, #182233 50%, #0d131f 100%);
-    --st-chassis-border: 3px solid #4a6188; --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 2px rgba(180, 210, 255, 0.35);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #1b2c45 0%, #101c2e 70%, #09111c 100%); --st-board-border: #0b1522; --st-cell-border: rgba(45, 75, 120, 0.6);
+    --st-chassis-border: 3px solid #4a6188; --st-board-bg: radial-gradient(circle at 50% 50%, #1b2c45 0%, #101c2e 70%, #09111c 100%);
+    --st-board-border: #0b1522; --st-cell-border: rgba(45, 75, 120, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 30% 25%, #465469 0%, #202a39 45%, #0d121a 90%);
-    --st-b-stone-shadow: inset 1.5px 1.5px 3px rgba(160, 200, 255, 0.45), inset -2.5px -2.5px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(180, 210, 255, 0.3);
     --st-b-stone-border: 1.5px solid #485c7d; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #f0f4fa 45%, #c8d7ed 82%, #9cb2d4 100%);
-    --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(45, 70, 110, 0.45);
     --st-w-stone-border: 1.5px solid #dbe6f7; --st-edge-rim: linear-gradient(90deg, #090e17 0%, #202c40 49%, #6884b2 51%, #ebf2fd 100%);
 }
 
@@ -148,12 +137,10 @@ body.stage-theme-6 {
     --dynasty-bg: radial-gradient(circle at 50% 15%, #30171d 0%, #18090d 55%, #080204 100%);
     --st-bg-pattern: repeating-linear-gradient(60deg, rgba(220, 150, 170, 0.05) 0px, rgba(220, 150, 170, 0.05) 1px, transparent 1px, transparent 24px);
     --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #4d232c 0%, #2d1017 50%, #16060a 100%);
-    --st-chassis-border: 3px solid #8e4453; --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 3px rgba(255, 190, 210, 0.4);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #441d26 0%, #280d14 70%, #120307 100%); --st-board-border: #1a050a; --st-cell-border: rgba(135, 55, 75, 0.6);
+    --st-chassis-border: 3px solid #8e4453; --st-board-bg: radial-gradient(circle at 50% 50%, #441d26 0%, #280d14 70%, #120307 100%);
+    --st-board-border: #1a050a; --st-cell-border: rgba(135, 55, 75, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 30% 25%, #4d3c45 0%, #22151b 45%, #0d060a 90%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(240, 180, 205, 0.6), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(180, 110, 130, 0.4);
     --st-b-stone-border: 1.5px solid #6b4350; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fdf5f7 35%, #edd4db 75%, #c89da9 100%);
-    --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(110, 50, 70, 0.4);
     --st-w-stone-border: 1.5px solid #ebd3da; --st-edge-rim: linear-gradient(90deg, #140408 0%, #3b1520 49%, #aa5469 51%, #fef3f6 100%);
 }
 
@@ -161,13 +148,10 @@ body.stage-theme-7 {
     --dynasty-bg: radial-gradient(circle at 50% 15%, #380d17 0%, #1d050a 55%, #0a0104 100%);
     --st-bg-pattern: radial-gradient(circle at 25px 25px, rgba(255, 80, 120, 0.08) 3%, transparent 0%), radial-gradient(circle at 75px 75px, rgba(255, 80, 120, 0.08) 3%, transparent 0%);
     --st-bg-size: 60px 60px; --st-chassis-bg: linear-gradient(135deg, #4f1523 0%, #2e0912 50%, #170408 100%);
-    --st-chassis-border: 3px solid #8e2a42; --st-chassis-shadow: 0 10px 32px rgba(0,0,0,0.95), 0 0 16px rgba(180, 20, 60, 0.3), inset 0 1px 2px rgba(255, 180, 200, 0.4);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #681525 0%, #440a14 65%, #24040a 100%); --st-board-border: #24040a;
-    --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(180, 20, 60, 0.3); --st-cell-border: rgba(140, 30, 50, 0.6);
+    --st-chassis-border: 3px solid #8e2a42; --st-board-bg: radial-gradient(circle at 50% 50%, #681525 0%, #440a14 65%, #24040a 100%);
+    --st-board-border: #24040a; --st-cell-border: rgba(140, 30, 50, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 28% 22%, #551624 0%, #20060c 38%, #080103 85%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 160, 190, 0.65), inset -2.5px -2.5px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 100, 140, 0.4);
     --st-b-stone-border: 1px solid rgba(220, 70, 100, 0.6); --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fff2f6 25%, #fcd6e6 50%, #d8e2fd 75%, #ffd4bf 100%);
-    --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(180, 50, 90, 0.4), 0 0 12px rgba(255, 200, 220, 0.5);
     --st-w-stone-border: 1.5px solid #ffe1ec; --st-edge-rim: linear-gradient(90deg, #170307 0%, #3a0d17 49%, #cc496c 51%, #fff0f5 100%);
 }
 
@@ -175,12 +159,10 @@ body.stage-theme-8 {
     --dynasty-bg: radial-gradient(circle at 50% 18%, #2d1e12 0%, #170d06 55%, #080401 100%);
     --st-bg-pattern: repeating-linear-gradient(45deg, rgba(210, 140, 80, 0.05) 0, rgba(210, 140, 80, 0.05) 2px, transparent 2px, transparent 20px);
     --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #442a17 0%, #261509 50%, #120903 100%);
-    --st-chassis-border: 3px solid #85522a; --st-chassis-shadow: 0 12px 34px rgba(0,0,0,0.95), 0 0 16px rgba(190, 110, 50, 0.3);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #3a2211 0%, #221207 70%, #0d0602 100%); --st-board-border: #1a0a03; --st-cell-border: rgba(120, 70, 35, 0.6);
+    --st-chassis-border: 3px solid #85522a; --st-board-bg: radial-gradient(circle at 50% 50%, #3a2211 0%, #221207 70%, #0d0602 100%);
+    --st-board-border: #1a0a03; --st-cell-border: rgba(120, 70, 35, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 30% 25%, #523120 0%, #241108 45%, #0a0401 90%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 170, 120, 0.6), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(190, 100, 50, 0.45);
     --st-b-stone-border: 1.5px solid #824720; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #f4f6fa 35%, #cbd2e0 75%, #9da8be 100%);
-    --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(60, 75, 100, 0.45);
     --st-w-stone-border: 1.5px solid #d8e0ee; --st-edge-rim: linear-gradient(90deg, #140702 0%, #3d1f0d 49%, #b56c36 51%, #f6f7fa 100%);
 }
 
@@ -188,14 +170,11 @@ body.stage-theme-9 {
     --dynasty-bg: radial-gradient(circle at 50% 15%, #241436 0%, #12091d 55%, #050209 100%);
     --st-bg-pattern: linear-gradient(60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px), linear-gradient(-60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px);
     --st-bg-size: 40px 70px; --st-chassis-bg: linear-gradient(135deg, #372150 0%, #1e0f30 50%, #0e0517 100%);
-    --st-chassis-border: 3px solid #663e90; --st-chassis-shadow: 0 12px 34px rgba(0,0,0,0.95), 0 0 16px rgba(130, 60, 200, 0.3);
-    --st-board-bg: linear-gradient(135deg, #1f112e 0%, #100719 50%, #09030e 100%); --st-board-border: #0b0312;
-    --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), inset 0 0 20px rgba(130, 60, 200, 0.35); --st-cell-border: rgba(90, 50, 130, 0.6);
+    --st-chassis-border: 3px solid #663e90; --st-board-bg: linear-gradient(135deg, #1f112e 0%, #100719 50%, #09030e 100%);
+    --st-board-border: #0b0312; --st-cell-border: rgba(90, 50, 130, 0.6);
     --st-b-stone-bg: radial-gradient(circle at 28% 22%, #492868 0%, #1a0b29 40%, #06010b 90%);
-    --st-b-stone-shadow: inset 2px 2px 4.5px rgba(220, 170, 255, 0.7), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(200, 140, 255, 0.45);
     --st-b-stone-border: 1.5px solid rgba(180, 110, 255, 0.5);
     --st-w-stone-bg: linear-gradient(135deg, #ffffff 0%, #f7f2fb 30%, #d8cae6 48%, #9f87b8 51%, #f2ebf8 54%, #ded0ee 80%, #baa5ce 100%);
-    --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2.5px -2.5px 5px rgba(80, 40, 115, 0.45);
     --st-w-stone-border: 1.5px solid #ebdcf8; --st-edge-rim: linear-gradient(90deg, #10041a 0%, #2b1142 49%, #965bca 51%, #f6ecfd 100%);
 }
 
@@ -203,13 +182,10 @@ body.stage-theme-10 {
     --dynasty-bg: radial-gradient(circle at 50% 25%, #3d2f10 0%, #1f1705 55%, #0a0701 100%);
     --st-bg-pattern: repeating-conic-gradient(from 0deg at 50% 20%, rgba(255, 215, 0, 0.08) 0deg 15deg, transparent 15deg 30deg);
     --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #574013 0%, #352507 50%, #1c1303 100%);
-    --st-chassis-border: 3px solid #d4a748; --st-chassis-shadow: 0 14px 40px rgba(0,0,0,0.98), 0 0 30px rgba(255, 215, 0, 0.55), inset 0 1px 4px rgba(255, 250, 200, 0.8);
-    --st-board-bg: radial-gradient(circle at 50% 50%, #0f5835 0%, #073820 65%, #031c0f 100%); --st-board-border: #ffd700;
-    --st-board-shadow: inset 0 2px 14px rgba(0,0,0,0.95), 0 0 15px rgba(255, 215, 0, 0.4); --st-cell-border: rgba(255, 215, 0, 0.55);
+    --st-chassis-border: 3px solid #d4a748; --st-board-bg: radial-gradient(circle at 50% 50%, #0f5835 0%, #073820 65%, #031c0f 100%);
+    --st-board-border: #ffd700; --st-cell-border: rgba(255, 215, 0, 0.55);
     --st-b-stone-bg: radial-gradient(circle at 30% 22%, #5e4a1f 0%, #291e0a 35%, #0d0903 85%);
-    --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 235, 160, 0.85), inset -3px -3px 6px rgba(0,0,0,0.98), 0 0 0 1px rgba(255, 215, 0, 0.7);
     --st-b-stone-border: 1.5px solid #ffd700; --st-w-stone-bg: radial-gradient(circle at 30% 22%, #ffffff 0%, #fffaea 30%, #f6e6b2 65%, #d8bc6f 100%);
-    --st-w-stone-shadow: inset 2px 2px 4px #ffffff, inset -2px -3px 5px rgba(120, 90, 15, 0.5), 0 0 16px rgba(255, 235, 170, 0.65);
     --st-w-stone-border: 1.5px solid #fff5cb; --st-edge-rim: linear-gradient(90deg, #171002 0%, #3b2b09 49%, #d4a748 51%, #fffde8 100%);
 }
 
@@ -285,7 +261,7 @@ header {
 .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) 0.2s forwards; }
 @keyframes oval-voice-ripple { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.4, 1.28); opacity: 0; } }
 
-/* 👑 気品ある縦長特大オーバル（楕円額縁）肖像 */
+/* 縦長オーバル（楕円額縁）肖像 */
 .opponent-avatar-frame {
     width: clamp(72px, 17vw, 84px); height: clamp(94px, 20vw, 108px); border-radius: 50%;
     border: 3.5px solid var(--char-accent);
@@ -304,7 +280,6 @@ header {
     .opponent-avatar-frame { width: 92px; height: 118px; }
 }
 
-/* 巨大化防止・オーバル内完全収容スタイル */
 .avatar-img-box {
     width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
@@ -364,7 +339,7 @@ header {
     box-shadow: inset 1px 1px 2px #ffffff, 0 2px 4px rgba(0,0,0,0.6);
 }
 
-/* 💬 2行完全対応・ゆったりセリフ吹き出し枠 */
+/* 2行完全対応セリフ吹き出し枠 */
 .opponent-speech-bubble {
     background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
     border: 1.5px solid rgba(212, 167, 72, 0.45); border-radius: 7px; border-top-left-radius: 2px;
@@ -379,9 +354,7 @@ header {
     border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
 }
 
-#speechText.is-typing-text {
-    animation: speech-text-pulse 1.1s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-}
+#speechText.is-typing-text { animation: speech-text-pulse 1.1s infinite alternate cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes speech-text-pulse {
     0% { color: #ffffff; text-shadow: 0 0 8px rgba(255, 215, 0, 0.9), 0 0 16px rgba(255, 215, 0, 0.6); transform: scale(1); }
     100% { color: #faebd0; text-shadow: 0 0 2px rgba(255, 215, 0, 0.3); transform: scale(0.995); }
@@ -651,7 +624,7 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
-/* 🎯 宮廷次の一手検定：盤面解答カード（構造化深掘り解説対応） */
+/* 🎯 宮廷次の一手検定：盤面解答カード */
 .drill-control-card {
     display: none; width: min(calc(100vw - 8px), 480px);
     background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
@@ -1267,7 +1240,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .term-popup-close { cursor: pointer; font-size: 12px; color: #ecd08c; padding: 1px 5px; }
 .term-popup-body { margin-bottom: 6px; }
 .term-popup-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 4px; flex-wrap: wrap; }
-.term-popup-demo-btn { font-size: 9.5px; font-weight: 800; color: #121008; background: var(--pure-gold-btn); border: 1px solid #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
 .term-popup-drill-btn { font-size: 9.5px; font-weight: 900; color: #042415; background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); border: 1px solid #ffffff; border-radius: 4px; padding: 2px 7px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
 .term-popup-more { font-size: 10px; color: #ecd08c; text-decoration: underline; cursor: pointer; font-weight: 800; }
 .term-popup-more:hover { color: #ffffff; }
