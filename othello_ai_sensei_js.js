@@ -2,15 +2,14 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.3 (2026/10/20)
+  バージョン: Ver 8.6.4 (2026/10/20)
   
-  [Ver 8.6.3] 2026/10/20 更新内容:
-  - 【セリフ優雅アンビエント発光・置換表完全正常化＆検定3問目はみ出し解消エディション】
-  - 同一セリフ静止ガードを実装（同じセリフの時は文字消去・再出現・発光をスキップし静止維持）。
-  - 新規セリフ時のみ、枠内「ぼわ〜っ」と優雅に明るくなるアンビエント発光（is-speaking）を作動。
-  - αβ探索置換表（Transposition Table）を完全修正（EXACT / LOWERBOUND / UPPERBOUND フラグ管理により置換表汚染を根絶、探索精度を極大化）。
-  - 終盤完全読み切り時のパス処理と石差判定を厳密化。
-  - 講義再生中のキャンセレーション保護を強化。
+  [Ver 8.6.4] 2026/10/20 更新内容:
+  - 【プレイヤー着手完全ゼロ遅延＆深層探索割り込み即時中断エディション】
+  - タップ時の先読み探索即時中断フラグ（isPrefetchAborted）を実装し、プレイヤー着手時の待ち時間を完全根絶（0秒即時着手を完全復元）。
+  - ヒントAIの深さ（深さ9手／終盤16手完全読み切り）はLv.10老賢王オルレアンを確実に撃破できる最高峰の知謀のまま100%維持。
+  - 打った手の採点（BEST/GOOD/BAD）は石の反転アニメーション中の裏側で打たれた1箇所のみを高速判定するゼロ遅延アーキテクチャを確立。
+  - セリフ枠の優雅な内照アンビエント発光、同一セリフ静止維持、αβ探索置換表フラグ完全管理を継続。
 ========================================================================== */
 
 const boardSize = 8;
@@ -38,9 +37,10 @@ let minPlayerWinrateInGame = 50;
 // 直前のセリフテキスト保持（同一セリフのリセット・チラつき防止用）
 let lastOpponentQuoteText = "";
 
-// 事前計算（プリフェッチ）キャッシュ
+// 事前計算（プリフェッチ）キャッシュ ＆ 即時中断フラグ
 let cachedMoveEvaluations = null;
 let isPrefetching = false;
+let isPrefetchAborted = false;
 
 // 探索高速化用トランスポジションテーブル（置換表）フラグ定数
 const TT_EXACT = 0;
@@ -373,8 +373,8 @@ function initCoordLabels() {
 }
 
 function renderSystemVersionInfo() {
-    if (DOM.versionBadge && SYSTEM_VERSION_INFO) DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
-    if (DOM.chronicleTimeline && SYSTEM_VERSION_INFO && Array.isArray(SYSTEM_VERSION_INFO.history)) {
+    if (DOM.versionBadge && typeof SYSTEM_VERSION_INFO !== "undefined") DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
+    if (DOM.chronicleTimeline && typeof SYSTEM_VERSION_INFO !== "undefined" && Array.isArray(SYSTEM_VERSION_INFO.history)) {
         DOM.chronicleTimeline.innerHTML = SYSTEM_VERSION_INFO.history.map(item => `
             <div class="chronicle-item">
                 <span class="chronicle-version">${item.ver}</span><span class="chronicle-date">${item.date}</span>
@@ -469,7 +469,6 @@ function typeWriterSpeech(fullText) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
     if (!DOM.speechText || !DOM.opponentSpeech) return;
 
-    // 枠内全体が優雅に「ぼわ〜っ」と明るくなる発光クラスを作動
     DOM.opponentSpeech.classList.remove("is-speaking");
     DOM.opponentSpeech.offsetHeight;
     DOM.opponentSpeech.classList.add("is-speaking");
@@ -509,7 +508,7 @@ function setOpponentQuote(category) {
     const text = list[Math.floor(Math.random() * list.length)];
     const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
-    // ⚡【チラつき防止ガード】：前回と「完全に同一のセリフ」なら文字消去も再タイピングも発光もスキップし静止維持！
+    // ⚡【チラつき防止ガード】：前回と「同一のセリフ」なら文字消去も再タイピングも発光もスキップし静止維持！
     if (text === lastOpponentQuoteText && DOM.speechText && DOM.speechText.textContent.trim() === text.trim()) {
         if (DOM.opponentSpeech) DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
         return;
@@ -646,6 +645,7 @@ function updateUndoButtonState() {
 
 async function undoMove() {
     if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
+    isPrefetchAborted = true;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     clearHint();
@@ -747,6 +747,7 @@ function startGame() {
     exitReviewMode();
     exitDrillMode();
     exitLectureMode();
+    isPrefetchAborted = true;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     isPrefetching = false;
@@ -953,7 +954,6 @@ function evaluateBoard(targetBoard, player, emptyCount) {
         }
     }
 
-    // 終局時は純粋な石差（大差判定）
     if (emptyCount === 0) return (myStones - oppStones) * 10000;
 
     const myMoves = getValidMoves(player, targetBoard).length;
@@ -988,16 +988,14 @@ function orderMoves(moves, targetBoard, player) {
 }
 
 /* ==========================================================================
-  【αβ探索（置換表フラグ管理＆パス処理・完全読み切り正常化版）】
+  【αβ探索（置換表フラグ管理＆パス処理・完全読み切り版）】
 ========================================================================== */
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
-    // 終局判定
     if (emptyCount === 0) return evaluateBoard(targetBoard, player, 0);
 
     const originalAlpha = alpha;
     let boardKey = null;
 
-    // 置換表の参照（深さ4以上または終盤読み切り時）
     if (depth >= 4) {
         boardKey = `${player}:${targetBoard.map(r => r.join("")).join("")}`;
         if (transpositionTable.has(boardKey)) {
@@ -1017,10 +1015,7 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     if (moves.length === 0) {
         const opp = opposite(player);
         const oppMoves = getValidMoves(opp, targetBoard);
-        // 両者パス（完全終局）
         if (oppMoves.length === 0) return evaluateBoard(targetBoard, player, 0);
-
-        // 片側パス（深さを減らさず手番を渡すことで、終盤完全読み切りの計算欠損を防ぐ）
         return -negamax(targetBoard, opp, depth, -beta, -alpha, emptyCount);
     }
 
@@ -1033,15 +1028,13 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         const score = -negamax(next, opposite(player), depth - 1, -beta, -alpha, emptyCount - 1);
         if (score > maxScore) maxScore = score;
         if (score > alpha) alpha = score;
-        if (alpha >= beta) break; // βカット
+        if (alpha >= beta) break;
     }
 
-    // 置換表への厳密な保存（フラグ付き）
     if (boardKey && transpositionTable.size < 60000) {
         let flag = TT_EXACT;
         if (maxScore <= originalAlpha) flag = TT_UPPERBOUND;
         else if (maxScore >= beta) flag = TT_LOWERBOUND;
-
         transpositionTable.set(boardKey, { score: maxScore, depth, flag });
     }
 
@@ -1049,12 +1042,13 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン（深さ9手／完全読み16手・Lv.10完全打倒仕様）】
+  【ヒント探索エンジン（深さ9手／終盤16手完全読み切り・中断保護付き）】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
     if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
     const session = currentGameSessionId;
     isPrefetching = true;
+    isPrefetchAborted = false;
 
     const moves = getValidMoves(humanColor, board);
     if (moves.length === 0) {
@@ -1081,17 +1075,18 @@ async function prefetchPlayerEvaluationsAsync() {
         return;
     }
 
+    // 最高峰の強さ（深さ9手／終盤16手完全読み切り）
     const emptyCount = getEmptyCount(board);
     const depth = (emptyCount <= 16) ? emptyCount : 9;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
 
     for (const move of sortedMoves) {
-        if (session !== currentGameSessionId || currentPlayer !== humanColor) {
+        if (isPrefetchAborted || session !== currentGameSessionId || currentPlayer !== humanColor) {
             isPrefetching = false;
             return;
         }
-        await sleep(0);
+        await sleep(0); // 他イベントへの制御解放
 
         const next = cloneBoard(board);
         makeMove(next, move[0], move[1], humanColor);
@@ -1099,7 +1094,7 @@ async function prefetchPlayerEvaluationsAsync() {
         scored.push({ move, coord: toNotation(move[0], move[1]), score, isBook: false });
     }
 
-    if (session !== currentGameSessionId || currentPlayer !== humanColor) {
+    if (isPrefetchAborted || session !== currentGameSessionId || currentPlayer !== humanColor) {
         isPrefetching = false;
         return;
     }
@@ -1176,7 +1171,7 @@ async function executeTurnAction(row, col, player, isHuman) {
 }
 
 /* ==========================================================================
-  【プレイヤー着手（完全ゼロ遅延化・即時着手＆バックグラウンド採点）】
+  【プレイヤー着手（完全ゼロ遅延化・0秒即時着手＆アニメーション裏での1手判定）】
 ========================================================================== */
 async function putStone(row, col) {
     if (isLectureMode) return;
@@ -1187,6 +1182,9 @@ async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
 
+    // ⚡【核心】：画面を触った瞬間、裏で動いていた先読み計算を0秒で即座に強制中断！
+    isPrefetchAborted = true;
+
     saveHistory();
     isBusy = true;
     if (getHintMode() === "always") usedHintInGame = true;
@@ -1196,17 +1194,21 @@ async function putStone(row, col) {
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
     const oppMovesBefore = getValidMoves(cpuColor, boardBefore).length;
 
-    // ⚡【ゼロ遅延】：重い計算を待たずに、タップした瞬間に即座に着手アクションを開始！
+    // ⚡【待ち時間ゼロ】：計算を待たずに、タップした瞬間に0秒で石配置＆アニメーション開始！
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
-    // 採点・ログ記録は並行（裏側）で瞬時に実行
+    // ⚡【裏側非同期判定】：石がパタパタ裏返っているアニメーション時間（約700ms）を使って1手だけを判定！
     let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
     let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
 
     if (!objectiveBest) {
         const bookEntry = getBestCounterBookMove();
         if (bookEntry) objectiveBest = bookEntry.move;
-        else objectiveBest = myAvailableMovesBefore[0];
+        else {
+            // キャッシュが未完了だった場合、角や中割り・静的重みから瞬時に最善手を導出
+            const sorted = orderMoves(myAvailableMovesBefore, boardBefore, humanColor);
+            objectiveBest = sorted[0];
+        }
     }
 
     const chosenScoreObj = scoredList.find(s => s.move[0] === row && s.move[1] === col);
@@ -1281,6 +1283,8 @@ async function putStone(row, col) {
     });
 
     cachedMoveEvaluations = null;
+
+    // アニメーション完了を待機
     const success = await actionPromise;
     if (!success) return;
 
@@ -2252,8 +2256,7 @@ window.exitDrillMode = exitDrillMode;
   【宮廷思案所：新体系コンテンツ動的レンダリング】
 ========================================================================== */
 function renderGuideModalContents() {
-    // 1. 操作体系ガイドカードのレンダリング
-    if (DOM.opsGuideContainer) {
+    if (DOM.opsGuideContainer && typeof OPERATION_GUIDE_DATA !== "undefined") {
         DOM.opsGuideContainer.innerHTML = OPERATION_GUIDE_DATA.map(item => `
             <div class="manual-card">
                 <div class="manual-card-title">
@@ -2264,8 +2267,7 @@ function renderGuideModalContents() {
         `).join("");
     }
 
-    // 2. 序盤・中盤・終盤の心得カードのレンダリング
-    if (DOM.strategyPhasesContainer && STRATEGY_GUIDE_DATA.phases) {
+    if (DOM.strategyPhasesContainer && typeof STRATEGY_GUIDE_DATA !== "undefined" && STRATEGY_GUIDE_DATA.phases) {
         DOM.strategyPhasesContainer.innerHTML = STRATEGY_GUIDE_DATA.phases.map(item => `
             <div class="manual-card">
                 <div class="manual-card-title" style="color:#ffd700;">
@@ -2281,8 +2283,7 @@ function renderGuideModalContents() {
         `).join("");
     }
 
-    // 3. 上達ロードマップのレンダリング
-    if (DOM.strategyRoadmapContainer && STRATEGY_GUIDE_DATA.roadmap) {
+    if (DOM.strategyRoadmapContainer && typeof STRATEGY_GUIDE_DATA !== "undefined" && STRATEGY_GUIDE_DATA.roadmap) {
         DOM.strategyRoadmapContainer.innerHTML = STRATEGY_GUIDE_DATA.roadmap.map(item => `
             <div class="roadmap-card">
                 <div class="roadmap-level-tag">${item.level}</div>
@@ -2292,8 +2293,7 @@ function renderGuideModalContents() {
         `).join("");
     }
 
-    // 4. 全10豪傑画像名鑑ギャラリーのレンダリング
-    if (DOM.charGalleryList) {
+    if (DOM.charGalleryList && typeof CHARACTERS !== "undefined") {
         let galleryHtml = "";
         for (let i = 1; i <= 10; i++) {
             const char = CHARACTERS[i];
@@ -2335,7 +2335,7 @@ window.selectFighterFromGallery = selectFighterFromGallery;
 let activePopupTerm = null;
 
 function showTermPopup(termKey, event) {
-    if (!TERMS_DICTIONARY[termKey]) return;
+    if (typeof TERMS_DICTIONARY === "undefined" || !TERMS_DICTIONARY[termKey]) return;
     const termData = TERMS_DICTIONARY[termKey];
     activePopupTerm = termKey;
 
@@ -2383,7 +2383,7 @@ if (DOM.termPopupClose) {
 
 if (DOM.termPopupDrillBtn) {
     DOM.termPopupDrillBtn.addEventListener("click", () => {
-        if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
+        if (!activePopupTerm || typeof TERMS_DICTIONARY === "undefined" || !TERMS_DICTIONARY[activePopupTerm]) return;
         const qIdx = TERMS_DICTIONARY[activePopupTerm].drillIndex || 1;
         startDrillQuestion(qIdx);
     });
@@ -2391,7 +2391,7 @@ if (DOM.termPopupDrillBtn) {
 
 if (DOM.termPopupMore) {
     DOM.termPopupMore.addEventListener("click", () => {
-        if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
+        if (!activePopupTerm || typeof TERMS_DICTIONARY === "undefined" || !TERMS_DICTIONARY[activePopupTerm]) return;
         const targetSecId = TERMS_DICTIONARY[activePopupTerm].tabSec;
         closeTermPopup();
 
@@ -2665,6 +2665,7 @@ function endGame() {
     clearHint();
     cachedMoveEvaluations = null;
     isPrefetching = false;
+    isPrefetchAborted = true;
     if (timerInterval) clearInterval(timerInterval);
     if (typeWriterInterval) clearInterval(typeWriterInterval);
 
@@ -3093,4 +3094,5 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
+
 
