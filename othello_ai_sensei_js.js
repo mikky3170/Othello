@@ -2,15 +2,15 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.5.0 (2026/10/20)
+  バージョン: Ver 8.6.0 (2026/10/20)
   
-  [Ver 8.5.0] 2026/10/20 更新内容:
-  - 【教育体系二段構え＆10豪傑人物伝・攻略指南 完全復活エディション】
-  - AIヒント探索を深さ9手／終盤完全読み切り16手／定石16手に強化（Lv.10完全打倒保証）。
-  - 大逆転（bigReversal）セリフ発火トリガーを新設。
-  - 豪傑人物伝・攻略指南モーダル（charProfileModal）の表示制御ロジックを完全復元。
-  - 盤面上で手筋の実演アニメーションを再生する動的ビジュアル講義エンジンを新設。
-  - 検定一覧画面を5大奥義カテゴリー階層フレームで美しくレンダリング。
+  [Ver 8.6.0] 2026/10/20 更新内容:
+  - 【プレイヤー即時着手・宮廷思案所全面体系化＆豪傑名鑑エディション】
+  - プレイヤー着手を0秒無遅延化（タップ直後に即座に石配置・反転開始）。
+  - 天秤ゲージの立体ミニ石更新ロジックを実装し、白黒反転バグを100%根絶。
+  - 思案所モーダルの全タブ動的描画（操作体系、序中終盤の心得、上達ロードマップ、豪傑名鑑）。
+  - 相手手番時に足元中央の「思案中バッジ」を正確に制御。
+  - 盤面講義中の盤面位置完全不動化制御。
 ========================================================================== */
 
 const boardSize = 8;
@@ -80,7 +80,6 @@ const DOM = {
     opponentThinkingBadge: document.getElementById("opponentThinkingBadge"),
     opponentName: document.getElementById("opponentName"),
     opponentTitle: document.getElementById("opponentTitle"),
-    btnOpenProfile: document.getElementById("btnOpenProfile"),
     badgeSalonName: document.getElementById("badgeSalonName"),
     badgeMaterial: document.getElementById("badgeMaterial"),
     opponentSpeech: document.getElementById("opponentSpeech"),
@@ -98,8 +97,10 @@ const DOM = {
     battlePowerPlayer: document.getElementById("battlePowerPlayer"),
     battlePowerOpponent: document.getElementById("battlePowerOpponent"),
     battleClashSpark: document.getElementById("battleClashSpark"),
-    battleStatPlayer: document.getElementById("battleStatPlayer"),
-    battleStatOpponent: document.getElementById("battleStatOpponent"),
+    battleStatPlayerText: document.getElementById("battleStatPlayerText"),
+    battleStatOpponentText: document.getElementById("battleStatOpponentText"),
+    battlePiecePlayer: document.getElementById("battlePiecePlayer"),
+    battlePieceOpponent: document.getElementById("battlePieceOpponent"),
     battleSituationBadge: document.getElementById("battleSituationBadge"),
     btnPlayerBlack: document.getElementById("btnPlayerBlack"),
     btnPlayerWhite: document.getElementById("btnPlayerWhite"),
@@ -190,7 +191,12 @@ const DOM = {
     profileSalonBadge: document.getElementById("profileSalonBadge"),
     profileMaterialBadge: document.getElementById("profileMaterialBadge"),
     profileBioText: document.getElementById("profileBioText"),
-    profileTacticsText: document.getElementById("profileTacticsText")
+    profileTacticsText: document.getElementById("profileTacticsText"),
+    // 📜 宮廷思案所 体系化コンテナDOM
+    opsGuideContainer: document.getElementById("opsGuideContainer"),
+    strategyPhasesContainer: document.getElementById("strategyPhasesContainer"),
+    strategyRoadmapContainer: document.getElementById("strategyRoadmapContainer"),
+    charGalleryList: document.getElementById("charGalleryList")
 };
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
@@ -546,6 +552,9 @@ function updateOpponentStageUI(showBanner = true) {
     }
 }
 
+/* ==========================================================================
+  【天秤ゲージ更新（立体ミニ石による白黒反転バグ根絶）】
+========================================================================== */
 function updateBalanceGauge(targetBoard = board) {
     if (!targetBoard || isDrillMode || isLectureMode) return;
     const emptyCount = getEmptyCount(targetBoard);
@@ -565,9 +574,17 @@ function updateBalanceGauge(targetBoard = board) {
     if (DOM.battleClashSpark) DOM.battleClashSpark.style.left = `${winratePlayer}%`;
 
     const char = getCurrentCharacter();
-    const pIcon = (humanColor === BLACK) ? "⚫" : "⚪", cIcon = (cpuColor === BLACK) ? "⚫" : "⚪";
-    if (DOM.battleStatPlayer) DOM.battleStatPlayer.textContent = `${pIcon} あなた ${winratePlayer}%`;
-    if (DOM.battleStatOpponent) DOM.battleStatOpponent.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]} ${cIcon}`;
+    
+    // 絵文字を使わずリアルCSS立体ミニ石を適用し、反転バグを100%根絶
+    if (DOM.battlePiecePlayer) {
+        DOM.battlePiecePlayer.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
+    }
+    if (DOM.battlePieceOpponent) {
+        DOM.battlePieceOpponent.className = `mini-piece-stone ${cpuColor === BLACK ? "piece-black" : "piece-white"}`;
+    }
+
+    if (DOM.battleStatPlayerText) DOM.battleStatPlayerText.textContent = `あなた ${winratePlayer}%`;
+    if (DOM.battleStatOpponentText) DOM.battleStatOpponentText.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]}`;
 
     if (DOM.battleSituationBadge) {
         if (winratePlayer >= 75) DOM.battleSituationBadge.textContent = "⚖️ あなた 圧倒的優勢";
@@ -981,7 +998,7 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン（深さ9手／完全読み16手に強化・Lv.10完全打倒仕様）】
+  【ヒント探索エンジン（深さ9手／完全読み16手・Lv.10完全打倒仕様）】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
     if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
@@ -995,7 +1012,6 @@ async function prefetchPlayerEvaluationsAsync() {
         return;
     }
 
-    // 定石ブックは最大16手先まで精査
     const bookEntry = getBestCounterBookMove();
     if (bookEntry && moves.some(([r, c]) => r === bookEntry.move[0] && c === bookEntry.move[1])) {
         const bestMove = bookEntry.move;
@@ -1015,7 +1031,6 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     const emptyCount = getEmptyCount(board);
-    // 終盤16手は完全読み切り、通常時は深さ9手（Lv.10の深さ7・完全14手を凌駕）
     const depth = (emptyCount <= 16) ? emptyCount : 9;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
@@ -1039,7 +1054,7 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const chosen = scored[0]; // マージン0で絶対最善手を採用
+    const chosen = scored[0];
 
     cachedMoveEvaluations = { moves, best: chosen.move, scoredMoves: scored, isBook: false };
     isPrefetching = false;
@@ -1110,7 +1125,7 @@ async function executeTurnAction(row, col, player, isHuman) {
 }
 
 /* ==========================================================================
-  【プレイヤー着手（大逆転セリフ判定・メトリクス記録）】
+  【プレイヤー着手（完全ゼロ遅延化・即時着手＆バックグラウンド採点）】
 ========================================================================== */
 async function putStone(row, col) {
     if (isLectureMode) return;
@@ -1130,6 +1145,10 @@ async function putStone(row, col) {
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
     const oppMovesBefore = getValidMoves(cpuColor, boardBefore).length;
 
+    // ⚡【ゼロ遅延】：重い計算を待たずに、タップした瞬間に即座に着手アクションを開始！
+    const actionPromise = executeTurnAction(row, col, humanColor, true);
+
+    // 採点・ログ記録は並行（裏側）で瞬時に実行
     let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
     let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
 
@@ -1146,8 +1165,6 @@ async function putStone(row, col) {
     const flippable = getFlippableStones(row, col, humanColor, boardBefore);
     const flipsCount = flippable.length;
 
-    const actionPromise = executeTurnAction(row, col, humanColor, true);
-
     const oppMovesAfter = getValidMoves(cpuColor, board).length;
     const mobilityDelta = oppMovesAfter - oppMovesBefore;
 
@@ -1160,7 +1177,6 @@ async function putStone(row, col) {
     let moveRating = "NORMAL";
     const scoreDiffFromBest = topScore - chosenScore;
 
-    // 大逆転判定（5枚以上裏返し、または大逆転手筋）
     if (flipsCount >= 5 && Math.random() < 0.7) {
         setOpponentQuote("bigReversal");
     } else if (isMatchedWithObjectiveBest) {
@@ -1631,7 +1647,7 @@ function loadLectureState() {
     const lecture = LESSON_LECTURES[currentLectureId];
     if (!lecture) return;
 
-    if (DOM.lectureTopicBadge) DOM.lectureTopicBadge.textContent = `📖 【第 ${lecture.themeId} 奥義】盤面ビジュアル講義`;
+    if (DOM.lectureTopicBadge) DOM.lectureTopicBadge.textContent = `📖 【第 ${lecture.themeId} 奥義】盤面講義`;
     if (DOM.lectureTitleText) DOM.lectureTitleText.textContent = lecture.title;
     if (DOM.lectureDescText) DOM.lectureDescText.textContent = lecture.introText;
     if (DOM.lectureStepIndicator) DOM.lectureStepIndicator.textContent = `ステップ 0 / ${lecture.steps.length}`;
@@ -1643,6 +1659,7 @@ function loadLectureState() {
 
     if (DOM.btnLecturePlay) {
         DOM.btnLecturePlay.style.display = "inline-block";
+        DOM.btnLecturePlay.disabled = false;
         DOM.btnLecturePlay.textContent = "▶ 実演を再生する";
     }
 
@@ -1715,7 +1732,6 @@ window.playCurrentLectureStep = playCurrentLectureStep;
 
 function resetCurrentLecture() {
     playPlaceSound();
-    if (DOM.btnLecturePlay) DOM.btnLecturePlay.disabled = false;
     loadLectureState();
 }
 window.resetCurrentLecture = resetCurrentLecture;
@@ -1868,7 +1884,7 @@ window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
   【🎯 宮廷次の一手検定（五大奥義カテゴリー階層レンダリング）】
-========================================================================== */
+========================================================================= */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
     if (!cell) return;
@@ -2167,6 +2183,87 @@ function exitDrillMode(restoreBoard = true) {
     updateUndoButtonState();
 }
 window.exitDrillMode = exitDrillMode;
+
+/* ==========================================================================
+  【宮廷思案所：新体系コンテンツ動的レンダリング（OPERATION・心得・名鑑）】
+========================================================================== */
+function renderGuideModalContents() {
+    // 1. 操作体系ガイドカードのレンダリング
+    if (DOM.opsGuideContainer) {
+        DOM.opsGuideContainer.innerHTML = OPERATION_GUIDE_DATA.map(item => `
+            <div class="manual-card">
+                <div class="manual-card-title">
+                    <span>${item.icon} ${item.title}</span>
+                </div>
+                <div>${item.desc}</div>
+            </div>
+        `).join("");
+    }
+
+    // 2. 序盤・中盤・終盤の心得カードのレンダリング
+    if (DOM.strategyPhasesContainer && STRATEGY_GUIDE_DATA.phases) {
+        DOM.strategyPhasesContainer.innerHTML = STRATEGY_GUIDE_DATA.phases.map(item => `
+            <div class="manual-card">
+                <div class="manual-card-title" style="color:#ffd700;">
+                    <span>${item.phase}</span>
+                </div>
+                <div style="font-size:11px; font-weight:800; color:#fff4bd; margin-bottom:4px;">
+                    「${item.catchphrase}」
+                </div>
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    ${item.rules.map(r => `<div>${r}</div>`).join("")}
+                </div>
+            </div>
+        `).join("");
+    }
+
+    // 3. 上達ロードマップのレンダリング
+    if (DOM.strategyRoadmapContainer && STRATEGY_GUIDE_DATA.roadmap) {
+        DOM.strategyRoadmapContainer.innerHTML = STRATEGY_GUIDE_DATA.roadmap.map(item => `
+            <div class="roadmap-card">
+                <div class="roadmap-level-tag">${item.level}</div>
+                <div class="roadmap-target-text">${item.target}</div>
+                <div class="roadmap-desc-text">${item.desc}</div>
+            </div>
+        `).join("");
+    }
+
+    // 4. 全10豪傑画像名鑑ギャラリーのレンダリング
+    if (DOM.charGalleryList) {
+        let galleryHtml = "";
+        for (let i = 1; i <= 10; i++) {
+            const char = CHARACTERS[i];
+            galleryHtml += `
+                <div class="char-gallery-card">
+                    <div class="char-gallery-avatar-wrap">
+                        <img src="${char.image}" alt="${char.name}" onerror="this.src='';this.parentElement.textContent='${char.icon}'">
+                        <div class="char-gallery-lvl">Lv.${i}</div>
+                    </div>
+                    <div class="char-gallery-info">
+                        <div class="char-gallery-name">${char.name}</div>
+                        <div class="char-gallery-rank">${char.rankLabel} ${char.title}</div>
+                        <div class="char-gallery-bio">${char.profile}</div>
+                        <div class="char-gallery-tactics"><b>攻略法：</b>${char.tacticsInfo}</div>
+                    </div>
+                    <button type="button" class="btn-select-fighter" onclick="selectFighterFromGallery(${i})">
+                        対戦する ⚔️
+                    </button>
+                </div>
+            `;
+        }
+        DOM.charGalleryList.innerHTML = galleryHtml;
+    }
+}
+
+function selectFighterFromGallery(charId) {
+    playPlaceSound();
+    if (DOM.characterSelect) DOM.characterSelect.value = charId;
+    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+    updateOpponentStageUI(true);
+    startGame();
+}
+window.selectFighterFromGallery = selectFighterFromGallery;
 
 /* ==========================================================================
   【ミニ解説ポップアップ】
@@ -2797,9 +2894,6 @@ if (DOM.characterSelect) {
 if (DOM.opponentAvatarWrap) {
     DOM.opponentAvatarWrap.addEventListener("click", () => openCharProfileModal());
 }
-if (DOM.btnOpenProfile) {
-    DOM.btnOpenProfile.addEventListener("click", () => openCharProfileModal());
-}
 
 if (DOM.btnPlayerBlack && DOM.btnPlayerWhite) {
     [DOM.btnPlayerBlack, DOM.btnPlayerWhite].forEach((btn, idx) => {
@@ -2885,6 +2979,7 @@ function setupModal(openBtnId, overlayId, closeBtnId) {
     const closeBtn = document.getElementById(closeBtnId);
     if (openBtn && overlay && closeBtn) {
         openBtn.addEventListener("click", () => {
+            if (overlayId === "guideOverlay") renderGuideModalContents();
             overlay.classList.add("show");
             document.body.classList.add("modal-open-lock");
         });

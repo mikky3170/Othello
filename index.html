@@ -1,14 +1,15 @@
+
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.5.0 (2026/10/20)
+  バージョン: Ver 8.6.0 (2026/10/20)
   
-  [Ver 8.5.0] 2026/10/20 更新内容:
-  - 【教育体系二段構え＆10豪傑人物伝・攻略指南 完全復活エディション】
-  - 10豪傑の人物背景・棋風・攻略法を読める「豪傑人物伝モーダル（charProfileModal）」を完全復元。
-  - 盤面上で手筋の実演アニメを見る「動的ビジュアル講義カード（lectureControlCard）」を新設。
-  - 対戦相手の思考中を一目で識別する「思案中点滅バッジ」をアバターへ新設。
-  - 検定一覧モーダルを5大奥義カテゴリー階層フレームへ刷新。
+  [Ver 8.6.0] 2026/10/20 更新内容:
+  - 【プレイヤー即時着手・宮廷思案所全面体系化＆豪傑名鑑エディション】
+  - 天秤ゲージのプレイヤー石・相手石を立体ミニ石コンポーネント化し、反転バグを根絶。
+  - 対戦相手ゾーンから不要ボタンを撤去し、スマホ画面でのセリフ欠けを完全解消。
+  - 「思案中バッジ」をアバター足元の中央へ移設。
+  - 宮廷思案所を「操作体系」「序中終盤の心得」「五大奥義」「豪傑画像名鑑」「用語宝典」の5大体系へ全面刷新。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -68,9 +69,9 @@
 
     <div class="app-container">
         
-        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆2行セリフ対応＆人物伝トリガー） -->
+        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆2行セリフ対応＆アバタータップ人物伝） -->
         <div class="opponent-zone" id="opponentZone">
-            <div class="opponent-avatar-wrap" id="opponentAvatarWrap" title="タップして人物伝・攻略指南を見る">
+            <div class="opponent-avatar-wrap" id="opponentAvatarWrap" title="肖像画をタップして人物伝・攻略指南を見る">
                 <div class="voice-wave-ring wave-1"></div>
                 <div class="voice-wave-ring wave-2"></div>
                 <div class="opponent-avatar-frame" id="opponentAvatarFrame">
@@ -85,7 +86,6 @@
                     <div class="opponent-name-group">
                         <span class="opponent-name" id="opponentName">道化師 ピエロ</span>
                         <span class="opponent-title" id="opponentTitle">【入門・アマ12級】</span>
-                        <button type="button" class="btn-open-char-profile" id="btnOpenProfile" title="相手の人物伝と攻略指南を見る">📜 人物伝</button>
                     </div>
                     <div class="opponent-stats-group">
                         <span class="opponent-timer" id="opponentTime" title="相手の総消費思考時間">⏱️ 00:00</span>
@@ -106,11 +106,18 @@
 
         <!-- ゾーン②：盤面ゾーン -->
         <div class="board-zone">
+            <!-- 天秤ゲージ（立体ミニ石コンポーネント化により白黒反転バグ根絶） -->
             <div class="battle-gauge-container gauge-player-black" id="battleGaugeContainer">
                 <div class="battle-gauge-header">
-                    <span id="battleStatPlayer" class="battle-stat-tag">⚫ あなた 50%</span>
+                    <span id="battleStatPlayer" class="battle-stat-tag">
+                        <div class="mini-piece-stone piece-black" id="battlePiecePlayer"></div>
+                        <span id="battleStatPlayerText">あなた 50%</span>
+                    </span>
                     <span class="battle-badge" id="battleSituationBadge">⚖️ 運命の天秤：互角</span>
-                    <span id="battleStatOpponent" class="battle-stat-tag">50% ピエロ ⚪</span>
+                    <span id="battleStatOpponent" class="battle-stat-tag">
+                        <span id="battleStatOpponentText">50% ピエロ</span>
+                        <div class="mini-piece-stone piece-white" id="battlePieceOpponent"></div>
+                    </span>
                 </div>
                 <div class="battle-track">
                     <div class="battle-center-mark"></div>
@@ -141,10 +148,10 @@
                 </div>
             </div>
 
-            <!-- 📖 盤面動的ビジュアル講義コントロールカード -->
+            <!-- 📖 盤面動的ビジュアル講義コントロールカード（盤面位置完全固定） -->
             <div class="lecture-control-card" id="lectureControlCard">
                 <div class="lecture-header-nav">
-                    <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面ビジュアル講義</div>
+                    <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
                     <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 2</span>
                 </div>
                 <div class="lecture-body-box">
@@ -179,7 +186,7 @@
 
                 <div class="drill-actions-bar">
                     <button type="button" class="drill-btn-action drill-btn-retry" id="btnDrillRetry" onclick="resetCurrentDrill()">もう一度やり直す ↺</button>
-                    <button type="button" class="drill-btn-action drill-btn-lecture" id="btnDrillBackToLecture" onclick="returnToLectureFromDrill()">📖 盤面講義をもう一度見る</button>
+                    <button type="button" class="drill-btn-action drill-btn-lecture" id="btnDrillBackToLecture" onclick="returnToLectureFromDrill()">📖 盤面講義を見る</button>
                     <button type="button" class="drill-btn-action drill-btn-next-question" id="btnDrillNextQuestion" onclick="advanceNextDrillQuestion()">次の問題へ進む ▶</button>
                     <button type="button" class="drill-btn-action drill-btn-list" id="btnDrillList" onclick="openDrillCourseModal()">検定コース一覧 📋</button>
                     <button type="button" class="drill-btn-action drill-btn-exit" id="btnDrillExit" onclick="exitDrillMode()">対局に戻る ✕</button>
@@ -271,7 +278,7 @@
 
     </div>
 
-    <!-- 📜 豪傑人物伝・攻略指南モーダル（完全復元） -->
+    <!-- 📜 豪傑人物伝・攻略指南モーダル（アバタータップで展開） -->
     <div id="charProfileModal" class="royal-result-modal">
         <div class="royal-result-card" style="max-width: 480px;">
             <div class="guide-header">
@@ -569,7 +576,7 @@
         </div>
     </div>
 
-    <!-- 宮廷思案所モーダル -->
+    <!-- 📜 宮廷思案所モーダル（5大体系タブ全面刷新） -->
     <div id="guideOverlay" class="dynasty-overlay">
         <div id="guideModal" class="dynasty-modal">
             <div class="guide-header">
@@ -578,23 +585,37 @@
             </div>
             <div class="manual-tabs">
                 <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作体系</button>
-                <button type="button" class="manual-tab-btn" data-tab="tab-academy">📖 五大奥義講義</button>
-                <button type="button" class="manual-tab-btn" data-tab="tab-drill">🎯 検定特訓</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-tips">📖 序中終盤の心得</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-academy">🎯 五大奥義講義</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-gallery">👥 豪傑名鑑</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-terms">📚 用語・定石宝典</button>
             </div>
             
+            <!-- 第1タブ【👑 操作体系と画面の歩き方】 -->
             <div id="tab-ops" class="manual-tab-content active">
-                <div class="manual-card">
-                    <div class="manual-card-title">👑 宮廷対面コロシアム構図</div>
-                    <div>横画面（PC・タブレット）では左側に「あなた」、中央に「盤面」、右側に「対戦相手」を整然と配置。直前に打たれた最新手には気品ある金の光枠が灯ります。</div>
+                <div id="opsGuideContainer" class="guide-cards-list"></div>
+            </div>
+
+            <!-- 第2タブ【📖 初心者脱出！序中終盤の心得＆上達ロードマップ】 -->
+            <div id="tab-tips" class="manual-tab-content">
+                <div class="manual-card-highlight">
+                    <div style="font-size:12px; font-weight:900; color:#ffd700; margin-bottom:4px;">
+                        👑 初心者が最短で勝てるようになる「三段階の王道戦略」
+                    </div>
+                    <div style="font-size:10px; color:#f2e9d2; line-height:1.4;">
+                        オセロは序盤、中盤、終盤で「目指すべきゴール」が180度変わります。この3つの心得を胸に刻むだけで、あなたの勝率は劇的に跳ね上がります。
+                    </div>
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">🏛️ 宮廷サロン・盤面・美術石の劇的昇華</div>
-                    <div>対戦相手（階位）に応じて、サロン背景空間だけでなく、盤面フィールドそのものとオセロ石のリアル素材が劇的に変化します。</div>
+                <div id="strategyPhasesContainer" class="guide-cards-list" style="margin-top:8px;"></div>
+                <div style="margin-top:10px;">
+                    <div style="font-size:11.5px; font-weight:900; color:#ffd700; margin-bottom:5px;">
+                        📈 初心者から神域（名人）への完全上達ロードマップ
+                    </div>
+                    <div id="strategyRoadmapContainer" class="roadmap-cards-list"></div>
                 </div>
             </div>
 
-            <!-- 第2タブ【📖 五大奥義 盤面ビジュアル講義】 -->
+            <!-- 第3タブ【🎯 五大奥義 盤面講義＆検定】 -->
             <div id="tab-academy" class="manual-tab-content">
                 <div class="manual-card">
                     <div class="manual-card-title">
@@ -633,51 +654,15 @@
                 </div>
             </div>
 
-            <!-- 第3タブ【🎯 五大奥義検定（全15問案内）】 -->
-            <div id="tab-drill" class="manual-tab-content">
-                <div class="manual-card">
-                    <div class="manual-card-title">
-                        <span>⚠️ テーマ1：Xマスの罠と角防衛（第1〜3問）</span>
-                        <button type="button" class="btn-inline-drill" onclick="openDrillFromTopicKey('Xマス')">検定に挑戦 🎯</button>
-                    </div>
-                    <div style="font-size:10px; color:#d4c8b2;">［基本形・右上反転形・相手Xマス誘導］の3問で構成</div>
-                    <div>角が空いている時に斜め前（Xマス）に手を出すと角を献上してしまいます。盤面の向きが変わっても危険を察知する訓練です。</div>
+            <!-- 第4タブ【👥 宮廷豪傑名鑑（全10豪傑 画像入り一覧ギャラリー）】 -->
+            <div id="tab-gallery" class="manual-tab-content">
+                <div style="font-size:11px; color:#ecd08c; margin-bottom:8px;">
+                    王宮に集う全10大豪傑の肖像画名鑑です。「対戦する ⚔️」を押すと、その豪傑と即座に対局できます。
                 </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">
-                        <span>🧱 テーマ2：壁の回避と外側警戒（第4〜6問）</span>
-                        <button type="button" class="btn-inline-drill" onclick="openDrillFromTopicKey('壁')">検定に挑戦 🎯</button>
-                    </div>
-                    <div style="font-size:10px; color:#d4c8b2;">［3枚取りの罠・下辺警戒・相手の壁利用］の3問で構成</div>
-                    <div>たくさんひっくり返したい誘惑に負けず、外側に石を露出させない真の着手を身につけます。</div>
-                </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">
-                        <span>🌱 テーマ3：至高の手筋「中割り」（第7〜9問）</span>
-                        <button type="button" class="btn-inline-drill" onclick="openDrillFromTopicKey('中割り')">検定に挑戦 🎯</button>
-                    </div>
-                    <div style="font-size:10px; color:#d4c8b2;">［基本形・縦ライン中割り・相手手数ゼロ化］の3問で構成</div>
-                    <div>内側の石だけを1枚裏返し、相手の選択肢をゼロへと追い込むオセロ最強の基本手筋を体得します。</div>
-                </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">
-                        <span>💎 テーマ4：Cマスの罠とウイング破り（第10〜12問）</span>
-                        <button type="button" class="btn-inline-drill" onclick="openDrillFromTopicKey('Cマス')">検定に挑戦 🎯</button>
-                    </div>
-                    <div style="font-size:10px; color:#d4c8b2;">［Cマス回避・ウイングへのクサビ・辺の爆弾解除］の3問で構成</div>
-                    <div>不用意なCマス打ちを戒め、相手のウイングの隙を突いて角を奪取する辺の攻防を学びます。</div>
-                </div>
-                <div class="manual-card">
-                    <div class="manual-card-title">
-                        <span>⚖️ テーマ5：終盤の絶対法則「パリティ」（第13〜15問）</span>
-                        <button type="button" class="btn-inline-drill" onclick="openDrillFromTopicKey('パリティ')">検定に挑戦 🎯</button>
-                    </div>
-                    <div style="font-size:10px; color:#d4c8b2;">［2マス空き・偶奇の数え分け・名人撃破総仕上げ］の3問で構成</div>
-                    <div>「偶数空きは相手から、奇数空きは自分から」。各エリアの最後の一手を独占する必勝理論をマスターします。</div>
-                </div>
+                <div id="charGalleryList" class="char-gallery-grid"></div>
             </div>
 
-            <!-- 第4タブ【オセロ用語・定石の宝典】 -->
+            <!-- 第5タブ【📚 オセロ用語・定石の宝典】 -->
             <div id="tab-terms" class="manual-tab-content">
                 <div class="manual-card" id="term-sec-board">
                     <div class="manual-card-title">
@@ -731,7 +716,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.5.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -741,4 +726,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 
