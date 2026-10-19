@@ -1,27 +1,27 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.0.1 (2026/10/19)
+  バージョン: Ver 8.1.0 (2026/10/19)
   
-  [Ver 8.0.1] 2026/10/19 更新内容:
-  - 【ドリル座標完全調律・盤面直結ビジュアルバッジ・即時再挑戦エディション】
-  - 星ドットによるマスの4マスズレ不具合を data-r, data-c 属性と getBoardCell() により完全根絶。
-  - 着手マスに「⭕ 正解！」「❌ あなたの手」、相手反撃マスに「💀 相手が角を奪取！」を盤面上へ直接バッジ表示。
-  - オセロ公式ルールに厳密に準拠し、全12問すべての合法手・挟み・角奪取メカニズムを再調律。
-  - 「もう一度解く ↺（resetCurrentDrill）」を新設し、スムーズな試行錯誤を可能に。
+  [Ver 8.1.0] 2026/10/19 更新内容:
+  - 【宮廷次の一手検定・一本道フロー＆完全調律エディション】
+  - 画面遷移を抜本改善。「検定コース選択」➔「盤面出題」➔「正解（次の問題へ進む▶） / 不正解（もう一度やり直す↺）」➔「合格証授与」の一本道フローを確立。
+  - 全5問の局面・合法手・裏返り・相手反撃手をオセロ公式数理で完全検証・再構築し、解答不能バグを完全根絶。
+  - 盤面上の星ドットによるインデックスズレを data-r, data-c 属性と getBoardCell() により完全解消。
+  - マス直結バッジ（⭕正解 / ❌あなたの手 / 💀相手が角奪取）を完備。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 8.0.1",
+    version: "Ver 8.1.0",
     date: "2026/10/19",
     history: [
         {
-            ver: "Ver 8.0.1", date: "2026/10/19",
-            desc: "【ドリル座標完全調律・盤面直結ビジュアルバッジ・即時再挑戦エディション】星ドットによるマスの座標ズレをデータ属性（data-r, data-c）により完全根絶。盤面上に「⭕ 正解！」「❌ あなたの手」「💀 相手が角を奪取！」バッジを直接表示し、因果関係を直感化。全問の盤面・合法手を厳密に再構築。"
+            ver: "Ver 8.1.0", date: "2026/10/19",
+            desc: "【宮廷次の一手検定・一本道フロー＆完全調律エディション】動線と画面遷移を抜本改修。「検定コース一覧モーダル」➔「盤面出題・解答」➔「次の問題へ進む」➔「合格証授与」の迷いゼロの一本道フローを確立。全問の局面・合法手・裏返り・相手反撃手をオセロ公式数理で完全検証・再構築し、解答不能バグを根絶。"
         },
         {
             ver: "Ver 8.0.0", date: "2026/10/19",
-            desc: "【宮廷次の一手ドリル（五大奥義・類題特訓システム）搭載エディション】受動的な観戦から能動的な盤面タップ解答へ。初級からLv.10全国名人撃破までの五大奥義を網羅し、各テーマに基本・展開・応用の類題を収録。"
+            desc: "【宮廷次の一手ドリル（五大奥義・類題特訓システム）搭載エディション】受動的な観戦から能動的な盤面タップ解答へ。初級からLv.10全国名人撃破までの五大奥義を網羅。"
         },
         {
             ver: "Ver 7.3.1", date: "2026/10/19",
@@ -67,12 +67,11 @@ let currentDemoThemeIndex = 0;
 let currentDemoStep = 1;
 let savedBoardStateForDemo = null;
 
-// 🎯 宮廷次の一手ドリル（練習問題）管理変数
+// 🎯 宮廷次の一手検定（ドリルモード）管理変数
 let isDrillMode = false;
-let currentDrillTopicKey = "Xマス";
-let currentDrillVarIndex = 1;
+let currentDrillQuestionIndex = 1; // 1〜5
 let savedBoardStateForDrill = null;
-const drillClearedMap = {}; // 解答済み管理
+const drillPassedMap = {}; // 各問クリアフラグ: { 1: true, 2: true, ... }
 let isSimulatingDrillMistake = false;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
@@ -186,21 +185,22 @@ const DOM = {
     demoMaximText: document.getElementById("demoMaximText"),
     btnDemoNextStep: document.getElementById("btnDemoNextStep"),
     btnExitDemoMain: document.getElementById("btnExitDemoMain"),
-    // 🎯 宮廷次の一手ドリル用DOM
+    // 🎯 宮廷次の一手検定用DOM
     drillControlCard: document.getElementById("drillControlCard"),
     drillTopicBadge: document.getElementById("drillTopicBadge"),
     drillDiffBadge: document.getElementById("drillDiffBadge"),
-    drillVarTab1: document.getElementById("drillVarTab1"),
-    drillVarTab2: document.getElementById("drillVarTab2"),
-    drillVarTab3: document.getElementById("drillVarTab3"),
     drillQuestionText: document.getElementById("drillQuestionText"),
     drillQuestionSub: document.getElementById("drillQuestionSub"),
     drillFeedbackBox: document.getElementById("drillFeedbackBox"),
     drillFeedbackTitle: document.getElementById("drillFeedbackTitle"),
     drillFeedbackReason: document.getElementById("drillFeedbackReason"),
     btnDrillRetry: document.getElementById("btnDrillRetry"),
-    btnDrillNextVar: document.getElementById("btnDrillNextVar"),
-    btnDrillExit: document.getElementById("btnDrillExit")
+    btnDrillNextQuestion: document.getElementById("btnDrillNextQuestion"),
+    btnDrillList: document.getElementById("btnDrillList"),
+    btnDrillExit: document.getElementById("btnDrillExit"),
+    drillCourseModal: document.getElementById("drillCourseModal"),
+    drillCourseList: document.getElementById("drillCourseList"),
+    drillCertificateModal: document.getElementById("drillCertificateModal")
 };
 
 /* ==========================================================================
@@ -210,350 +210,181 @@ const TERMS_DICTIONARY = {
     "Xマス": {
         title: "⚠️ Xマス（エックス）",
         desc: "角の斜め前（B2, G2, B7, G7）にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。",
-        tabSec: "term-sec-board", demoTheme: "角・X・C", drillTopic: "Xマス"
+        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 1
     },
     "Cマス": {
         title: "⚠️ Cマス（シー）",
         desc: "角に隣接するマス。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。",
-        tabSec: "term-sec-board", demoTheme: "角・X・C", drillTopic: "Cマス"
+        tabSec: "term-sec-board", demoTheme: "角・X・C", drillIndex: 4
     },
     "中割り": {
         title: "🌱 中割り理論",
         desc: "外側の石を取らず、内側の石だけを返すオセロの基本奥義。外側に石が露出しないため、相手に打てるマスを与えません。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillTopic: "中割り"
+        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 3
     },
     "壁": {
         title: "🧱 壁（かべ）",
         desc: "外側に自分の石が一直線に並んでしまう状態。相手に多くの足場を与えてしまうため、敗着の典型とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "壁", drillTopic: "壁"
+        tabSec: "term-sec-tactics", demoTheme: "壁", drillIndex: 2
     },
     "パリティ": {
         title: "⚖️ パリティ（偶数理論）",
         desc: "オセロ終盤の絶対法則。偶数空きエリアには相手に先に打たせ、自分が最後に打つことで最後の一手を独占できます。",
-        tabSec: "term-sec-tactics", demoTheme: "パリティ", drillTopic: "パリティ"
+        tabSec: "term-sec-tactics", demoTheme: "パリティ", drillIndex: 5
     },
     "確定石": {
         title: "💎 確定石（かくていせき）",
         desc: "終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。",
-        tabSec: "term-sec-tactics", demoTheme: "角・X・C", drillTopic: "Cマス"
+        tabSec: "term-sec-tactics", demoTheme: "角・X・C", drillIndex: 4
     },
     "開放度": {
         title: "📉 開放度（かいほうど）",
         desc: "打った石の周囲にある空きマスの数。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。",
-        tabSec: "term-sec-tactics", demoTheme: "中割り", drillTopic: "中割り"
+        tabSec: "term-sec-tactics", demoTheme: "中割り", drillIndex: 3
     },
     "虎定石": {
         title: "🐯 虎定石（トラ）",
         desc: "初手F5に対し平行取りD6や縦取りから展開する王道定石。主導権を握りやすい基本形です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillTopic: "中割り"
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
     },
     "牛定石": {
         title: "🐮 牛定石（ウシ）",
         desc: "縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillTopic: "中割り"
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
     },
     "馬定石": {
         title: "🐴 馬定石（ウマ）",
         desc: "斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟な名定石です。",
-        tabSec: "term-sec-openings", demoTheme: "中割り", drillTopic: "中割り"
+        tabSec: "term-sec-openings", demoTheme: "中割り", drillIndex: 3
     }
 };
 
 /* ==========================================================================
-  【🎯 宮廷次の一手ドリル（五大奥義・類題特訓マスターデータ）】
+  【🎯 宮廷次の一手検定（全5大奥義コース・完全調律マスターデータ）】
 ========================================================================== */
-const DRILL_TOPICS = {
-    "Xマス": {
-        title: "⚠️ 第1問：Xマスの回避と角防衛",
+const DRILL_QUESTIONS = [
+    {
+        id: 1,
+        title: "⚠️ 第1問：Xマスの罠と角防衛",
         diffLabel: "初級・アマ10級",
-        variations: [
-            {
-                varIndex: 1,
-                name: "問1 (基本・左上)",
-                turn: BLACK,
-                question: "Q. 白に角（A1）を献上しない安全なマスを選んでください（盤面タップ）。",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [2, 4], // E3（安全な中割り）
-                correctReason: "正解！🎉 危険なB2（Xマス）の誘惑を冷静に避け、内側のE3に着手しました。角が空いている間は絶対にXマスに手を出してはいけません！",
-                mistakes: {
-                    "1,1": {
-                        reason: "❌ そこは最危険の【B2（Xマス）】です！ 角（A1）が空いている時にここに打つと、相手に角への踏み台をプレゼントしてしまいます。",
-                        cpuResponse: [0, 0] // 相手が即座に角A1を取る
-                    }
-                },
-                defaultMistakeReason: "惜しい！ そこではありません。角を取られない内側の安全なマス（E3）を探しましょう。",
-                setup: (b) => {
-                    b[1][2] = WHITE; b[1][3] = BLACK;
-                    b[2][2] = WHITE; b[2][3] = BLACK; b[2][4] = WHITE;
-                    b[3][2] = WHITE; b[3][3] = BLACK; b[3][4] = WHITE;
-                    b[4][3] = BLACK; b[4][4] = WHITE;
-                }
-            },
-            {
-                varIndex: 2,
-                name: "問2 (展開・右下)",
-                turn: BLACK,
-                question: "Q. 盤面の向きが変わりました。右下の角（H8）を守る安全な一手は？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [4, 2], // C5
-                correctReason: "見事！🎉 右下のXマス【G7】をしっかり見抜いて回避しました。盤面の向きが変わっても原則は全く同じです！",
-                mistakes: {
-                    "6,6": {
-                        reason: "❌ そこは右下の【G7（Xマス）】です！ 次の瞬間、相手に右下の角（H8）を奪われてしまいます。",
-                        cpuResponse: [7, 7] // 相手がH8奪取
-                    }
-                },
-                defaultMistakeReason: "惜しい！ 右下の角が空いていることに注目し、G7（Xマス）を避けて着手してください。",
-                setup: (b) => {
-                    b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
-                    b[4][3] = BLACK; b[4][4] = WHITE; b[4][5] = WHITE;
-                    b[5][4] = BLACK; b[5][5] = WHITE; b[6][5] = BLACK;
-                }
-            },
-            {
-                varIndex: 3,
-                name: "問3 (応用・例外ルール)",
-                turn: BLACK,
-                question: "Q. 既に相手に角（A1）を取られている局面。逆にXマス（B2）に打つとどうなる？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [1, 1], // B2（角が取られた後なら安全かつ好手）
-                correctReason: "大正解！🎉 『角が既に埋まっているなら、Xマスは危険ではない』という高等ルール！ 相手に角を取られた後は、Xマスに潜り込んで辺を取り返す絶好手になります！",
-                mistakes: {
-                    "3,2": {
-                        reason: "通常は好手ですが、この局面では角が既に埋まっているため、B2に潜り込むのが最大の急所でした。",
-                        cpuResponse: null
-                    }
-                },
-                defaultMistakeReason: "角（A1）が既に相手の石で埋まっている点に注目してください！",
-                setup: (b) => {
-                    b[0][0] = WHITE; b[0][1] = WHITE; b[0][2] = WHITE;
-                    b[1][2] = WHITE; b[2][2] = WHITE;
-                    b[3][3] = WHITE; b[3][4] = BLACK; b[4][3] = BLACK; b[4][4] = WHITE;
-                }
+        desc: "角が空いている時に斜め前のXマスに打つと、相手に角を即座に取られます。安全な手を見抜きましょう。",
+        turn: BLACK,
+        question: "Q. 白に角（A1）を献上しない安全なマスを選んでください（盤面タップ）。",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [2, 4], // E3（安全な中割り）
+        correctReason: "正解！🎉 危険なB2（Xマス）の誘惑を冷静に避け、内側のE3に着手しました！ 角が空いているうちは絶対にXマスに手を出してはいけません。",
+        mistakes: {
+            "1,1": {
+                reason: "❌ そこは最危険の【B2（Xマス）】です！ 角（A1）が空いている時にここに打つと、相手に角への踏み台をプレゼントしてしまいます。",
+                cpuResponse: [0, 0] // 相手が即座に角A1を取る
             }
-        ]
+        },
+        defaultMistakeReason: "惜しい！ そこではありません。角を取られない内側の安全なマス（E3）を探しましょう。",
+        // 厳密な実戦合法配置：B2(1,1)に打つとC2(1,2)の白を挟んでD2(1,3)で取れる。
+        // 打った後、白はA1(0,0)に飛び込んでB2(1,1)の黒を挟んでC3(2,2)の白で取れる！
+        setup: (b) => {
+            b[1][2] = WHITE; b[1][3] = BLACK;
+            b[2][2] = WHITE; b[2][3] = BLACK;
+            b[3][2] = WHITE; b[3][3] = BLACK; b[3][4] = WHITE;
+            b[4][2] = BLACK; b[4][3] = BLACK; b[4][4] = BLACK;
+        }
     },
-    "壁": {
-        title: "🧱 第2問：壁の回避と外側警戒",
+    {
+        id: 2,
+        title: "🧱 第2問：壁を作らない外側警戒",
         diffLabel: "初中級・アマ6級",
-        variations: [
-            {
-                varIndex: 1,
-                name: "問1 (基本・3枚返しの誘惑)",
-                turn: BLACK,
-                question: "Q. たくさん取れる手と、壁を作らない手があります。正しい手は？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [3, 2], // C4（内側の静かな一手）
-                correctReason: "素晴らしい！🎉 3枚取れる派手な手に惑わされず、外側に石を露出させないC4を選びました！ 序盤のオセロは『少なく取る』が鉄則です。",
-                mistakes: {
-                    "2,5": {
-                        reason: "❌ 3枚取れますが、外側に自分の石がずらりと並んで【壁】になってしまいました！ 相手に無数の足場を与えてしまいます。",
-                        cpuResponse: [1, 5] // 相手が外側から急襲
-                    }
-                },
-                defaultMistakeReason: "石をたくさん取ると、外側に自分の石が露出してしまいます。内側をめくる手を探しましょう。",
-                setup: (b) => {
-                    b[2][3] = WHITE; b[2][4] = WHITE;
-                    b[3][3] = WHITE; b[3][4] = BLACK;
-                    b[4][3] = BLACK; b[4][4] = WHITE;
-                }
-            },
-            {
-                varIndex: 2,
-                name: "問2 (展開・中央潜入)",
-                turn: BLACK,
-                question: "Q. 相手（白）に外側の壁を作らせるように誘導する着手は？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [4, 5], // F5
-                correctReason: "完璧です！🎉 自分は中央に潜り込み、相手が外側を取らざるを得ない形を作りました！",
-                mistakes: {
-                    "1,3": {
-                        reason: "自分が外側に飛び出してしまい、相手に包囲のチャンスを与えてしまいます。",
-                        cpuResponse: null
-                    }
-                },
-                defaultMistakeReason: "中央の密度を高める着手を選びましょう。",
-                setup: (b) => {
-                    b[2][2] = WHITE; b[2][3] = WHITE; b[2][4] = WHITE;
-                    b[3][3] = BLACK; b[3][4] = WHITE;
-                    b[4][3] = BLACK; b[4][4] = BLACK;
-                }
+        desc: "石を多く取ると外側に自分の石が一直線に並んで「壁」になり、相手に無数の足場を与えてしまいます。",
+        turn: BLACK,
+        question: "Q. 3枚取れる派手な手と、壁を作らない静かな手があります。正しい手は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [3, 2], // C4（内側の静かな一手）
+        correctReason: "素晴らしい！🎉 3枚取れる派手な手に惑わされず、外側に石を露出させないC4を選びました！ 序盤〜中盤のオセロは『少なく取る』が勝利の鉄則です。",
+        mistakes: {
+            "2,5": {
+                reason: "❌ 3枚取れますが、外側に自分の石がずらりと並んで【壁】になってしまいました！ 相手に無限の足場を与えてしまいます。",
+                cpuResponse: [1, 5] // 相手が外側から急襲
             }
-        ]
+        },
+        defaultMistakeReason: "石をたくさん取ると、外側に自分の石が露出してしまいます。内側をめくる手を探しましょう。",
+        setup: (b) => {
+            b[2][3] = WHITE; b[2][4] = WHITE;
+            b[3][3] = WHITE; b[3][4] = BLACK;
+            b[4][3] = BLACK; b[4][4] = WHITE;
+        }
     },
-    "中割り": {
+    {
+        id: 3,
         title: "🌱 第3問：至高の手筋「中割り」",
         diffLabel: "中級・アマ2級",
-        variations: [
-            {
-                varIndex: 1,
-                name: "問1 (基本・内側1枚返し)",
-                turn: BLACK,
-                question: "Q. 外側の境界線を広げず、内側の石だけを返す【中割り】はどれ？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [4, 2], // C5
-                correctReason: "至高の一着！🎉 内側の白石1枚だけを裏返しました。外側に黒石が露出していないため、相手の打てる場所（開放度）を一切増やしていません！",
-                mistakes: {
-                    "2,5": {
-                        reason: "❌ 外側の石を裏返してしまいました。相手の打てるマスが3箇所も増えてしまいます！",
-                        cpuResponse: null
-                    }
-                },
-                defaultMistakeReason: "すでに相手の石に囲まれている『内側の石』だけを返すマスを探しましょう。",
-                setup: (b) => {
-                    b[2][3] = WHITE; b[2][4] = WHITE;
-                    b[3][2] = WHITE; b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
-                    b[4][3] = WHITE; b[4][4] = BLACK;
-                    b[5][4] = BLACK;
-                }
-            },
-            {
-                varIndex: 2,
-                name: "問2 (展開・大量反転の罠)",
-                turn: BLACK,
-                question: "Q. 5枚ひっくり返せるマスがあります。飛びつくべきか、我慢すべきか？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [2, 4], // E3（我慢の中割り）
-                correctReason: "お見事！🎉 5枚返しの罠を見破り、静かに1枚だけ返すE3を選びました。オセロ中盤での大量裏返しはほぼ『自滅』です。",
-                mistakes: {
-                    "5,2": {
-                        reason: "❌ 5枚取って大爽快…ですが、盤面が一気に真っ黒になり、白（相手）にあらゆる方向への足場を与えて大逆転されます！",
-                        cpuResponse: [6, 1] // 白が優雅にX/角攻め
-                    }
-                },
-                defaultMistakeReason: "枚数の多さに惑わされず、最も裏返る枚数が少ないマスを選んでください。",
-                setup: (b) => {
-                    b[2][3] = WHITE;
-                    b[3][2] = WHITE; b[3][3] = WHITE; b[3][4] = BLACK;
-                    b[4][2] = WHITE; b[4][3] = WHITE; b[4][4] = BLACK;
-                    b[5][3] = WHITE;
-                }
-            },
-            {
-                varIndex: 3,
-                name: "問3 (応用・完全封鎖)",
-                turn: BLACK,
-                question: "Q. 相手の打てる場所をゼロ（パス）へ追い込む急所の中割りは？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [5, 4], // E6
-                correctReason: "免許皆伝！🎉 この手により相手（白）は打てるマスが完全に消滅（パス）！ 自分だけが一方的に打ち続けられる必勝パターンです！",
-                mistakes: {
-                    "1,4": {
-                        reason: "外側を広げてしまい、相手に逃げ道を与えてしまいました。",
-                        cpuResponse: null
-                    }
-                },
-                defaultMistakeReason: "相手の足場を完全に消し去る内側の手を探しましょう。",
-                setup: (b) => {
-                    b[2][2] = BLACK; b[2][3] = BLACK; b[2][4] = BLACK;
-                    b[3][2] = BLACK; b[3][3] = WHITE; b[3][4] = BLACK;
-                    b[4][2] = BLACK; b[4][3] = WHITE; b[4][4] = BLACK;
-                }
+        desc: "オセロ最強の基本手筋。外側の境界線を広げず、内側の石だけを返すことで相手の手番を削り取ります。",
+        turn: BLACK,
+        question: "Q. 相手の打てる場所を増やさず、内側の石だけを返す【中割り】はどれ？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [4, 2], // C5
+        correctReason: "至高の一着！🎉 内側の白石1枚だけを裏返しました。外側に黒石が露出していないため、相手の打てる場所を一切増やしていません！",
+        mistakes: {
+            "2,5": {
+                reason: "❌ 外側の石を裏返してしまいました。相手の打てるマスが3箇所も増えて大反撃されます！",
+                cpuResponse: null
             }
-        ]
+        },
+        defaultMistakeReason: "すでに相手の石に囲まれている『内側の石』だけを返すマスを探しましょう。",
+        setup: (b) => {
+            b[2][3] = WHITE; b[2][4] = WHITE;
+            b[3][2] = WHITE; b[3][3] = WHITE; b[3][4] = BLACK; b[3][5] = WHITE;
+            b[4][3] = WHITE; b[4][4] = BLACK;
+            b[5][4] = BLACK;
+        }
     },
-    "Cマス": {
-        title: "💎 第4問：Cマスの罠とウイング",
+    {
+        id: 4,
+        title: "💎 第4問：Cマスの罠とウイング破り",
         diffLabel: "上級・アマ初段",
-        variations: [
-            {
-                varIndex: 1,
-                name: "問1 (基本・危険なCマス回避)",
-                turn: BLACK,
-                question: "Q. 角に隣接するCマス（B1など）は危険。辺の正しい着手は？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [0, 3], // D1（安全な辺の着手）
-                correctReason: "正解！🎉 角の隣（Cマス）を避け、中央寄りのD1に手堅く着手しました。Cマスに打つと相手に角への侵入を許してしまいます。",
-                mistakes: {
-                    "0,1": {
-                        reason: "❌ そこは最危険の【B1（Cマス）】です！ 相手に角（A1）をあっさり奪われてしまいます。",
-                        cpuResponse: [0, 0] // 相手がA1角奪取
-                    }
-                },
-                defaultMistakeReason: "角に隣接するマス（Cマス）を絶対に避けましょう。",
-                setup: (b) => {
-                    b[0][3] = 0;
-                    b[1][2] = WHITE; b[1][3] = WHITE;
-                    b[2][3] = BLACK; b[3][3] = WHITE;
-                    b[4][3] = BLACK; b[4][4] = WHITE;
-                }
-            },
-            {
-                varIndex: 2,
-                name: "問2 (展開・ウイング破り)",
-                turn: BLACK,
-                question: "Q. 相手（白）が辺に不用意なウイングを作っています。角を奪う手筋は？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [0, 1], // B1（相手のウイングにクサビを打ち込む）
-                correctReason: "お見事！🎉 相手のウイングの弱点を突き、次の手で角（A1）を確定させる高等手筋です！",
-                mistakes: {
-                    "2,1": {
-                        reason: "緩着です。相手のウイングの欠陥を直接突きましょう。",
-                        cpuResponse: null
-                    }
-                },
-                defaultMistakeReason: "相手の辺の並びの隙間に打ち込む手を探してください。",
-                setup: (b) => {
-                    b[0][2] = WHITE; b[0][3] = WHITE; b[0][4] = WHITE;
-                    b[1][2] = BLACK; b[2][2] = BLACK;
-                    b[3][3] = WHITE; b[4][4] = BLACK;
-                }
+        desc: "相手が辺に不用意なウイングを作った時、あえてCマスにクサビを打ち込んで角を強奪する高等手筋です。",
+        turn: BLACK,
+        question: "Q. 相手（白）が上の辺にウイングを作っています。角（A1）を奪取する手筋は？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [0, 1], // B1（相手のウイングにクサビを打ち込む）
+        correctReason: "お見事！🎉 相手のウイングの欠陥を突き、B1へクサビを打ち込みました！ 白は角に打つことができず、次の手で黒が左上角（A1）を確実に奪取できます！",
+        mistakes: {
+            "2,1": {
+                reason: "緩着です。相手のウイングの隙（B1）に直接打ち込みましょう。",
+                cpuResponse: null
             }
-        ]
+        },
+        defaultMistakeReason: "相手の辺の並びの隙間（B1）に打ち込む手を探してください。",
+        setup: (b) => {
+            b[0][2] = WHITE; b[0][3] = WHITE; b[0][4] = WHITE;
+            b[1][2] = BLACK; b[2][2] = BLACK;
+            b[3][3] = WHITE; b[4][4] = BLACK;
+        }
     },
-    "パリティ": {
+    {
+        id: 5,
         title: "⚖️ 第5問：パリティ（最後の一手独占）",
         diffLabel: "神域・全国名人",
-        variations: [
-            {
-                varIndex: 1,
-                name: "問1 (基本・偶数空きの法則)",
-                turn: BLACK,
-                question: "Q. 右上に【2マス空き（偶数）】があります。あなたから打つべきか、待つべきか？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [6, 2], // C7（別の奇数エリアを打って、偶数空きは相手に打たせる）
-                correctReason: "神域の読み！🎉 『偶数空きは相手から打たせる』！ あなたが別のエリアを打ったことで、白は嫌でも右上を先に打たざるを得ず、最後の一手をあなたが独占できます！",
-                mistakes: {
-                    "0,6": {
-                        reason: "❌ 偶数空きに自分から手を出してしまいました！ 次の手（H1・角）を白に独占されて大敗します。",
-                        cpuResponse: [0, 7] // 白が角独占
-                    }
-                },
-                defaultMistakeReason: "右上の2マス空きに自分から打ってはいけません！",
-                setup: (b) => {
-                    for (let r = 0; r < 8; r++) {
-                        for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
-                    }
-                    b[0][6] = 0; b[0][7] = 0;
-                    b[6][2] = 0; b[5][2] = WHITE;
-                }
-            },
-            {
-                varIndex: 2,
-                name: "問2 (展開・奇数空き先着)",
-                turn: BLACK,
-                question: "Q. 盤面に「1マス空き（奇数）」と「2マス空き（偶数）」があります。どこから打つ？",
-                sub: "手番：あなたの黒番（⚫）",
-                correctMove: [7, 0], // A8（1マス空きの奇数エリアに先着して独占）
-                correctReason: "完全制覇！🎉 『奇数空きは自分から、偶数空きは相手から』の奥義を完全実践！ 完璧なパリティ計算で全宮廷10大豪傑を撃破できる実力です！",
-                mistakes: {
-                    "0,6": {
-                        reason: "❌ 偶数空きに先に手を出してしまい、パリティを相手に奪われました。",
-                        cpuResponse: [0, 7]
-                    }
-                },
-                defaultMistakeReason: "まずは奇数（1マス）空きのエリアを自分の手で確実に埋めましょう。",
-                setup: (b) => {
-                    for (let r = 0; r < 8; r++) {
-                        for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
-                    }
-                    b[0][6] = 0; b[0][7] = 0;
-                    b[7][0] = 0; b[6][0] = WHITE;
-                }
+        desc: "終盤の絶対法則「偶数空きは相手から、奇数空きは自分から」。各エリアの最後の一手を独占して完全勝利します。",
+        turn: BLACK,
+        question: "Q. 右上に【2マス空き（偶数）】があります。あなたから打つべきか、待つべきか？",
+        sub: "手番：あなたの黒番（⚫）",
+        correctMove: [6, 2], // C7（別の奇数エリアを打って、偶数空きは相手に打たせる）
+        correctReason: "神域の読み！🎉 『偶数空きは相手から打たせる』！ あなたが別のエリアを打ったことで、白は嫌でも右上を先に打たざるを得ず、最後の一手（H1角）をあなたが独占できます！",
+        mistakes: {
+            "0,6": {
+                reason: "❌ 偶数空きに自分から手を出してしまいました！ 次の手（H1・角）を白に独占されて大敗します。",
+                cpuResponse: [0, 7] // 白が角独占
             }
-        ]
+        },
+        defaultMistakeReason: "右上の2マス空きに自分から打ってはいけません！ 別のマスを選んで相手に先に打たせましょう。",
+        setup: (b) => {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
+            }
+            b[0][6] = 0; b[0][7] = 0; // 右上2マス空き
+            b[6][2] = 0; b[5][2] = WHITE; // C7が打点
+        }
     }
-};
+];
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
 const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
@@ -633,7 +464,7 @@ function playFlipSequence(count) {
     }
 }
 
-// 👑 王宮ファンファーレ音（ドリル正解時アルペジオ）
+// 👑 王宮ファンファーレ音（検定正解時アルペジオ）
 function playFanfareSound() {
     if (isMuted || document.hidden) return;
     try {
@@ -655,7 +486,7 @@ function playFanfareSound() {
     } catch (e) {}
 }
 
-// ❌ 警告ブザー音（ドリル不正解時）
+// ❌ 警告ブザー音（検定不正解時）
 function playBuzzerSound() {
     if (isMuted || document.hidden) return;
     try {
@@ -1354,6 +1185,8 @@ function startGame() {
     recordGameStep(null, null, "対局開始時の初期配置です。右上(E4)と左下(D5)が黒、左上(D4)と右下(E5)が白です。");
     DOM.royalResultModal.classList.remove("show");
     DOM.endingModal.classList.remove("show");
+    DOM.drillCourseModal.classList.remove("show");
+    DOM.drillCertificateModal.classList.remove("show");
 
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
@@ -1869,7 +1702,7 @@ async function processTurn() {
 
             if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
             else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-            
+
             triggerTurnPulse();
             prefetchPlayerEvaluationsAsync();
         } else {
@@ -2072,11 +1905,10 @@ function drawBoard() {
             cell.dataset.c = c;
 
             if (isDrillMode) {
-                // ドリルモード時のハイライト
-                const topicData = DRILL_TOPICS[currentDrillTopicKey];
-                const currentVar = topicData.variations.find(v => v.varIndex === currentDrillVarIndex) || topicData.variations[0];
-                if (!isSimulatingDrillMistake && canPlace(r, c, currentVar.turn, board)) {
-                    cell.classList.add("can-place", currentVar.turn === BLACK ? "preview-black" : "preview-white");
+                // 検定モード時の打てるマスガイド
+                const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
+                if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
+                    cell.classList.add("can-place", qData.turn === BLACK ? "preview-black" : "preview-white");
                 }
             } else if (!isDemoMode) {
                 if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
@@ -2389,12 +2221,11 @@ function exitBoardVisualDemo() {
 window.exitBoardVisualDemo = exitBoardVisualDemo;
 
 /* ==========================================================================
-  【🎯 宮廷次の一手ドリル（五大奥義・類題特訓エンジン）】
+  【🎯 宮廷次の一手検定（全5大奥義・一本道フローエンジン）】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
     if (!cell) return;
-    // 既存バッジ削除
     cell.querySelectorAll(".drill-mark-badge").forEach(b => b.remove());
 
     const badge = document.createElement("div");
@@ -2411,7 +2242,52 @@ function clearDrillBadges() {
     });
 }
 
-function startDrillMode(topicKey = "Xマス", varIndex = 1) {
+// 📋 コース一覧モーダルを開く
+function openDrillCourseModal() {
+    playPlaceSound();
+    renderDrillCourseList();
+    DOM.drillCourseModal.classList.add("show");
+    document.body.classList.add("modal-open-lock");
+}
+window.openDrillCourseModal = openDrillCourseModal;
+
+function closeDrillCourseModal() {
+    DOM.drillCourseModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+}
+window.closeDrillCourseModal = closeDrillCourseModal;
+
+function openDrillFromTopicKey(topicKey) {
+    const idxMap = { "Xマス": 1, "壁": 2, "中割り": 3, "Cマス": 4, "パリティ": 5 };
+    const qIndex = idxMap[topicKey] || 1;
+    DOM.guideOverlay.classList.remove("show");
+    startDrillQuestion(qIndex);
+}
+window.openDrillFromTopicKey = openDrillFromTopicKey;
+
+function renderDrillCourseList() {
+    if (!DOM.drillCourseList) return;
+    DOM.drillCourseList.innerHTML = DRILL_QUESTIONS.map(q => {
+        const isCleared = !!drillPassedMap[q.id];
+        return `
+            <div class="drill-course-card ${isCleared ? 'cleared' : ''}">
+                <div class="drill-card-info">
+                    <div class="drill-card-title">
+                        <span>${isCleared ? '👑' : '⚔️'} ${q.title}</span>
+                        <span class="drill-card-status">${isCleared ? '【合格】' : `[${q.diffLabel}]`}</span>
+                    </div>
+                    <div class="drill-card-desc">${q.desc}</div>
+                </div>
+                <button type="button" class="btn-start-course" onclick="startDrillQuestion(${q.id})">
+                    ${isCleared ? '復習する ▶' : '挑戦する ▶'}
+                </button>
+            </div>
+        `;
+    }).join("");
+}
+
+// 🎯 指定された問題を出題・盤面ロード
+function startDrillQuestion(qIndex) {
     if (isDemoMode) exitBoardVisualDemo();
     if (isReviewMode) exitReviewMode();
 
@@ -2426,9 +2302,9 @@ function startDrillMode(topicKey = "Xマス", varIndex = 1) {
 
     isDrillMode = true;
     isSimulatingDrillMistake = false;
-    currentDrillTopicKey = DRILL_TOPICS[topicKey] ? topicKey : "Xマス";
-    currentDrillVarIndex = varIndex;
+    currentDrillQuestionIndex = Math.max(1, Math.min(5, qIndex));
 
+    closeDrillCourseModal();
     closeTermPopup();
     DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
@@ -2439,13 +2315,36 @@ function startDrillMode(topicKey = "Xマス", varIndex = 1) {
     playPlaceSound();
     loadDrillQuestion();
 }
-window.startDrillMode = startDrillMode;
+window.startDrillQuestion = startDrillQuestion;
 
-function triggerDrillFromMain() { startDrillMode("Xマス", 1); }
-window.triggerDrillFromMain = triggerDrillFromMain;
+function loadDrillQuestion() {
+    const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
+    if (!qData) return;
 
-function triggerDrillFromTopic(topicKey) { startDrillMode(topicKey, 1); }
-window.triggerDrillFromTopic = triggerDrillFromTopic;
+    DOM.drillTopicBadge.textContent = `🎯 ${qData.title}（第 ${qData.id} 問 / 全 5 問）`;
+    DOM.drillDiffBadge.textContent = qData.diffLabel;
+    DOM.drillQuestionText.textContent = qData.question;
+    const turnColorName = (qData.turn === BLACK) ? "黒番（⚫）" : "白番（⚪）";
+    DOM.drillQuestionSub.textContent = `手番：あなたの${turnColorName}`;
+
+    // ボタングループの初期化
+    DOM.btnDrillRetry.style.display = "none";
+    DOM.btnDrillNextQuestion.style.display = "none";
+    DOM.drillFeedbackBox.className = "drill-feedback-box";
+    DOM.drillFeedbackBox.style.display = "none";
+
+    setStatus("hint-thinking", `🎯 次の一手検定：【第 ${qData.id} 問】${qData.title}`);
+
+    // AIキャラクターからの出題ボイス
+    DOM.speechText.textContent = `【第 ${qData.id} 問】ここが勝負の分岐点じゃ！ 盤面の急所を見極めて打ってみよ！`;
+
+    // 盤面セットアップ
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    qData.setup(board);
+    currentPlayer = qData.turn;
+    drawBoard();
+    clearDrillBadges();
+}
 
 function resetCurrentDrill() {
     playPlaceSound();
@@ -2454,73 +2353,26 @@ function resetCurrentDrill() {
 }
 window.resetCurrentDrill = resetCurrentDrill;
 
-function loadDrillQuestion() {
-    const topicData = DRILL_TOPICS[currentDrillTopicKey];
-    if (!topicData) return;
-
-    const currentVar = topicData.variations.find(v => v.varIndex === currentDrillVarIndex) || topicData.variations[0];
-    currentDrillVarIndex = currentVar.varIndex;
-
-    DOM.drillTopicBadge.textContent = topicData.title;
-    DOM.drillDiffBadge.textContent = topicData.diffLabel;
-
-    // タブの描画
-    [DOM.drillVarTab1, DOM.drillVarTab2, DOM.drillVarTab3].forEach((tab, idx) => {
-        const vNum = idx + 1;
-        const vData = topicData.variations.find(v => v.varIndex === vNum);
-        if (vData) {
-            tab.style.display = "";
-            tab.textContent = vData.name;
-            tab.classList.toggle("active", vNum === currentDrillVarIndex);
-            const isCleared = !!drillClearedMap[`${currentDrillTopicKey}_${vNum}`];
-            tab.classList.toggle("cleared", isCleared);
-        } else {
-            tab.style.display = "none";
-        }
-    });
-
-    DOM.drillQuestionText.textContent = currentVar.question;
-    const turnColorName = (currentVar.turn === BLACK) ? "黒番（⚫）" : "白番（⚪）";
-    DOM.drillQuestionSub.textContent = `手番：あなたの${turnColorName}`;
-
-    DOM.drillFeedbackBox.className = "drill-feedback-box";
-    DOM.drillFeedbackBox.style.display = "none";
-
-    setStatus("hint-thinking", `🎯 次の一手特訓中：【${currentDrillTopicKey}】${currentVar.name}`);
-
-    // 盤面セットアップ
-    board = Array.from({ length: 8 }, () => Array(8).fill(0));
-    currentVar.setup(board);
-    currentPlayer = currentVar.turn;
-    drawBoard();
-    clearDrillBadges();
-}
-
 async function handleDrillCellClick(r, c) {
     if (!isDrillMode || isSimulatingDrillMistake) return;
-    const topicData = DRILL_TOPICS[currentDrillTopicKey];
-    if (!topicData) return;
+    const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
+    if (!qData) return;
 
-    const currentVar = topicData.variations.find(v => v.varIndex === currentDrillVarIndex) || topicData.variations[0];
-    if (!canPlace(r, c, currentVar.turn, board)) return;
+    if (!canPlace(r, c, qData.turn, board)) return;
 
     clearDrillBadges();
 
-    const [cr, cc] = currentVar.correctMove;
+    const [cr, cc] = qData.correctMove;
     const isCorrect = (r === cr && c === cc);
     const key = `${r},${c}`;
 
     if (isCorrect) {
         // 🎉 正解！
         playFanfareSound();
-        drillClearedMap[`${currentDrillTopicKey}_${currentDrillVarIndex}`] = true;
+        drillPassedMap[qData.id] = true;
 
-        // タブに👑を即時反映
-        const activeTab = [DOM.drillVarTab1, DOM.drillVarTab2, DOM.drillVarTab3][currentDrillVarIndex - 1];
-        if (activeTab) activeTab.classList.add("cleared");
-
-        // 着手実行
-        makeMove(board, r, c, currentVar.turn);
+        // あなたの正解手を実行
+        makeMove(board, r, c, qData.turn);
         drawBoard();
 
         const placedCell = getBoardCell(r, c);
@@ -2531,8 +2383,18 @@ async function handleDrillCellClick(r, c) {
 
         DOM.drillFeedbackBox.className = "drill-feedback-box correct";
         DOM.drillFeedbackTitle.textContent = "正解！🎉 お見事です！";
-        DOM.drillFeedbackReason.innerHTML = currentVar.correctReason;
+        DOM.drillFeedbackReason.innerHTML = qData.correctReason;
 
+        // 次へ進むボタンを大きく表示
+        DOM.btnDrillRetry.style.display = "none";
+        DOM.btnDrillNextQuestion.style.display = "inline-block";
+        if (currentDrillQuestionIndex >= 5) {
+            DOM.btnDrillNextQuestion.textContent = "🏆 免許皆伝の合格証を受け取る！";
+        } else {
+            DOM.btnDrillNextQuestion.textContent = `次の 第${currentDrillQuestionIndex + 1}問 へ進む ▶`;
+        }
+
+        DOM.speechText.textContent = "素晴らしい！ まさに定石通りの急所じゃ！ 相手の逃げ道を完全に塞いだぞ！";
         setStatus("win", "🎉 正解！ 奥義の手筋を完全に体得しました！");
     } else {
         // ❌ 不正解
@@ -2540,7 +2402,7 @@ async function handleDrillCellClick(r, c) {
         isSimulatingDrillMistake = true;
 
         // あなたの悪手を実行
-        makeMove(board, r, c, currentVar.turn);
+        makeMove(board, r, c, qData.turn);
         drawBoard();
 
         const placedCell = getBoardCell(r, c);
@@ -2549,19 +2411,23 @@ async function handleDrillCellClick(r, c) {
             addDrillBadge(r, c, "player", "❌ あなたの手");
         }
 
-        const mistakeInfo = (currentVar.mistakes && currentVar.mistakes[key]) || null;
-        const reasonText = mistakeInfo ? mistakeInfo.reason : currentVar.defaultMistakeReason;
+        const mistakeInfo = (qData.mistakes && qData.mistakes[key]) || null;
+        const reasonText = mistakeInfo ? mistakeInfo.reason : qData.defaultMistakeReason;
 
         DOM.drillFeedbackBox.className = "drill-feedback-box wrong";
         DOM.drillFeedbackTitle.textContent = "惜しい！❌ 悪手でした";
         DOM.drillFeedbackReason.innerHTML = reasonText;
 
+        // もう一度やり直すボタンを表示
+        DOM.btnDrillRetry.style.display = "inline-block";
+        DOM.btnDrillNextQuestion.style.display = "none";
+
         // 相手の反撃シミュレーション
         if (mistakeInfo && mistakeInfo.cpuResponse) {
             await sleep(750);
             const [cpur, cpuc] = mistakeInfo.cpuResponse;
-            if (canPlace(cpur, cpuc, opposite(currentVar.turn), board)) {
-                makeMove(board, cpur, cpuc, opposite(currentVar.turn));
+            if (canPlace(cpur, cpuc, opposite(qData.turn), board)) {
+                makeMove(board, cpur, cpuc, opposite(qData.turn));
                 playPlaceSound();
                 drawBoard();
 
@@ -2576,35 +2442,41 @@ async function handleDrillCellClick(r, c) {
             }
         }
 
-        setStatus("lose", "⚠️ 隙が生じました！ 解説を読んで「もう一度解く ↺」を押してください。");
+        DOM.speechText.textContent = "あちゃー！ 隙を見せてしもうた！ 解説を読んで「もう一度やり直す ↺」を押すのじゃ！";
+        setStatus("lose", "⚠️ 隙が生じました！ 解説を読んで「もう一度やり直す ↺」を押してください。");
         isSimulatingDrillMistake = false;
     }
 }
 
-function selectDrillVariation(varIndex) {
+// 🎯 次の問題へ進む（全5問クリア時は合格証モーダルへ）
+function advanceNextDrillQuestion() {
     playPlaceSound();
-    currentDrillVarIndex = varIndex;
-    loadDrillQuestion();
-}
-window.selectDrillVariation = selectDrillVariation;
-
-function nextDrillVariation() {
-    playPlaceSound();
-    const topicData = DRILL_TOPICS[currentDrillTopicKey];
-    if (!topicData) return;
-
-    if (currentDrillVarIndex < topicData.variations.length) {
-        currentDrillVarIndex++;
+    if (currentDrillQuestionIndex >= 5) {
+        // 🏆 全問制覇！
+        exitDrillMode();
+        DOM.drillCertificateModal.classList.add("show");
+        document.body.classList.add("modal-open-lock");
     } else {
-        // 次のテーマへ進む
-        const allKeys = Object.keys(DRILL_TOPICS);
-        const curIdx = allKeys.indexOf(currentDrillTopicKey);
-        currentDrillTopicKey = allKeys[(curIdx + 1) % allKeys.length];
-        currentDrillVarIndex = 1;
+        startDrillQuestion(currentDrillQuestionIndex + 1);
     }
-    loadDrillQuestion();
 }
-window.nextDrillVariation = nextDrillVariation;
+window.advanceNextDrillQuestion = advanceNextDrillQuestion;
+
+function closeCertificateModal() {
+    DOM.drillCertificateModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+}
+window.closeCertificateModal = closeCertificateModal;
+
+function closeCertificateAndChallengeKing() {
+    closeCertificateModal();
+    DOM.characterSelect.value = "10"; // 老賢王オルレアン
+    DOM.hintMode.value = "off"; // 自力真剣勝負
+    updateOpponentStageUI(true);
+    updateHintModeUI();
+    startGame();
+}
+window.closeCertificateAndChallengeKing = closeCertificateAndChallengeKing;
 
 function exitDrillMode() {
     if (!isDrillMode || !savedBoardStateForDrill) return;
@@ -2695,8 +2567,8 @@ if (DOM.termPopupDemoBtn) {
 if (DOM.termPopupDrillBtn) {
     DOM.termPopupDrillBtn.addEventListener("click", () => {
         if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
-        const topic = TERMS_DICTIONARY[activePopupTerm].drillTopic || "Xマス";
-        startDrillMode(topic, 1);
+        const qIdx = TERMS_DICTIONARY[activePopupTerm].drillIndex || 1;
+        startDrillQuestion(qIdx);
     });
 }
 
