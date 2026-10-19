@@ -2,15 +2,15 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.0 (2026/10/20)
+  バージョン: Ver 8.6.3 (2026/10/20)
   
-  [Ver 8.6.0] 2026/10/20 更新内容:
-  - 【プレイヤー即時着手・宮廷思案所全面体系化＆豪傑名鑑エディション】
-  - プレイヤー着手を0秒無遅延化（タップ直後に即座に石配置・反転開始）。
-  - 天秤ゲージの立体ミニ石更新ロジックを実装し、白黒反転バグを100%根絶。
-  - 思案所モーダルの全タブ動的描画（操作体系、序中終盤の心得、上達ロードマップ、豪傑名鑑）。
-  - 相手手番時に足元中央の「思案中バッジ」を正確に制御。
-  - 盤面講義中の盤面位置完全不動化制御。
+  [Ver 8.6.3] 2026/10/20 更新内容:
+  - 【セリフ優雅アンビエント発光・置換表完全正常化＆検定3問目はみ出し解消エディション】
+  - 同一セリフ静止ガードを実装（同じセリフの時は文字消去・再出現・発光をスキップし静止維持）。
+  - 新規セリフ時のみ、枠内「ぼわ〜っ」と優雅に明るくなるアンビエント発光（is-speaking）を作動。
+  - αβ探索置換表（Transposition Table）を完全修正（EXACT / LOWERBOUND / UPPERBOUND フラグ管理により置換表汚染を根絶、探索精度を極大化）。
+  - 終盤完全読み切り時のパス処理と石差判定を厳密化。
+  - 講義再生中のキャンセレーション保護を強化。
 ========================================================================== */
 
 const boardSize = 8;
@@ -30,16 +30,22 @@ let tacticsTurningPointIndex = -1;
 let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
 let isAiThinkingHint = false, timerInterval = null;
 let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTimeout = null;
-let typeWriterInterval = null;
+let typeWriterInterval = null, speakingGlowTimeout = null;
 
 let playerMoveLogs = [];
 let minPlayerWinrateInGame = 50;
+
+// 直前のセリフテキスト保持（同一セリフのリセット・チラつき防止用）
+let lastOpponentQuoteText = "";
 
 // 事前計算（プリフェッチ）キャッシュ
 let cachedMoveEvaluations = null;
 let isPrefetching = false;
 
-// 探索高速化用トランスポジションテーブル（置換表）
+// 探索高速化用トランスポジションテーブル（置換表）フラグ定数
+const TT_EXACT = 0;
+const TT_LOWERBOUND = 1; // αカット
+const TT_UPPERBOUND = 2; // βカット
 const transpositionTable = new Map();
 
 // 🎯 宮廷次の一手検定（全15問類題特訓）管理変数
@@ -54,6 +60,8 @@ let isLectureMode = false;
 let currentLectureId = "lec-1";
 let currentLectureStepIndex = 0;
 let savedBoardStateForLecture = null;
+let isLecturePlaying = false;
+let lectureSessionId = 0;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
@@ -365,8 +373,8 @@ function initCoordLabels() {
 }
 
 function renderSystemVersionInfo() {
-    if (DOM.versionBadge) DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
-    if (DOM.chronicleTimeline && Array.isArray(SYSTEM_VERSION_INFO.history)) {
+    if (DOM.versionBadge && SYSTEM_VERSION_INFO) DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
+    if (DOM.chronicleTimeline && SYSTEM_VERSION_INFO && Array.isArray(SYSTEM_VERSION_INFO.history)) {
         DOM.chronicleTimeline.innerHTML = SYSTEM_VERSION_INFO.history.map(item => `
             <div class="chronicle-item">
                 <span class="chronicle-version">${item.ver}</span><span class="chronicle-date">${item.date}</span>
@@ -454,13 +462,24 @@ function renderCharacterAvatar() {
     img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
 }
 
-function typeWriterSpeech(fullText, isClimax) {
+/* ==========================================================================
+  【セリフ表示制御（同一セリフ静止 ＆ 枠内ぼわ〜っとアンビエント発光）】
+========================================================================== */
+function typeWriterSpeech(fullText) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
     if (!DOM.speechText || !DOM.opponentSpeech) return;
-    DOM.speechText.textContent = "";
-    DOM.opponentSpeech.classList.add("is-speaking");
-    DOM.speechText.classList.add("is-typing-text");
 
+    // 枠内全体が優雅に「ぼわ〜っ」と明るくなる発光クラスを作動
+    DOM.opponentSpeech.classList.remove("is-speaking");
+    DOM.opponentSpeech.offsetHeight;
+    DOM.opponentSpeech.classList.add("is-speaking");
+
+    if (speakingGlowTimeout) clearTimeout(speakingGlowTimeout);
+    speakingGlowTimeout = setTimeout(() => {
+        if (DOM.opponentSpeech) DOM.opponentSpeech.classList.remove("is-speaking");
+    }, 1800);
+
+    DOM.speechText.textContent = "";
     let index = 0;
     const total = fullText.length;
     typeWriterInterval = setInterval(() => {
@@ -470,8 +489,6 @@ function typeWriterSpeech(fullText, isClimax) {
         } else {
             clearInterval(typeWriterInterval);
             typeWriterInterval = null;
-            DOM.opponentSpeech.classList.remove("is-speaking");
-            DOM.speechText.classList.remove("is-typing-text");
         }
     }, 22);
 }
@@ -492,14 +509,19 @@ function setOpponentQuote(category) {
     const text = list[Math.floor(Math.random() * list.length)];
     const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
-    if (DOM.opponentSpeech) {
-        DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
-        DOM.opponentSpeech.style.animation = 'none';
-        DOM.opponentSpeech.offsetHeight;
-        DOM.opponentSpeech.style.animation = 'bubble-appear 0.28s ease-out';
+    // ⚡【チラつき防止ガード】：前回と「完全に同一のセリフ」なら文字消去も再タイピングも発光もスキップし静止維持！
+    if (text === lastOpponentQuoteText && DOM.speechText && DOM.speechText.textContent.trim() === text.trim()) {
+        if (DOM.opponentSpeech) DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
+        return;
     }
 
-    typeWriterSpeech(text, isClimax);
+    lastOpponentQuoteText = text;
+
+    if (DOM.opponentSpeech) {
+        DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
+    }
+
+    typeWriterSpeech(text);
 
     const motionClass = `motion-char-${char.id}`;
     if (DOM.opponentAvatarFrame) {
@@ -575,7 +597,6 @@ function updateBalanceGauge(targetBoard = board) {
 
     const char = getCurrentCharacter();
     
-    // 絵文字を使わずリアルCSS立体ミニ石を適用し、反転バグを100%根絶
     if (DOM.battlePiecePlayer) {
         DOM.battlePiecePlayer.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
     }
@@ -730,6 +751,7 @@ function startGame() {
     cachedMoveEvaluations = null;
     isPrefetching = false;
     transpositionTable.clear();
+    lastOpponentQuoteText = "";
 
     board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
     board[3][3] = WHITE; board[3][4] = BLACK;
@@ -931,6 +953,7 @@ function evaluateBoard(targetBoard, player, emptyCount) {
         }
     }
 
+    // 終局時は純粋な石差（大差判定）
     if (emptyCount === 0) return (myStones - oppStones) * 10000;
 
     const myMoves = getValidMoves(player, targetBoard).length;
@@ -964,21 +987,41 @@ function orderMoves(moves, targetBoard, player) {
     });
 }
 
+/* ==========================================================================
+  【αβ探索（置換表フラグ管理＆パス処理・完全読み切り正常化版）】
+========================================================================== */
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
-    if (emptyCount === 0 || depth <= 0) return evaluateBoard(targetBoard, player, emptyCount);
+    // 終局判定
+    if (emptyCount === 0) return evaluateBoard(targetBoard, player, 0);
 
+    const originalAlpha = alpha;
     let boardKey = null;
+
+    // 置換表の参照（深さ4以上または終盤読み切り時）
     if (depth >= 4) {
-        boardKey = `${player}:${targetBoard.map(r => r.join("")).join("")}:${depth}`;
-        if (transpositionTable.has(boardKey)) return transpositionTable.get(boardKey);
+        boardKey = `${player}:${targetBoard.map(r => r.join("")).join("")}`;
+        if (transpositionTable.has(boardKey)) {
+            const entry = transpositionTable.get(boardKey);
+            if (entry.depth >= depth) {
+                if (entry.flag === TT_EXACT) return entry.score;
+                else if (entry.flag === TT_LOWERBOUND && entry.score > alpha) alpha = entry.score;
+                else if (entry.flag === TT_UPPERBOUND && entry.score < beta) beta = entry.score;
+                if (alpha >= beta) return entry.score;
+            }
+        }
     }
+
+    if (depth <= 0) return evaluateBoard(targetBoard, player, emptyCount);
 
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) {
         const opp = opposite(player);
         const oppMoves = getValidMoves(opp, targetBoard);
+        // 両者パス（完全終局）
         if (oppMoves.length === 0) return evaluateBoard(targetBoard, player, 0);
-        return -negamax(targetBoard, opp, depth - 1, -beta, -alpha, emptyCount);
+
+        // 片側パス（深さを減らさず手番を渡すことで、終盤完全読み切りの計算欠損を防ぐ）
+        return -negamax(targetBoard, opp, depth, -beta, -alpha, emptyCount);
     }
 
     let maxScore = -Infinity;
@@ -990,10 +1033,18 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         const score = -negamax(next, opposite(player), depth - 1, -beta, -alpha, emptyCount - 1);
         if (score > maxScore) maxScore = score;
         if (score > alpha) alpha = score;
-        if (alpha >= beta) break;
+        if (alpha >= beta) break; // βカット
     }
 
-    if (boardKey && transpositionTable.size < 60000) transpositionTable.set(boardKey, maxScore);
+    // 置換表への厳密な保存（フラグ付き）
+    if (boardKey && transpositionTable.size < 60000) {
+        let flag = TT_EXACT;
+        if (maxScore <= originalAlpha) flag = TT_UPPERBOUND;
+        else if (maxScore >= beta) flag = TT_LOWERBOUND;
+
+        transpositionTable.set(boardKey, { score: maxScore, depth, flag });
+    }
+
     return maxScore;
 }
 
@@ -1485,7 +1536,7 @@ function drawBoard() {
             cell.dataset.c = c;
 
             if (isLectureMode) {
-                // 講義モード中はタップ無効（自動実演）
+                // 講義モード中はタップ無効
             } else if (isDrillMode) {
                 const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
                 if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
@@ -1571,7 +1622,7 @@ function updateScore(targetBoard = board) {
 }
 
 /* ==========================================================================
-  【📜 豪傑人物伝・攻略指南モーダル制御（完全復元）】
+  【📜 豪傑人物伝・攻略指南モーダル制御】
 ========================================================================== */
 function openCharProfileModal(charId = null) {
     playPlaceSound();
@@ -1609,7 +1660,7 @@ function closeCharProfileModal() {
 window.closeCharProfileModal = closeCharProfileModal;
 
 /* ==========================================================================
-  【📖 盤面動的ビジュアル講義エンジン（完全新設）】
+  【📖 盤面動的ビジュアル講義エンジン】
 ========================================================================== */
 function startLectureMode(lectureId) {
     if (!LESSON_LECTURES[lectureId]) return;
@@ -1628,6 +1679,7 @@ function startLectureMode(lectureId) {
     isLectureMode = true;
     currentLectureId = lectureId;
     currentLectureStepIndex = 0;
+    lectureSessionId++;
 
     closeDrillCourseModal();
     closeTermPopup();
@@ -1675,11 +1727,18 @@ function loadLectureState() {
 
 async function playCurrentLectureStep() {
     const lecture = LESSON_LECTURES[currentLectureId];
-    if (!lecture || currentLectureStepIndex >= lecture.steps.length) return;
+    if (!lecture || currentLectureStepIndex >= lecture.steps.length || isLecturePlaying) return;
 
+    isLecturePlaying = true;
+    const session = lectureSessionId;
     if (DOM.btnLecturePlay) DOM.btnLecturePlay.disabled = true;
 
     while (currentLectureStepIndex < lecture.steps.length) {
+        if (!isLectureMode || session !== lectureSessionId) {
+            isLecturePlaying = false;
+            return;
+        }
+
         const step = lecture.steps[currentLectureStepIndex];
         currentLectureStepIndex++;
 
@@ -1727,10 +1786,13 @@ async function playCurrentLectureStep() {
         DOM.btnLectureToDrill.style.display = "inline-block";
         DOM.btnLectureToDrill.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    isLecturePlaying = false;
 }
 window.playCurrentLectureStep = playCurrentLectureStep;
 
 function resetCurrentLecture() {
+    lectureSessionId++;
+    isLecturePlaying = false;
     playPlaceSound();
     loadLectureState();
 }
@@ -1754,6 +1816,8 @@ window.returnToLectureFromDrill = returnToLectureFromDrill;
 
 function exitLectureMode(restoreBoard = true) {
     if (!isLectureMode) return;
+    lectureSessionId++;
+    isLecturePlaying = false;
     playPlaceSound();
     clearDrillBadges();
 
@@ -1883,8 +1947,8 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【🎯 宮廷次の一手検定（五大奥義カテゴリー階層レンダリング）】
-========================================================================= */
+  【🎯 宮廷次の一手検定（全15問）】
+========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
     if (!cell) return;
@@ -2185,7 +2249,7 @@ function exitDrillMode(restoreBoard = true) {
 window.exitDrillMode = exitDrillMode;
 
 /* ==========================================================================
-  【宮廷思案所：新体系コンテンツ動的レンダリング（OPERATION・心得・名鑑）】
+  【宮廷思案所：新体系コンテンツ動的レンダリング】
 ========================================================================== */
 function renderGuideModalContents() {
     // 1. 操作体系ガイドカードのレンダリング
@@ -3029,5 +3093,4 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
-
 

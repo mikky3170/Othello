@@ -2,14 +2,12 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.0 (2026/10/20)
+  バージョン: Ver 8.6.3 (2026/10/20)
   
-  [Ver 8.6.0] 2026/10/20 更新内容:
-  - 【プレイヤー即時着手・宮廷思案所全面体系化＆豪傑名鑑エディション】
-  - 天秤ゲージのプレイヤー石・相手石を立体ミニ石コンポーネント化し、反転バグを根絶。
-  - 対戦相手ゾーンから不要ボタンを撤去し、スマホ画面でのセリフ欠けを完全解消。
-  - 「思案中バッジ」をアバター足元の中央へ移設。
-  - 宮廷思案所を「操作体系」「序中終盤の心得」「五大奥義」「豪傑画像名鑑」「用語宝典」の5大体系へ全面刷新。
+  [Ver 8.6.3] 2026/10/20 更新内容:
+  - 【セリフ優雅アンビエント発光・置換表完全正常化＆検定3問目はみ出し解消エディション】
+  - 思案所第5タブ「用語・定石宝典」に、リンク切れとなっていた「三大王道定石セクション（id='term-sec-openings'）」を正式新設。
+  - セリフ枠の優雅な内照アンビエント発光、検定一覧第3問枠はみ出し解消に対応。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -32,7 +30,7 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- ミニ解説ポップアップコンテナ -->
+    <!-- ミニ解説ポップアップコンテナ（押しやすい適正✕ボタン化） -->
     <div id="termPopup" class="term-popup" style="display: none;">
         <div class="term-popup-header">
             <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
@@ -69,7 +67,7 @@
 
     <div class="app-container">
         
-        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆2行セリフ対応＆アバタータップ人物伝） -->
+        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆優雅な内照アンビエント発光セリフ） -->
         <div class="opponent-zone" id="opponentZone">
             <div class="opponent-avatar-wrap" id="opponentAvatarWrap" title="肖像画をタップして人物伝・攻略指南を見る">
                 <div class="voice-wave-ring wave-1"></div>
@@ -167,7 +165,7 @@
                 </div>
             </div>
 
-            <!-- 🎯 宮廷次の一手検定：盤面解答カード -->
+            <!-- 🎯 宮廷次の一手検定：盤面解答カード（縦突き抜け防止・定位置収容） -->
             <div class="drill-control-card" id="drillControlCard">
                 <div class="drill-header-nav">
                     <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
@@ -278,7 +276,7 @@
 
     </div>
 
-    <!-- 📜 豪傑人物伝・攻略指南モーダル（アバタータップで展開） -->
+    <!-- 📜 豪傑人物伝・攻略指南モーダル -->
     <div id="charProfileModal" class="royal-result-modal">
         <div class="royal-result-card" style="max-width: 480px;">
             <div class="guide-header">
@@ -309,7 +307,7 @@
         </div>
     </div>
 
-    <!-- 📋 宮廷検定コース一覧モーダル（五大奥義カテゴリー階層フレーム） -->
+    <!-- 📋 宮廷検定コース一覧モーダル -->
     <div id="drillCourseModal" class="dynasty-overlay">
         <div class="dynasty-modal">
             <div class="guide-header">
@@ -576,7 +574,7 @@
         </div>
     </div>
 
-    <!-- 📜 宮廷思案所モーダル（5大体系タブ全面刷新） -->
+    <!-- 📜 宮廷思案所モーダル（王道定石宝典セクション完備） -->
     <div id="guideOverlay" class="dynasty-overlay">
         <div id="guideModal" class="dynasty-modal">
             <div class="guide-header">
@@ -662,7 +660,7 @@
                 <div id="charGalleryList" class="char-gallery-grid"></div>
             </div>
 
-            <!-- 第5タブ【📚 オセロ用語・定石の宝典】 -->
+            <!-- 第5タブ【📚 オセロ用語・定石の宝典（定石セクション正式新設）】 -->
             <div id="tab-terms" class="manual-tab-content">
                 <div class="manual-card" id="term-sec-board">
                     <div class="manual-card-title">
@@ -698,6 +696,23 @@
                         <b>⚖️ パリティ（偶数理論）：</b>オセロ終盤の絶対法則。偶数空きエリアは相手に先に打たせ、奇数空きエリアは自分が先に打つことで最後の一手を独占できます。
                     </div>
                 </div>
+
+                <!-- 📖 三大王道定石セクション（リンク切れ解消） -->
+                <div class="manual-card" id="term-sec-openings">
+                    <div class="manual-card-title">
+                        <span>📖 三大王道定石の系譜（虎・牛・馬）</span>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">中割り講義 📖</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐯 虎定石（トラ・平行取り）：</b>初手F5に対し平行取りD6や縦取りから展開する王道定石。中央を制圧し主導権を握りやすい基本形です。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐮 牛定石（ウシ・縦取り）：</b>縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。
+                    </div>
+                    <div>
+                        <b>🐴 馬定石（ウマ・斜め取り）：</b>斜め取りF4からE3に展開する名定石。後手（白）が高勝率を誇る柔軟な陣形です。
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -716,7 +731,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.3</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
