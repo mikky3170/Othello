@@ -43,10 +43,12 @@
   [Ver 7.1.0] 2026/10/19 : 【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】
   [Ver 7.2.0] 2026/10/19 : 【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】
   [Ver 7.3.0] 2026/10/19 : 【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】
-    - 実際の対局振り返り（棋譜検証・カルテ）とお手本解説（用語デモ）の役割を完全分離。対局盤面が勝手に上書きされて迷子になる問題を根本根絶。
-    - 盤面を覆い尽くしていた長文バッジを全廃。マス自体の美しい発光と最小限の記号（👑角・⚠️X・🎯ここ）のみに絞り、スマホでの文字重なりを完全解消。
-    - 「Xマス」「中割り」「壁」「パリティ」の全4大テーマで、「1.局面 ➔ 2.着手 ➔ 3.結果」の3ステップ連動アニメーションを完全実装。
-    - 解説カード上部にテーマ切り替えバーを新設し、思案所を開き直さずに次々と重要手筋を連続学習可能に。
+  [Ver 7.3.1] 2026/10/19 : 【AI肖像画・縦長特大オーバル化＆セリフ2行完全対応・デモ操作系完全直結エディション】
+    - AI肖像画（アバター）をクラシカルな気品漂う「縦長特大オーバル（楕円額縁）」へ美装大型化（高さ約1.25倍に拡張）。
+    - AIセリフ吹き出しの固定高さを撤廃し、スマホで2行に改行されても文字欠けせずゆったり読める可変レイアウトへ改修。
+    - 対戦相手ゾーン（.opponent-zone）の縦幅を下方向へ自然に拡張。
+    - お手本デモ操作ボタン群に直接 onclick 属性を付与し、z-index 最前面化でクリック遮断不具合を完全根絶。
+    - 思案所の錬金術師ニコラ紹介文のタイポをクリーンアップ。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -350,13 +352,14 @@
         .badge-sym-parity-even { background: #0284c7; color: #ffffff; border: 1px solid #bae6fd; }
         .badge-sym-c-sq { background: #d97706; color: #ffffff; border: 1px solid #fef3c7; font-size: 7.5px; }
 
-        /* 3ステップ紙芝居型 特製ビジュアル解説カード */
+        /* 3ステップ紙芝居型 特製ビジュアル解説カード（最前面化＆クリック遮断排除） */
         .demo-guide-card {
             display: none; width: min(calc(100vw - 8px), 480px);
             background: linear-gradient(145deg, rgba(22, 26, 36, 0.98) 0%, rgba(12, 14, 20, 0.99) 100%);
             border: 2px solid #ffd700; border-radius: 12px; padding: 8px 10px; margin-top: 4px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 18px rgba(255, 215, 0, 0.4);
-            flex-direction: column; gap: 4px; text-align: left; z-index: 120;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.5);
+            flex-direction: column; gap: 4px; text-align: left;
+            z-index: 500 !important; position: relative; pointer-events: auto !important;
             animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
         }
         .demo-guide-card.show { display: flex; }
@@ -367,15 +370,15 @@
         }
         .demo-nav-btn {
             background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(212, 167, 72, 0.4);
-            color: #ffd700; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 4px;
+            color: #ffd700; font-size: 9.5px; font-weight: 800; padding: 3px 8px; border-radius: 4px;
             cursor: pointer; transition: all 0.2s ease;
         }
-        .demo-nav-btn:hover { background: #ffd700; color: #121008; }
+        .demo-nav-btn:hover { background: #ffd700; color: #121008; transform: translateY(-1px); }
         .demo-theme-title { font-size: 12px; font-weight: 900; color: #fff4bd; }
 
         .demo-step-tabs { display: flex; gap: 4px; margin-top: 1px; }
         .demo-step-tab {
-            flex: 1; text-align: center; font-size: 9.5px; font-weight: 800; padding: 2px 0;
+            flex: 1; text-align: center; font-size: 9.5px; font-weight: 800; padding: 2.5px 0;
             background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.3);
             border-radius: 4px; color: #c2b49a; cursor: pointer; transition: all 0.2s ease;
         }
@@ -391,13 +394,13 @@
 
         .demo-guide-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 3px; pt: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); }
         .demo-btn-sim {
-            font-size: 10px; font-weight: 900; padding: 3px 10px; border-radius: 5px;
+            font-size: 10px; font-weight: 900; padding: 4px 12px; border-radius: 5px;
             background: linear-gradient(180deg, #3a2e16 0%, #1c1507 100%); color: #ffd700;
             border: 1.5px solid #ffd700; cursor: pointer; transition: all 0.2s ease;
         }
-        .demo-btn-sim:hover { background: #ffd700; color: #121008; }
+        .demo-btn-sim:hover { background: #ffd700; color: #121008; transform: translateY(-1px); }
         .demo-btn-exit-main {
-            font-size: 10px; font-weight: 900; padding: 3px 10px; border-radius: 5px;
+            font-size: 10px; font-weight: 900; padding: 4px 12px; border-radius: 5px;
             background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.8);
         }
@@ -454,11 +457,11 @@
             min-height: 0; padding: 0; overscroll-behavior: none;
         }
 
-        /* ゾーン①：対戦相手ゾーン */
+        /* ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆セリフ2行対応） */
         .opponent-zone {
             width: min(98vw, 440px); display: flex; align-items: center; gap: 10px;
-            padding: clamp(3px, 0.6dvh, 5px) 8px;
-            height: clamp(86px, 12dvh, 96px); max-height: clamp(86px, 12dvh, 96px);
+            padding: clamp(4px, 0.8dvh, 7px) 9px;
+            height: clamp(104px, 14dvh, 116px); max-height: clamp(104px, 14dvh, 116px);
             background: linear-gradient(135deg, rgba(22, 26, 36, 0.92) 0%, rgba(10, 12, 18, 0.96) 100%);
             border: 2.5px solid var(--char-accent); border-radius: 12px;
             box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75), 0 0 12px var(--char-glow);
@@ -467,7 +470,7 @@
         }
 
         @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
-            .opponent-zone { width: min(92vw, 680px); height: 106px; max-height: 106px; padding: 6px 12px; }
+            .opponent-zone { width: min(92vw, 680px); height: 124px; max-height: 124px; padding: 8px 14px; }
         }
 
         .opponent-avatar-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -476,10 +479,11 @@
         .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) 0.2s forwards; }
         @keyframes oval-voice-ripple { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.4, 1.28); opacity: 0; } }
 
+        /* 👑 気品ある縦長特大オーバル（楕円額縁）肖像 */
         .opponent-avatar-frame {
-            width: clamp(62px, 15vw, 70px); height: clamp(74px, 17vw, 86px); border-radius: 50%;
-            border: 3px solid var(--char-accent);
-            box-shadow: 0 0 0 2px #38240f, 0 0 14px var(--char-glow), inset 0 0 8px rgba(0, 0, 0, 0.9);
+            width: clamp(72px, 17vw, 84px); height: clamp(94px, 20vw, 108px); border-radius: 50%;
+            border: 3.5px solid var(--char-accent);
+            box-shadow: 0 0 0 2px #38240f, 0 0 16px var(--char-glow), inset 0 0 10px rgba(0, 0, 0, 0.9);
             background: radial-gradient(ellipse at 40% 35%, #3a3224 0%, #171510 65%, #080705 100%);
             position: relative; z-index: 2; transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
             display: flex; align-items: center; justify-content: center;
@@ -491,12 +495,12 @@
         }
 
         @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
-            .opponent-avatar-frame { width: 78px; height: 96px; }
+            .opponent-avatar-frame { width: 92px; height: 118px; }
         }
 
         .avatar-img-box { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85); }
         .avatar-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .avatar-fallback-icon { font-size: 30px; color: #ffd700; }
+        .avatar-fallback-icon { font-size: 34px; color: #ffd700; }
 
         .opponent-avatar-frame.thinking-aura { animation: oval-aura 1.8s infinite alternate ease-in-out !important; }
         @keyframes oval-aura { from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); } to { box-shadow: 0 0 0 3.5px var(--char-accent), 0 0 26px var(--char-glow); } }
@@ -509,7 +513,7 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); line-height: 1.2; z-index: 3;
         }
 
-        .opponent-info-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2px; height: 100%; overflow: hidden; }
+        .opponent-info-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2.5px; height: 100%; overflow: hidden; }
         .opponent-header-row { display: flex; align-items: center; justify-content: space-between; }
         .opponent-name-group { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
         .opponent-name { font-size: 13px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
@@ -546,17 +550,18 @@
             box-shadow: inset 1px 1px 2px #ffffff, 0 2px 4px rgba(0,0,0,0.6);
         }
 
-        /* 吹き出し枠 */
+        /* 💬 2行完全対応・ゆったりセリフ吹き出し枠 */
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.45); border-radius: 7px; border-top-left-radius: 2px;
-            padding: 3px 8px; font-size: 10.5px; line-height: 1.35; color: #f7eed8;
+            padding: 3px 8px; font-size: 10px; line-height: 1.35; color: #f7eed8;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); position: relative; white-space: normal;
-            word-break: break-all; animation: bubble-appear 0.28s ease-out; height: 30px;
+            word-break: break-all; animation: bubble-appear 0.28s ease-out;
+            min-height: 38px; height: auto; max-height: 44px;
             display: flex; align-items: center; overflow: hidden;
         }
         .opponent-speech-bubble::before {
-            content: ""; position: absolute; left: -5px; top: 10px; width: 0; height: 0;
+            content: ""; position: absolute; left: -5px; top: 12px; width: 0; height: 0;
             border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
         }
 
@@ -978,7 +983,7 @@
         .stats-col-title { font-size: 9px; color: #bfa882; font-weight: 700; }
         .stats-col-val { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 900; color: #fff4bd; display: inline-flex; align-items: center; gap: 4px; }
 
-        /* 📜 新設：AI戦局総括ストーリータイムライン */
+        /* 📜 AI戦局総括ストーリータイムライン */
         .ai-tactics-carte {
             background: linear-gradient(135deg, rgba(28, 24, 18, 0.94) 0%, rgba(14, 12, 10, 0.97) 100%);
             border: 1.5px solid rgba(212, 167, 72, 0.55); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; text-align: left;
@@ -1285,7 +1290,7 @@
             #board { width: min(72dvh, 45vw); height: min(72dvh, 45vw); }
             .battle-gauge-container { width: min(72dvh, 45vw); margin-top: 0; }
             .opponent-zone { order: 3; width: clamp(280px, 24vw, 360px); height: auto; max-height: none; }
-            .opponent-avatar-frame { width: clamp(74px, 7.5vw, 86px); height: clamp(98px, 10vw, 114px); }
+            .opponent-avatar-frame { width: clamp(84px, 8.5vw, 98px); height: clamp(110px, 11vw, 128px); }
         }
     </style>
 </head>
@@ -1331,7 +1336,7 @@
 
     <div class="app-container">
         
-        <!-- ゾーン①：対戦相手ゾーン -->
+        <!-- ゾーン①：対戦相手ゾーン（縦長オーバル肖像＆2行セリフ対応） -->
         <div class="opponent-zone" id="opponentZone">
             <div class="opponent-avatar-wrap" id="opponentAvatarWrap">
                 <div class="voice-wave-ring wave-1"></div>
@@ -1402,18 +1407,18 @@
                 </div>
             </div>
 
-            <!-- 3ステップ紙芝居型 特製ビジュアル解説カード -->
+            <!-- 3ステップ紙芝居型 特製ビジュアル解説カード（直接onclick直結＆最前面化） -->
             <div class="demo-guide-card" id="demoGuideCard">
                 <div class="demo-theme-nav-bar">
-                    <button type="button" class="demo-nav-btn" id="btnDemoPrevTheme">◀ 前のテーマ</button>
+                    <button type="button" class="demo-nav-btn" id="btnDemoPrevTheme" onclick="prevDemoTheme()">◀ 前のテーマ</button>
                     <span class="demo-theme-title" id="demoThemeNavTitle">⚠️ Xマスと角の攻防 (1/4)</span>
-                    <button type="button" class="demo-nav-btn" id="btnDemoNextTheme">次のテーマ ▶</button>
+                    <button type="button" class="demo-nav-btn" id="btnDemoNextTheme" onclick="nextDemoTheme()">次のテーマ ▶</button>
                 </div>
 
                 <div class="demo-step-tabs" id="demoStepTabs">
-                    <button type="button" class="demo-step-tab active" id="demoStepTab1">1. 局面（狙い）</button>
-                    <button type="button" class="demo-step-tab" id="demoStepTab2">2. 着手（反転）</button>
-                    <button type="button" class="demo-step-tab" id="demoStepTab3">3. 結果（理由）</button>
+                    <button type="button" class="demo-step-tab active" id="demoStepTab1" onclick="selectDemoStep(1)">1. 局面（狙い）</button>
+                    <button type="button" class="demo-step-tab" id="demoStepTab2" onclick="selectDemoStep(2)">2. 着手（反転）</button>
+                    <button type="button" class="demo-step-tab" id="demoStepTab3" onclick="selectDemoStep(3)">3. 結果（理由）</button>
                 </div>
 
                 <div class="demo-guide-body">
@@ -1423,8 +1428,8 @@
                 </div>
 
                 <div class="demo-guide-actions">
-                    <button type="button" class="demo-btn-sim" id="btnDemoNextStep">次のステップを見る ▶</button>
-                    <button type="button" class="demo-btn-exit-main" id="btnExitDemoMain">対局に戻る ✕</button>
+                    <button type="button" class="demo-btn-sim" id="btnDemoNextStep" onclick="nextDemoStep()">次のステップを見る ▶</button>
+                    <button type="button" class="demo-btn-exit-main" id="btnExitDemoMain" onclick="exitBoardVisualDemo()">対局に戻る ✕</button>
                 </div>
             </div>
         </div>
@@ -1797,7 +1802,7 @@
                     </div>
                 </div>
                 <div class="manual-char-card">
-                    <div class="manual-char-avatar-mini"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';http://localhost:8080'"><span style="font-size:28px;">🔮</span></div>
+                    <div class="manual-char-avatar-mini"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';this.parentElement.textContent='🔮'"></div>
                     <div class="manual-char-info">
                         <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 錬金術師 ニコラ <span class="manual-strength-tag">【初中級・アマ4級】</span></div>
                         <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 錬金実験室 / 盤：スレート鉱物盤 / 石：紫水晶 × 黄鉄鉱</div>
@@ -1958,7 +1963,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.3.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.3.1</div>
     </footer>
 
     <div class="bottom-safe-space"></div>

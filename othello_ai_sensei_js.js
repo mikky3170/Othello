@@ -1,20 +1,23 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 7.3.0 (2026/10/19)
+  バージョン: Ver 7.3.1 (2026/10/19)
   
-  [Ver 7.3.0] 2026/10/19 更新内容:
-  - 【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】
-  - 実際の対局振り返り（棋譜検証・カルテ）とお手本解説（用語デモ）の役割を完全分離。対局盤面が勝手に上書きされて迷子になる問題を根本根絶。
-  - 盤面を覆い尽くしていた長文バッジを全廃。マス自体の美しい発光と最小限の記号（👑角・⚠️X・🎯ここ）のみに絞り、スマホでの文字重なりを完全解消。
-  - 「Xマス」「中割り」「壁」「パリティ」の全4大テーマで、「1.局面 ➔ 2.着手 ➔ 3.結果」の3ステップ連動アニメーションを完全実装。
-  - 解説カード上部にテーマ切り替えバーを新設し、思案所を開き直さずに次々と重要手筋を連続学習可能に。
+  [Ver 7.3.1] 2026/10/19 更新内容:
+  - 【AI肖像画・縦長特大オーバル化＆セリフ2行完全対応・デモ操作系完全直結エディション】
+  - お手本デモ操作関数（nextDemoStep, prevDemoTheme, nextDemoTheme, selectDemoStep, exitBoardVisualDemo）をグローバル（window）に完全公開。HTMLの onclick 属性と強固に直結し、ボタンが動かない不具合を完全根絶。
+  - デモ操作時に小気味よい効果音フィードバック（playPlaceSound）を付与。
+  - AIセリフ2行化に対応し、長文セリフでも文字欠けせず最後まで美しくパルス表示。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 7.3.0",
+    version: "Ver 7.3.1",
     date: "2026/10/19",
     history: [
+        {
+            ver: "Ver 7.3.1", date: "2026/10/19",
+            desc: "【AI肖像画・縦長特大オーバル化＆セリフ2行完全対応・デモ操作系完全直結エディション】AI肖像画を気品ある縦長特大オーバル額縁（高さ約1.25倍）へ美装大型化。セリフ枠を2行可変レイアウトへ改修し文字欠けを撲滅。お手本デモ操作ボタンの直結化とタップ音付与により操作不具合を完全解決。"
+        },
         {
             ver: "Ver 7.3.0", date: "2026/10/19",
             desc: "【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】実際の対局の振り返りと、用意されたお手本パターンの役割を完全分離。マスを覆う長文バッジを全廃し、3ステップ紙芝居型アニメーションで『Xマス』『中割り』『壁』『パリティ』の因果関係が目に見えて理解できるように抜本改善。"
@@ -26,10 +29,6 @@ const SYSTEM_VERSION_INFO = {
         {
             ver: "Ver 7.1.0", date: "2026/10/19",
             desc: "【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】枠の金パルスを廃止しセリフ文字全体の呼吸点滅演出へ。盤面直下に状況・理由・格言が読める指南カードを新設。"
-        },
-        {
-            ver: "Ver 7.0.0", date: "2026/10/19",
-            desc: "【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】ルカ、ニコラ、ジュリアン、フェルディナントが正式参戦し全10階位が完成。"
         }
     ]
 };
@@ -259,7 +258,7 @@ const DEMO_SCENARIOS = {
                 setup: (b) => {
                     b[2][2] = BLACK; b[3][3] = WHITE; b[3][4] = BLACK;
                     b[4][3] = BLACK; b[4][4] = WHITE;
-                    b[1][1] = BLACK; // Xマス
+                    b[1][1] = BLACK;
                 }
             },
             {
@@ -435,7 +434,7 @@ const DEMO_SCENARIOS = {
                     for (let r = 0; r < 8; r++) {
                         for (let c = 0; c < 8; c++) b[r][c] = (r + c) % 2 === 0 ? BLACK : WHITE;
                     }
-                    b[0][6] = 0; b[0][7] = 0; // 2マス空き
+                    b[0][6] = 0; b[0][7] = 0;
                 }
             },
             {
@@ -1641,7 +1640,6 @@ async function putStone(row, col) {
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
 
-    // 相手の着手可能マスの変化（客観的メトリクス）
     const oppMovesBefore = getValidMoves(cpuColor, boardBefore).length;
 
     let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
@@ -1662,7 +1660,6 @@ async function putStone(row, col) {
 
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
-    // 着手後の相手の選択肢数
     const oppMovesAfter = getValidMoves(cpuColor, board).length;
     const mobilityDelta = oppMovesAfter - oppMovesBefore;
 
@@ -2000,7 +1997,6 @@ function drawBoard() {
                     }
                 }
             } else {
-                // 👁️ デモモード時のマス専用ハイライト適用
                 applyDemoCellHighlights(cell, r, c);
             }
 
@@ -2060,7 +2056,7 @@ function updateScore(targetBoard = board) {
 }
 
 /* ==========================================================================
-  【新設：ストーリー型戦局総括＆勝負の分岐点生成エンジン】
+  【ストーリー型戦局総括＆勝負の分岐点生成エンジン】
 ========================================================================== */
 function generateTacticsStory(isWin, isDraw, hStones, cStones) {
     if (playerMoveLogs.length === 0) {
@@ -2165,7 +2161,6 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
     };
 }
 
-/* 実際の対局・棋譜検証モードの特定の手へワンタップジャンプ */
 function jumpToReviewStep(stepIndex) {
     if (stepIndex < 0 || stepIndex >= gameStepLogs.length) return;
     DOM.royalResultModal.classList.remove("show");
@@ -2176,7 +2171,7 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【👁️ 3ステップ紙芝居型 盤面ビジュアル解説モード（抜本再構築）】
+  【👁️ 3ステップ紙芝居型 盤面ビジュアル解説モード（完全グローバル直結）】
 ========================================================================== */
 function applyDemoCellHighlights(cell, r, c) {
     const themeKey = DEMO_THEMES[currentDemoThemeIndex];
@@ -2189,7 +2184,6 @@ function applyDemoCellHighlights(cell, r, c) {
 
     cell.classList.add(`demo-cell-${hit.type}`);
 
-    // マスの中央に最小限の記号マークを美しく表示（文字重なりを完全排除）
     const badge = document.createElement("div");
     badge.className = `demo-symbol-badge badge-sym-${hit.type}`;
     badge.textContent = hit.label;
@@ -2218,8 +2212,10 @@ function triggerBoardVisualDemo(themeName) {
     DOM.normalControlCard.style.display = "none";
     DOM.demoGuideCard.classList.add("show");
 
+    playPlaceSound();
     updateDemoGuideUI();
 }
+window.triggerBoardVisualDemo = triggerBoardVisualDemo;
 
 function updateDemoGuideUI() {
     const themeKey = DEMO_THEMES[currentDemoThemeIndex];
@@ -2247,24 +2243,38 @@ function updateDemoGuideUI() {
 }
 
 function nextDemoStep() {
+    playPlaceSound();
     currentDemoStep = (currentDemoStep >= 3) ? 1 : currentDemoStep + 1;
     updateDemoGuideUI();
 }
+window.nextDemoStep = nextDemoStep;
+
+function selectDemoStep(stepNum) {
+    playPlaceSound();
+    currentDemoStep = Math.max(1, Math.min(3, stepNum));
+    updateDemoGuideUI();
+}
+window.selectDemoStep = selectDemoStep;
 
 function prevDemoTheme() {
+    playPlaceSound();
     currentDemoThemeIndex = (currentDemoThemeIndex - 1 + DEMO_THEMES.length) % DEMO_THEMES.length;
     currentDemoStep = 1;
     updateDemoGuideUI();
 }
+window.prevDemoTheme = prevDemoTheme;
 
 function nextDemoTheme() {
+    playPlaceSound();
     currentDemoThemeIndex = (currentDemoThemeIndex + 1) % DEMO_THEMES.length;
     currentDemoStep = 1;
     updateDemoGuideUI();
 }
+window.nextDemoTheme = nextDemoTheme;
 
 function exitBoardVisualDemo() {
     if (!isDemoMode || !savedBoardStateForDemo) return;
+    playPlaceSound();
     board = cloneBoard(savedBoardStateForDemo.board);
     currentPlayer = savedBoardStateForDemo.currentPlayer;
     lastMove = savedBoardStateForDemo.lastMove;
@@ -2283,20 +2293,10 @@ function exitBoardVisualDemo() {
     updateBalanceGauge();
     updateUndoButtonState();
 }
-
-if (DOM.btnExitDemoMain) DOM.btnExitDemoMain.addEventListener("click", exitBoardVisualDemo);
-if (DOM.btnDemoNextStep) DOM.btnDemoNextStep.addEventListener("click", nextDemoStep);
-if (DOM.btnDemoPrevTheme) DOM.btnDemoPrevTheme.addEventListener("click", prevDemoTheme);
-if (DOM.btnDemoNextTheme) DOM.btnDemoNextTheme.addEventListener("click", nextDemoTheme);
-
-if (DOM.demoStepTab1) DOM.demoStepTab1.addEventListener("click", () => { currentDemoStep = 1; updateDemoGuideUI(); });
-if (DOM.demoStepTab2) DOM.demoStepTab2.addEventListener("click", () => { currentDemoStep = 2; updateDemoGuideUI(); });
-if (DOM.demoStepTab3) DOM.demoStepTab3.addEventListener("click", () => { currentDemoStep = 3; updateDemoGuideUI(); });
-
-window.triggerBoardVisualDemo = triggerBoardVisualDemo;
+window.exitBoardVisualDemo = exitBoardVisualDemo;
 
 /* ==========================================================================
-  【ミニ解説ポップアップ（対局盤面を壊さない安全設計）】
+  【ミニ解説ポップアップ】
 ========================================================================= */
 let activePopupTerm = null;
 
@@ -2308,7 +2308,6 @@ function showTermPopup(termKey, event) {
     DOM.termPopupTitle.textContent = termData.title;
     DOM.termPopupBody.textContent = termData.desc;
 
-    // 対局中・レビューモード時はデモボタンを非表示にし、対局盤面の上書き事故を完全防止
     if (gameOver || isReviewMode) {
         DOM.termPopupDemoBtn.style.display = "none";
     } else {
