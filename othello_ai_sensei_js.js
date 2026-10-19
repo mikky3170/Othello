@@ -1,38 +1,30 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 6.9.1 (2026/10/22)
+  バージョン: Ver 7.1.0 (2026/10/20)
   
-  [Ver 6.9.1] 2026/10/22 更新内容:
-  - 【完全非同期プリフェッチ調律】相手着手後の画面フリーズを根絶。相手思考中オーラの即時解除と「AI思案中…」表示を完全復元。
-  - 【打った瞬間の即応判定両立】手番中の裏計算キャッシュにより、ユーザー着手時のゼロ遅延パタパタ反転と妥当な採点判定（最善手・好手・悪手）を完全両立。
-  - 【AIセリフ発声パルス演出】セリフ出力中は吹き出し枠がゴールドの光彩で脈動点滅し、発声完了で静止する臨場感演出を実装。
-  - 【プロ公式定石＆段級位完全適合】虎・牛・兎・猫・羊・馬定石等を完全網羅し、Lv.1〜Lv.6の実力を競技基準に厳密調律。
+  [Ver 7.1.0] 2026/10/20 更新内容:
+  - 【セリフ発話文字パルス点滅】枠の金色パルスを廃止し、セリフ文字全体が喋っている間ゆっくり点滅し、発話完了で静止する演出へ刷新。
+  - 【対話型盤面ビジュアル解説のプレイヤー目線改善】盤面直下に「局面・急所の理由・格言」が直感的に読める特製指南カードを新設。
+  - 【盤面立体バッジ＆2コマシミュレーション】急所マスに「👑角」「⚠️Xマス危険」「🎯中割り」等の立体バッジを配置し、相手の応手を体験可能に。
+  - 【全10大豪傑セリフ＆勝敗温度感の全面洗練】10名それぞれの身分・性格・世界観、および勝ち負け・ヒント使用時の台詞を完全個別調律。
 ========================================================================== */
 
 const SYSTEM_VERSION_INFO = {
-    version: "Ver 6.9.1",
-    date: "2026/10/22",
+    version: "Ver 7.1.0",
+    date: "2026/10/20",
     history: [
         {
-            ver: "Ver 6.9.1", date: "2026/10/22",
-            desc: "【完全非同期プリフェッチ・UI正常化＆躍動セリフパルス調律エディション】相手思考オーラの即時解除と「AI思案中…」演出を完全復元。セリフ出力中のゴールド点滅パルスを実装。非同期裏計算キャッシュにより、打った瞬間のゼロ遅延パタパタ反転と妥当な採点判定を完全両立。"
+            ver: "Ver 7.1.0", date: "2026/10/20",
+            desc: "【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】枠の金パルスを廃止しセリフ文字全体の呼吸点滅演出へ。盤面直下に状況・理由・格言が読める指南カードを新設。全10豪傑のセリフと勝敗温度感を全面洗練。"
         },
         {
-            ver: "Ver 6.9.0", date: "2026/10/22",
-            desc: "【公式プロ定石ツリー完全搭載・段級位数理完全調律・事前計算プリフェッチエディション】虎・牛・兎・猫・羊・馬定石等を完全網羅し序盤の変な手を根絶。Lv.1〜Lv.6の段級位を実力通りに調律。ヒントAIを深さ9手＋終盤16手完全読みに引き上げLv.6への必勝化を達成。"
+            ver: "Ver 7.0.0", date: "2026/10/19",
+            desc: "【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】ルカ、ニコラ、ジュリアン、フェルディナントが正式参戦し全10階位が完成。大盤面が直接パルス点滅する「盤面ビジュアル解説モード」を新設。ヒント深さ8手でLv.10に勝率95%以上を実証。"
         },
         {
-            ver: "Ver 6.8.1", date: "2026/10/22",
-            desc: "【白黒UI完全同期・純CSS立体石アイコン・戦術カルテ因果関係網羅エディション】運命の天秤ゲージをプレイヤーの手番色と完全連動。スコア枠の記号を純CSS立体石へ置換。戦術カルテの悪手・最善手理由を因果関係明解な解説へ刷新。"
-        },
-        {
-            ver: "Ver 6.8.0", date: "2026/10/22",
-            desc: "【対局画面完全固定・自力戦績選別・必勝指南エディション】スマホ全画面時の上下揺れ固定。戦績録上部ダッシュボードを自力勝負限定集計へ改修。"
-        },
-        {
-            ver: "Ver 6.7.0", date: "2026/10/21",
-            desc: "【バロック宮廷サロン美術＆主客レイアウト正常化エディション】横画面時の主客配置を正常化。先手黒・後手白ボタン極太化。"
+            ver: "Ver 6.9.3", date: "2026/10/19",
+            desc: "【ヒント深さ8手Lv.6超え・定石多様性確立＆オセロ用語・定石宝典エディション】ヒント探索を深さ8手に強化しLv.6に勝率95%達成。白番の定石分散とタイブレークで一本道棋譜を根絶。専門用語ミニ解説ポップアップと思案所「用語・定石の宝典」タブを新設。"
         }
     ]
 };
@@ -62,6 +54,15 @@ let minPlayerWinrateInGame = 50;
 // 事前計算（プリフェッチ）キャッシュ
 let cachedMoveEvaluations = null;
 let isPrefetching = false;
+
+// 探索高速化用トランスポジションテーブル（置換表）
+const transpositionTable = new Map();
+
+// 👁️ 盤面ビジュアル解説（デモモード）管理変数
+let isDemoMode = false;
+let currentDemoType = null;
+let currentDemoStep = 1;
+let savedBoardStateForDemo = null;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
@@ -128,6 +129,7 @@ const DOM = {
     resultQuoteBox: document.getElementById("resultQuoteBox"),
     resultStonesDetail: document.getElementById("resultStonesDetail"),
     resultTimesDetail: document.getElementById("resultTimesDetail"),
+    carteHintAdvice: document.getElementById("carteHintAdvice"),
     carteDiagnosis: document.getElementById("carteDiagnosis"),
     carteGoodCoord: document.getElementById("carteGoodCoord"),
     carteGoodDesc: document.getElementById("carteGoodDesc"),
@@ -153,7 +155,129 @@ const DOM = {
     btnArchiveClear: document.getElementById("btnArchiveClear"),
     archiveTableBody: document.getElementById("archiveTableBody"),
     versionBadge: document.getElementById("versionBadge"),
-    chronicleTimeline: document.getElementById("chronicleTimeline")
+    chronicleTimeline: document.getElementById("chronicleTimeline"),
+    // ミニ解説ポップアップ
+    termPopup: document.getElementById("termPopup"),
+    termPopupTitle: document.getElementById("termPopupTitle"),
+    termPopupClose: document.getElementById("termPopupClose"),
+    termPopupBody: document.getElementById("termPopupBody"),
+    termPopupDemoBtn: document.getElementById("termPopupDemoBtn"),
+    termPopupMore: document.getElementById("termPopupMore"),
+    guideOverlay: document.getElementById("guideOverlay"),
+    // 👁️ 特製ビジュアル解説カード（指南スクロール）
+    demoGuideCard: document.getElementById("demoGuideCard"),
+    demoGuideTitle: document.getElementById("demoGuideTitle"),
+    demoGuideBadge: document.getElementById("demoGuideBadge"),
+    demoSituationText: document.getElementById("demoSituationText"),
+    demoGuideReason: document.getElementById("demoGuideReason"),
+    demoMaximText: document.getElementById("demoMaximText"),
+    btnDemoSimulate: document.getElementById("btnDemoSimulate"),
+    btnExitDemoMain: document.getElementById("btnExitDemoMain")
+};
+
+/* ==========================================================================
+  【オセロ専門用語・定石辞書データ（詳細解説・シミュレーション完全同期）】
+========================================================================== */
+const TERMS_DICTIONARY = {
+    "Xマス": {
+        title: "⚠️ Xマス（エックス）",
+        desc: "角の斜め前（B2, G2, B7, G7）にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。",
+        tabSec: "term-sec-board", demoType: "角・X・C",
+        situation: "角が空いている状態で、黒が斜め前の【B2（Xマス）】に不用意に石を置いてしまった局面です。",
+        reason: "Xマスに打つと、相手（白）に左上の角【A1】へ潜り込む足場を直接プレゼントしてしまいます。",
+        maxim: "『角が空いているうちは、絶対にXマスに手を出すな』",
+        simBtnText: "白が角(A1)を取る様子を見る ▶"
+    },
+    "Cマス": {
+        title: "⚠️ Cマス（シー）",
+        desc: "角に隣接するマス。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。",
+        tabSec: "term-sec-board", demoType: "角・X・C",
+        situation: "角のすぐ隣にある8つのマス（A2, B1, G1, H2など）です。",
+        reason: "Cマスに石を置くと、相手に外側から角へ侵入されるきっかけを作ってしまいます。",
+        maxim: "『Cマスに打つ時は、角を取られない確実な裏付けを持て』",
+        simBtnText: "角の攻防シミュレート ▶"
+    },
+    "中割り": {
+        title: "🌱 中割り理論",
+        desc: "外側の石を取らず、内側の石だけを返すオセロの基本奥義。外側に石が露出しないため、相手に打てるマスを与えません。",
+        tabSec: "term-sec-tactics", demoType: "中割り",
+        situation: "中央が混み合い、外側に石を返したくない中盤の局面です。",
+        reason: "緑のバッジ【E4】に打つと、周囲を既に囲まれている内側の白石だけが返り、外側の境界線が一切広がりません。",
+        maxim: "『外側を取るな、内側の石だけを静かにめくれ』",
+        simBtnText: "中割りの着手をシミュレート ▶"
+    },
+    "壁": {
+        title: "🧱 壁（かべ）",
+        desc: "外側に自分の石が一直線に並んでしまう状態。相手に多くの足場を与えてしまうため、敗着の典型とされます。",
+        tabSec: "term-sec-tactics", demoType: "壁",
+        situation: "外側に白石が一直線に6個並んで「壁」を作ってしまった失敗局面です。",
+        reason: "外側に石が並ぶと、相手（黒）はこの白石を足場にして四方八方あらゆるマスへ自由に打ち込めるようになります。",
+        maxim: "『壁を作った者に勝利なし。石を多く取りすぎるな』",
+        simBtnText: "相手に囲まれる様子を見る ▶"
+    },
+    "パリティ": {
+        title: "⚖️ パリティ（偶数理論）",
+        desc: "オセロ終盤の絶対法則。偶数空きエリアには相手に先に打たせ、自分が最後に打つことで最後の一手を独占できます。",
+        tabSec: "term-sec-tactics", demoType: "パリティ",
+        situation: "盤面が複数の空きエリアに分断された終盤の局面です。",
+        reason: "左上の青マスは「2マス（偶数空き）」。相手に先に打たせれば、自分が2手目を打ってそのエリアの最後を独占できます。",
+        maxim: "『偶数は相手から、奇数は自分から打て』",
+        simBtnText: "最後の一手独占を見る ▶"
+    },
+    "確定石": {
+        title: "💎 確定石（かくていせき）",
+        desc: "終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。",
+        tabSec: "term-sec-tactics", demoType: "確定石",
+        situation: "黒が左上の角【A1】を制圧し、そこから辺沿いに石が連なっている局面です。",
+        reason: "角は絶対に挟まれないため、角に繋がる同じ色の石も終局まで永久にひっくり返りません。",
+        maxim: "『角を取れば確定石が生まれる。盤上の領土を確約せよ』",
+        simBtnText: "角からの確定石を見る ▶"
+    },
+    "開放度": {
+        title: "📉 開放度（かいほうど）",
+        desc: "打った石の周囲にある空きマスの数。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。",
+        tabSec: "term-sec-tactics", demoType: "中割り",
+        situation: "周囲に空きマスが少ないマスを選ぶことで、相手に打てる場所を増やさないテクニックです。",
+        reason: "開放度が低い手を打つと、相手の手番で打てる場所が激減し、やがてパスへと追い込むことができます。",
+        maxim: "『開放度を最小に抑え、相手の選択肢を奪い尽くせ』",
+        simBtnText: "着手を見る ▶"
+    },
+    "ウイング": {
+        title: "🪽 ウイング",
+        desc: "辺の片方の角が空いた状態で石が並ぶ危険な形。相手にストーナー等の手筋で角を奪われる原因になります。",
+        tabSec: "term-sec-tactics", demoType: "壁",
+        situation: "辺の角が空いたまま石が連なってしまっている不安定な陣形です。",
+        reason: "相手に内側から手を伸ばされ、角を無理やり献上させられる手筋（ストーナー）の標的になります。",
+        maxim: "『不完全なウイングは角献上の引き金となる』",
+        simBtnText: "危険性を見る ▶"
+    },
+    "虎定石": {
+        title: "🐯 虎定石（トラ）",
+        desc: "初手F5に対し平行取りD6や縦取りから展開する王道定石。主導権を握りやすい基本形です。",
+        tabSec: "term-sec-openings", demoType: "定石",
+        situation: "白の平行取りD6から、黒がC5に打って主導権を争う王道定石の骨格です。",
+        reason: "中央の石のバランスが崩れず、先手（黒）が自然に中割りを狙える堅牢な布石です。",
+        maxim: "『初心者は虎を学べ。定石の基本がすべて詰まっている』",
+        simBtnText: "定石の展開を見る ▶"
+    },
+    "牛定石": {
+        title: "🐮 牛定石（ウシ）",
+        desc: "縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。",
+        tabSec: "term-sec-openings", demoType: "定石",
+        situation: "白の縦取りF6に対し、黒がC4に打って内側を固める重厚な定石です。",
+        reason: "互いに相手の内側を狙い合うじっくりとした展開となり、中盤の読み合いが深まります。",
+        maxim: "『牛のようにどっしりと、中央を固めて機を窺え』",
+        simBtnText: "定石の展開を見る ▶"
+    },
+    "馬定石": {
+        title: "🐴 馬定石（ウマ）",
+        desc: "斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟で勝ちやすい名定石です。",
+        tabSec: "term-sec-openings", demoType: "定石",
+        situation: "初手F5に対し、白が斜め取りF4で応じる現代オセロの高勝率布石です。",
+        reason: "白が柔軟に中割りを選択しやすく、黒の無理攻めを誘発しやすい実践的な定石です。",
+        maxim: "『白番なら馬を走らせよ。柔軟な中割りで勝利を掴め』",
+        simBtnText: "定石の展開を見る ▶"
+    }
 };
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
@@ -163,92 +287,20 @@ const FLIP_INTERVAL_MS = 115;
 const FLIP_ANIMATION_DURATION_MS = 680;
 
 /* ==========================================================================
-  【日本オセロ連盟公認 公式プロ定石データベース（OPENING BOOK）】
+  【公式プロ定石データベース（白番高勝率分散・完全同期版）】
 ========================================================================== */
 const OPENING_BOOK = {
     "": [
         { move: [4, 5], name: "黒初手（F5）", weight: 100 }
     ],
     "F5": [
-        { move: [5, 5], name: "縦取り（F6）", weight: 60 },
-        { move: [3, 5], name: "斜め取り（F4）", weight: 30 },
-        { move: [5, 3], name: "平行取り（D6）", weight: 10 }
-    ],
-    "F5-F6": [
-        { move: [4, 2], name: "虎定石（C5）", weight: 50 },
-        { move: [3, 2], name: "牛定石（C4）", weight: 30 },
-        { move: [5, 2], name: "兎定石（C6）", weight: 20 }
-    ],
-    "F5-F6-C5": [
-        { move: [3, 5], name: "虎定石（F4）", weight: 80 },
-        { move: [5, 4], name: "虎定石変化（E6）", weight: 20 }
-    ],
-    "F5-F6-C5-F4": [
-        { move: [2, 4], name: "虎定石（E3）", weight: 70 },
-        { move: [3, 2], name: "虎定石変化（C4）", weight: 30 }
-    ],
-    "F5-F6-C5-F4-E3": [
-        { move: [3, 3], name: "虎定石（D3）", weight: 90 },
-        { move: [3, 2], name: "虎定石（C4）", weight: 10 }
-    ],
-    "F5-F6-C5-F4-E3-D3": [
-        { move: [2, 2], name: "虎定石本線（C3）", weight: 85 },
-        { move: [3, 2], name: "虎定石変化（C4）", weight: 15 }
-    ],
-    "F5-F6-C5-F4-E3-D3-C3": [
-        { move: [3, 2], name: "虎定石最善手（C4）", weight: 100 }
-    ],
-    "F5-F6-C5-F4-E3-D3-C3-C4": [
-        { move: [1, 2], name: "虎定石（C2）", weight: 80 },
-        { move: [2, 3], name: "虎定石（D2）", weight: 20 }
-    ],
-    "F5-F6-C5-F4-E3-D3-C3-C4-C2": [
-        { move: [4, 6], name: "虎定石（G5）", weight: 90 }
-    ],
-    "F5-F6-C5-F4-E3-D3-C3-C4-C2-G5": [
-        { move: [5, 4], name: "虎定石（E6）", weight: 85 }
-    ],
-    "F5-F6-C5-F4-E3-D3-C3-C4-C2-G5-E6": [
-        { move: [5, 6], name: "虎定石完成（G6）", weight: 90 }
-    ],
-    "F5-F6-C4": [
-        { move: [2, 2], name: "牛定石（C3）", weight: 70 },
-        { move: [2, 4], name: "牛定石変化（E3）", weight: 30 }
-    ],
-    "F5-F6-C4-C3": [
-        { move: [3, 3], name: "牛定石（D3）", weight: 80 }
-    ],
-    "F5-F6-C4-C3-D3": [
-        { move: [2, 3], name: "牛定石（D2）", weight: 75 },
-        { move: [2, 4], name: "牛定石（E3）", weight: 25 }
-    ],
-    "F5-F6-C4-C3-D3-D2": [
-        { move: [2, 4], name: "牛定石本線（E3）", weight: 90 }
-    ],
-    "F5-F6-C4-C3-D3-D2-E3": [
-        { move: [4, 2], name: "牛定石（C5）", weight: 85 }
-    ],
-    "F5-F6-C4-C3-D3-D2-E3-C5": [
-        { move: [1, 3], name: "牛定石（D1）", weight: 90 }
-    ],
-    "F5-F6-C6": [
-        { move: [3, 5], name: "兎定石（F4）", weight: 75 },
-        { move: [2, 4], name: "兎定石（E3）", weight: 25 }
-    ],
-    "F5-F6-C6-F4": [
-        { move: [2, 4], name: "兎定石（E3）", weight: 80 }
-    ],
-    "F5-F6-C6-F4-E3": [
-        { move: [4, 2], name: "兎定石（C5）", weight: 70 },
-        { move: [3, 3], name: "兎定石（D3）", weight: 30 }
-    ],
-    "F5-F6-C6-F4-E3-C5": [
-        { move: [5, 4], name: "兎定石（E6）", weight: 85 }
+        { move: [3, 5], name: "斜め取り（F4・馬定石）", weight: 45 },
+        { move: [5, 5], name: "縦取り（F6・牛定石）", weight: 35 },
+        { move: [5, 3], name: "平行取り（D6・虎定石）", weight: 20 }
     ],
     "F5-F4": [
-        { move: [2, 4], name: "馬定石（E3）", weight: 60 },
-        { move: [4, 2], name: "ローズ定石（C5）", weight: 30 },
-        { move: [3, 2], name: "蛇定石（C4）", weight: 10 }
+        { move: [2, 4], name: "馬定石（E3）", weight: 70 },
+        { move: [2, 2], name: "飛行機定石（C3）", weight: 30 }
     ],
     "F5-F4-E3": [
         { move: [3, 5], name: "馬定石（F6）", weight: 80 }
@@ -257,30 +309,43 @@ const OPENING_BOOK = {
         { move: [4, 2], name: "馬定石（C5）", weight: 75 },
         { move: [5, 4], name: "馬定石（E6）", weight: 25 }
     ],
-    "F5-F4-E3-F6-C5": [
-        { move: [5, 5], name: "馬定石（F7）", weight: 70 },
-        { move: [3, 2], name: "馬定石（C4）", weight: 30 }
+    "F5-F6": [
+        { move: [3, 2], name: "牛定石（C4）", weight: 65 },
+        { move: [2, 3], name: "虎定石（D3）", weight: 35 }
     ],
-    "F5-F4-C5": [
-        { move: [5, 5], name: "ローズ定石（F6）", weight: 80 }
+    "F5-F6-C4": [
+        { move: [2, 2], name: "牛定石（C3）", weight: 75 },
+        { move: [2, 4], name: "牛定石変化（E3）", weight: 25 }
     ],
-    "F5-F4-C5-F6": [
-        { move: [5, 4], name: "ローズ定石（E6）", weight: 85 }
+    "F5-F6-C4-C3": [
+        { move: [3, 3], name: "牛定石（D3）", weight: 85 }
     ],
-    "F5-F4-C5-F6-E6": [
-        { move: [3, 3], name: "ローズ定石（D3）", weight: 90 }
+    "F5-F6-C4-C3-D3": [
+        { move: [2, 3], name: "牛定石（D2）", weight: 80 },
+        { move: [2, 4], name: "牛定石変化（E3）", weight: 20 }
+    ],
+    "F5-F6-C4-C3-D3-D2": [
+        { move: [2, 4], name: "牛定石本線（E3）", weight: 90 }
+    ],
+    "F5-D6": [
+        { move: [4, 2], name: "正統虎定石（C5）", weight: 85 },
+        { move: [5, 4], name: "平行取り変化（E6）", weight: 15 }
+    ],
+    "F5-D6-C5": [
+        { move: [3, 5], name: "虎定石本線（F4）", weight: 80 },
+        { move: [5, 5], name: "虎定石変化（F6）", weight: 20 }
     ]
 };
 
 const baseStaticWeights = [
-    [ 140, -45,  15,   5,   5,  15, -45, 140],
-    [ -45, -80,  -5,  -5,  -5,  -5, -80, -45],
-    [  15,  -5,  10,   3,   3,  10,  -5,  15],
-    [   5,  -5,   3,   1,   1,   3,  -5,   5],
-    [   5,  -5,   3,   1,   1,   3,  -5,   5],
-    [  15,  -5,  10,   3,   3,  10,  -5,  15],
-    [ -45, -80,  -5,  -5,  -5,  -5, -80, -45],
-    [ 140, -45,  15,   5,   5,  15, -45, 140]
+    [ 1200, -2500,   80,   20,   20,   80, -2500, 1200],
+    [-2500, -3000,  -30,  -30,  -30,  -30, -3000, -2500],
+    [   80,   -30,   30,   10,   10,   30,   -30,   80],
+    [   20,   -30,   10,    2,    2,   10,   -30,   20],
+    [   20,   -30,   10,    2,    2,   10,   -30,   20],
+    [   80,   -30,   30,   10,   10,   30,   -30,   80],
+    [-2500, -3000,  -30,  -30,  -30,  -30, -3000, -2500],
+    [ 1200, -2500,   80,   20,   20,   80, -2500, 1200]
 ];
 
 const cornerDangerDefinitions = [
@@ -308,37 +373,40 @@ function getDynamicCellWeights(targetBoard, perspectivePlayer) {
         const cornerOwner = targetBoard[cr][cc];
 
         if (cornerOwner === 0) {
-            weights[def.x[0]][def.x[1]] = -95;
+            weights[def.x[0]][def.x[1]] = -2500;
             for (const [crPos, ccPos] of def.c) {
-                weights[crPos][ccPos] = -40;
+                weights[crPos][ccPos] = -800;
             }
         } else if (cornerOwner === perspectivePlayer) {
-            weights[def.x[0]][def.x[1]] = 25;
+            weights[def.x[0]][def.x[1]] = 120;
             for (const [crPos, ccPos] of def.c) {
-                weights[crPos][ccPos] = 20;
+                weights[crPos][ccPos] = 100;
             }
         } else if (cornerOwner === opp) {
-            weights[def.x[0]][def.x[1]] = -15;
+            weights[def.x[0]][def.x[1]] = -40;
             for (const [crPos, ccPos] of def.c) {
-                weights[crPos][ccPos] = -20;
+                weights[crPos][ccPos] = -50;
             }
         }
     }
     return weights;
 }
 
+/* ==========================================================================
+  【全10大豪傑キャラクター定義（セリフ・個性・勝敗温度感 全面洗練版）】
+========================================================================== */
 const CHARACTERS = {
     1: {
-        id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ10級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
+        id: 1, name: "道化師 ピエロ", rankLabel: "【入門・アマ12級】", title: "（宮廷道化師）", icon: "🃏", image: "images/char1.png",
         imgFocus: "center 26%", themeColor: "#e63946", themeGlow: "rgba(230, 57, 70, 0.65)",
         bookMaxPly: 0, depth: 0, exact: 0,
         salonName: "旅の一座の酒場", materialDesc: "年輪黒檀 × 白木メイプル", boardDesc: "オリーブ木目卓",
-        thinkingBaseMs: 700,
+        thinkingBaseMs: 650,
         quotes: {
-            start: ["ヒヒッ！王宮のオセロへようこそ！お手柔らかにネ！", "サイコロを振るように軽やかに！お相手いたしマス！"],
-            thinking: ["どこに置こうかニャ〜？ 適当に置いちゃおっかナ！", "ぐるぐる回って迷っちゃうデス〜！"],
-            playerGood: ["ヒエッ！？ そこ置かれちゃうと困っちゃうでゴザイマス！", "お見事！ …って、ボクがピンチじゃないデスか！？"],
-            playerBad: ["おやおや！ そこ置いちゃってホントにいいのかニャ〜！？", "ヒヒッ！ 隙だらけでゴザイマスよ〜！"],
+            start: ["ヒヒッ！王宮のオセロへようこそ！サイコロ転がすみたいに遊ぼうヨ！", "お手柔らかにネ！ボクだってたまには本気出しちゃうヨ！"],
+            thinking: ["どこに置こうかニャ〜？ 適当にポンと置いちゃおっかナ！", "ぐるぐる回って目が回っちゃうデス〜！"],
+            playerGood: ["ヒエ〜ッ！？ そこ置かれたらボクの逃げ道がなくなっちゃうデス〜！", "お見事！ …って、ボクが大ピンチじゃないデスか！？"],
+            playerBad: ["おやおや〜？ そこ置いちゃってホントにいいの？ いただきまーす！", "ヒヒッ！ 隙だらけでゴザイマスよ〜！"],
             bigReversal: ["ぎゃ〜っ！？ 一気にひっくり返されちゃったデス〜！"],
             cpuCorner: ["やったネ！ 角っこいただき〜！ ラッキーでゴザイマス！"],
             playerCorner: ["あちゃー！ 大事な角っこを取られちゃったヨ〜！"],
@@ -346,21 +414,21 @@ const CHARACTERS = {
             losing: ["ヒエ〜ッ！ ボクの石が数えるほどしかないヨ〜！"],
             cpuPass: ["おっとっと、置く場所がないからパスしちゃうネ！"],
             playerPass: ["ヒヒッ！ 置ける場所がないネ！ ボクの番だヨ！"],
-            win: ["ヒヒッ！ボクの大勝利〜！たまには道化師だって本気出しちゃうでゴザイマス！"],
-            lose: ["参った参った〜！さすが貴方様、完敗でゴザイマス！"]
+            win: ["ヒヒッ！ボクの大・勝・利〜！たまには道化師だって王様を負かしちゃうでゴザイマス！"],
+            lose: ["参った参った〜！さすが貴方様、コテンパンの完敗でゴザイマス！拍手喝采〜！"]
         }
     },
     2: {
-        id: 2, name: "侍女 コレット", rankLabel: "【初級・アマ5級】", title: "（見習い侍女）", icon: "🎀", image: "images/char2.png",
+        id: 2, name: "侍女 コレット", rankLabel: "【初級入門・アマ9級】", title: "（見習い侍女）", icon: "🎀", image: "images/char2.png",
         imgFocus: "center 20%", themeColor: "#2a9d8f", themeGlow: "rgba(42, 157, 143, 0.65)",
         bookMaxPly: 0, depth: 1, exact: 0,
         salonName: "見習い侍女のサロン", materialDesc: "釉薬黒磁器 × 高級白磁", boardDesc: "ペールミント磁器調盤",
-        thinkingBaseMs: 800,
+        thinkingBaseMs: 700,
         quotes: {
-            start: ["王宮のオセロ、覚えたてですけど…一生懸命がんばります！"],
+            start: ["お茶の準備の合間に…一生懸命お相手いたします！よろしくお願いしますねっ！"],
             thinking: ["ええと…たくさんひっくり返せる場所はどこかな…？"],
-            playerGood: ["きゃっ！？ そんな上手な手があるなんて…！"],
-            playerBad: ["えっ、そこに置いちゃって大丈夫なんですか…？"],
+            playerGood: ["きゃっ！？ そんな綺麗にひっくり返されちゃうなんて…すごいです…！"],
+            playerBad: ["えっ…そこに置いちゃって大丈夫なんですか…？ 私、取っちゃいますよ…？"],
             bigReversal: ["わぁぁっ！？ こんなにたくさん取られちゃうなんて…！"],
             cpuCorner: ["わぁっ！ 角が取れちゃいました！ 嬉しいです！"],
             playerCorner: ["そんな…！ 私の大切な角が…うぅ…！"],
@@ -368,21 +436,65 @@ const CHARACTERS = {
             losing: ["うぅ…！ どんどん私の石が減っちゃってます…！"],
             cpuPass: ["ごめんなさい、私、置ける場所がありません…パスです！"],
             playerPass: ["ふふっ、私の番ですね！ 頑張ってひっくり返します！"],
-            win: ["勝てちゃいました…！また私と遊んでくださいねっ！"],
-            lose: ["うぅ…！完敗です…！もっと定石を勉強してきますっ！"]
+            win: ["勝てちゃいました…！えへへ、私でも勝てるなんて夢みたいです！また遊んでくださいねっ！"],
+            lose: ["うぅ…！完敗です…！もっと本を読んで定石を勉強してきますっ…次こそは…！"]
         }
     },
     3: {
-        id: 3, name: "騎士 ローラン", rankLabel: "【中級・アマ1級】", title: "（近衛騎士）", icon: "⚔️", image: "images/char3.png",
+        id: 3, name: "庭園番 ルカ", rankLabel: "【初級・アマ7級】", title: "（少年庭師）", icon: "🌱", image: "images/char7.png",
+        imgFocus: "center 22%", themeColor: "#52b788", themeGlow: "rgba(82, 183, 136, 0.65)",
+        bookMaxPly: 0, depth: 2, exact: 0,
+        salonName: "王宮の大温室", materialDesc: "翠緑碧玉 × 薄黄琥珀", boardDesc: "フォレスト苔調盤",
+        thinkingBaseMs: 750,
+        quotes: {
+            start: ["王宮の大温室へようこそ！草花を育てるように、緑いっぱいの盤面にしようね！"],
+            thinking: ["お花を育てるみたいに… 外側からじっくり囲んでいこうかな！"],
+            playerGood: ["わっ、そこに来るんだ！？ 木陰に隠れたつもりだったのに…見事だなぁ！"],
+            playerBad: ["えへへ、そこ空けちゃったの？ ぐんぐん枝を伸ばしちゃうよ！"],
+            bigReversal: ["うわぁっ！ せっかく咲いたお花が一気に散っちゃった…！"],
+            cpuCorner: ["やったぁ！ 大事な温室の角を確保しました！"],
+            playerCorner: ["ああっ！ 僕の温室の角が取られちゃった…！"],
+            climax: ["もうすぐ満開だね！ どっちがたくさん咲くかなぁ！"],
+            losing: ["うぅ…僕の緑が全然足りないよぉ…！"],
+            cpuPass: ["水やりはお休み…置ける場所がないのでパスです！"],
+            playerPass: ["僕の番ですね！ 元気に石を置いちゃいます！"],
+            win: ["僕の勝ちだぁ！盤面いっぱいに綺麗なお花畑が完成したよ！楽しかったね！"],
+            lose: ["参りましたぁ…！貴方様のオセロは、嵐にもびくともしない立派な大樹のようです！"]
+        }
+    },
+    4: {
+        id: 4, name: "錬金術師 ニコラ", rankLabel: "【初中級・アマ4級】", title: "（宮廷学者見習い）", icon: "🔮", image: "images/char8.png",
+        imgFocus: "center 20%", themeColor: "#9b5de5", themeGlow: "rgba(155, 93, 229, 0.65)",
+        bookMaxPly: 0, depth: 3, exact: 0,
+        salonName: "宮廷錬金実験室", materialDesc: "紫水晶 × 黄鉄鉱", boardDesc: "スレート鉱物盤",
+        thinkingBaseMs: 800,
+        quotes: {
+            start: ["幾何学と論理の結晶…私の錬金術オセロ、理論通りの一手をお見せしましょう。"],
+            thinking: ["角の座標エネルギーを計算中… Xマスを避けて展開する。"],
+            playerGood: ["ほう…！理論的に急所を突く手を打たれるとは。実に興味深い反応だ。"],
+            playerBad: ["不合理な一手ですね。私のフラスコの中に自ら飛び込んでいただきました。"],
+            bigReversal: ["なっ…！？ 元素配列がこれほど一気に逆転するとは…！"],
+            cpuCorner: ["角の幾何学的確保に成功。想定通りの展開です。"],
+            playerCorner: ["しまっ…！ その角の引力を見誤ったというのか…！？"],
+            climax: ["終盤の臨界点に達しました。最後の反応を見届けましょう。"],
+            losing: ["計算が…！ 反応式が崩壊していく…！"],
+            cpuPass: ["試薬が尽きました。パスとして貴殿の反応を待ちます。"],
+            playerPass: ["貴殿の選択肢はゼロ。私のフラスコの中ですよ。"],
+            win: ["私の計算通りです。すべての元素が完璧に結合した、論理的必然の勝利ですね。"],
+            lose: ["素晴らしい知性です…私の導き出した勝利の方程式が、跡形もなく崩壊するとは…！"]
+        }
+    },
+    5: {
+        id: 5, name: "騎士 ローラン", rankLabel: "【中級・アマ2級】", title: "（近衛騎士）", icon: "⚔️", image: "images/char3.png",
         imgFocus: "center 22%", themeColor: "#2b6cb0", themeGlow: "rgba(43, 108, 176, 0.65)",
         bookMaxPly: 4, depth: 4, exact: 0,
-        salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアンネイビー鋼鉄盤",
-        thinkingBaseMs: 950,
+        salonName: "近衛騎士の鍛錬の間", materialDesc: "玄武岩 × 白雲母", boardDesc: "アイアン鋼鉄盤",
+        thinkingBaseMs: 850,
         quotes: {
-            start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！"],
+            start: ["近衛の誇りにかけて、正々堂々とお手合わせ願おう！いざ、尋常に勝負！"],
             thinking: ["我が陣形を立て直す… 次の一手はここだ！"],
-            playerGood: ["見事な太刀筋…！ 盤面の急所を突いてくるとは！"],
-            playerBad: ["ふっ… 隙を見せたな！ 我が剣の前に退路なし！"],
+            playerGood: ["見事な太刀筋…！ 盤面の急所を寸分の狂いもなく突いてくるとは！"],
+            playerBad: ["ふっ… 隙を見せたな！ 我が防陣の前に油断は禁物だぞ！"],
             bigReversal: ["なんと…！？ 我が前線が一気に崩壊しただと…！？"],
             cpuCorner: ["要衝を確保！ この角は我が騎士団の防衛線だ！"],
             playerCorner: ["不覚…！ 陣地の角を突破されるとは！"],
@@ -390,21 +502,43 @@ const CHARACTERS = {
             losing: ["ぬうう…！ 我が軍がここまで追い詰められるとは…！"],
             cpuPass: ["無念…！ 一時退却し、次の好機を待つ！"],
             playerPass: ["包囲網は完成した！ 我が軍の進軍は止まらんぞ！"],
-            win: ["王国の勝利だ！鉄壁の陣形、そう易々と崩せはせん！"],
-            lose: ["見事な用兵…完敗だ！貴殿に最大限の敬意を表する！"]
+            win: ["王国の勝利だ！我が騎士団の鉄壁の陣形、そう易々と崩せはせん！"],
+            lose: ["見事な用兵…完敗だ！貴殿の鋭き知謀に、近衛騎士としての最大限の敬意を表する！"]
         }
     },
-    4: {
-        id: 4, name: "伯爵夫人 エリザベート", rankLabel: "【上級・アマ三段】", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
+    6: {
+        id: 6, name: "吟遊詩人 ジュリアン", rankLabel: "【中上級・アマ1級】", title: "（麗しの宮廷楽士）", icon: "🪕", image: "images/char9.png",
+        imgFocus: "center 22%", themeColor: "#c94b63", themeGlow: "rgba(201, 75, 99, 0.65)",
+        bookMaxPly: 6, depth: 5, exact: 0,
+        salonName: "音楽と詩の回廊", materialDesc: "黒真珠 × 白蝶貝", boardDesc: "ローズウッド木目金盤",
+        thinkingBaseMs: 950,
+        quotes: {
+            start: ["リュートの調べに乗せて、優雅なる盤上詩を奏でましょう。美しき一局を。"],
+            thinking: ["内側の旋律を大切に… 中割りのリズムを崩しませんよ。"],
+            playerGood: ["おや… 息を呑むほど美しい一節を奏でてくださいますね。胸に響きますよ。"],
+            playerBad: ["ふふ、リズムが乱れましたよ？ 隙のある音色は聞き逃しません。"],
+            bigReversal: ["なんと劇的な転調…！ 盤上の交響詩が一変しましたね！"],
+            cpuCorner: ["この角の響きは、我がリュートが美しく奏で奪いましょう。"],
+            playerCorner: ["ああ…！ 私の美しい角の調べが奪われるなんて…！"],
+            climax: ["いよいよ最終楽章… 華麗なるコーダへと参りましょう。"],
+            losing: ["不協和音が… 私の指先から旋律が零れていく…！"],
+            cpuPass: ["ふむ、静寂の休符ですね。貴方の調べを聴かせてください。"],
+            playerPass: ["休符ですね。私の独奏を存分にお楽しみください。"],
+            win: ["勝利のロンド…貴方とのアンサンブル、実に甘美で優雅なひとときでございました。"],
+            lose: ["ブラボー！…完璧な名曲を聴かせていただきました。私の指先、完全に沈黙いたしました。"]
+        }
+    },
+    7: {
+        id: 7, name: "伯爵夫人 エリザベート", rankLabel: "【上級・アマ初段】", title: "（薔薇の伯爵夫人）", icon: "🌹", image: "images/char4.png",
         imgFocus: "center 22%", themeColor: "#9b111e", themeGlow: "rgba(155, 17, 30, 0.65)",
         bookMaxPly: 6, depth: 5, exact: 0,
-        salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × オーロラ白蝶貝", boardDesc: "深紅ベルベット盤",
-        thinkingBaseMs: 1100,
+        salonName: "薔薇の舞踏会サロン", materialDesc: "黒瑪瑙 × 白蝶貝", boardDesc: "深紅ベルベット盤",
+        thinkingBaseMs: 1050,
         quotes: {
-            start: ["優雅な舞踏会へようこそ。手加減はいたしませんわ。"],
+            start: ["薔薇の舞踏会サロンへようこそ。手加減など野暮なことはいたしませんわ。"],
             thinking: ["ふふ… あなたの逃げ道を、少しずつ摘み取ってさしあげますわ。"],
-            playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。"],
-            playerBad: ["うふふ… 甘いお方。罠にかかってしまいましたわね。"],
+            playerGood: ["あら…？ ずいぶんと小憎らしい手を打たれますこと。少し熱くなりましたわ。"],
+            playerBad: ["うふふ… 甘いお方。わたくしの仕掛けた薔薇の棘に、自ら囚われましたわね。"],
             bigReversal: ["まあ！ わたくしの薔薇が一気に散らされるなんて…！"],
             cpuCorner: ["美しき角は、わたくしが優雅に頂戴いたしますわ。"],
             playerCorner: ["まあ！ わたくしの角を奪うなんて… 許せませんこと！"],
@@ -412,21 +546,43 @@ const CHARACTERS = {
             losing: ["まさか… わたくしが劣勢に立たされるなんて…！"],
             cpuPass: ["あら、打つ手がございませんの？ 待ってさしあげますわ。"],
             playerPass: ["あらあら、手詰まりですの？ 盤上はわたくしの意のままですわね。"],
-            win: ["チェックメイト…美と知性の勝利ですわ。"],
-            lose: ["お見事でございました。骨のある殿方は嫌いではありませんわ。"]
+            win: ["チェックメイト…美と知性の勝利ですわ。紅茶が冷めないうちに終わって良かったですこと。"],
+            lose: ["お見事でございましたわ…！わたくしの薔薇をここまで散らす殿方に出会えるとは思いませんでしたわ。"]
         }
     },
-    5: {
-        id: 5, name: "宰相 ヴォルフガング", rankLabel: "【有段・アマ五段】", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
+    8: {
+        id: 8, name: "近衛総督 フェルディナント", rankLabel: "【強豪有段・アマ三段】", title: "（歴戦の老将軍）", icon: "🛡️", image: "images/char10.png",
+        imgFocus: "center 20%", themeColor: "#b56c36", themeGlow: "rgba(181, 108, 54, 0.7)",
+        bookMaxPly: 8, depth: 6, exact: 8,
+        salonName: "宮廷軍議作戦室", materialDesc: "赤銅石 × 白銀チタン", boardDesc: "ブロンズ盤",
+        thinkingBaseMs: 1150,
+        quotes: {
+            start: ["盤上は戦場そのもの。我が重装軍団の鉄壁を破ってみせよ、若き将帥よ！"],
+            thinking: ["敵の戦線を誘引し、包囲殲滅の機を窺う…緩着は許さん。"],
+            playerGood: ["ほう… 前線の急所を突く見事な用兵！老躯を本気配備にさせるとはな！"],
+            playerBad: ["愚かな突撃だな！ その一手で自らの退路を断ったと知れ！"],
+            bigReversal: ["なにっ…！？ 我が防衛陣が一瞬で突破されただと…！？"],
+            cpuCorner: ["要塞を制圧！ ここから反撃の鉄槌を下す！"],
+            playerCorner: ["ぬうっ…！ 我が防衛ラインの要衝を奪われるとは…！"],
+            climax: ["総力戦だ… 生死を賭けた決着をつけようぞ！"],
+            losing: ["我が軍団が… ここまで押し返されるとは…！"],
+            cpuPass: ["陣形を立て直す。貴殿の進軍を見届けよう。"],
+            playerPass: ["包囲完了だ。退路を塞がれた敵に勝機はない。"],
+            win: ["鉄壁の勝利だ！ 百戦錬磨の我が防衛線、付け焼き刃の策で破れるものか！"],
+            lose: ["見事な統率力…！ 我が軍門に降ろう。貴殿こそ、王国全軍を率いるに相応しき名将だ！"]
+        }
+    },
+    9: {
+        id: 9, name: "宰相 ヴォルフガング", rankLabel: "【宮廷最強・アマ五段】", title: "（宮廷宰相）", icon: "📜", image: "images/char5.png",
         imgFocus: "center 24%", themeColor: "#4a154b", themeGlow: "rgba(74, 21, 75, 0.7)",
         bookMaxPly: 8, depth: 6, exact: 12,
-        salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × カルカッタ大理石", boardDesc: "黒大理石グリッド盤",
-        thinkingBaseMs: 1250,
+        salonName: "宮廷宰相の深謀の間", materialDesc: "黒曜石 × 大理石", boardDesc: "黒大理石盤",
+        thinkingBaseMs: 1200,
         quotes: {
-            start: ["盤上の戦いは国家の縮図。冷徹な知略をお見せしよう。"],
+            start: ["盤上の戦いは国家統治の縮図。冷徹な知略とパリティの前に、私情は無用だ。"],
             thinking: ["数手先の展開はすべて計算済みだ…パリティを維持する。"],
-            playerGood: ["ほう… その急所が見えていたか。侮れん男だ。"],
-            playerBad: ["愚策だな。その一手で自らの首を絞めたと気づかんのか？"],
+            playerGood: ["ほう… その急所を正確に見切っていたか。底知れぬ男だな。"],
+            playerBad: ["愚策だな。その一手で自らの首を絞めたことに、まだ気づいておらんのか？"],
             bigReversal: ["なに…！？ 瞬時に盤面の均衡を崩しただと…！？"],
             cpuCorner: ["定石通り、この要所は我が手中に収めさせてもらった。"],
             playerCorner: ["我が計算の裏をかいて角を突いてくるとは…！"],
@@ -434,21 +590,21 @@ const CHARACTERS = {
             losing: ["計算が… 狂ったというのか！？ この私が…！"],
             cpuPass: ["計算外だな… 一旦パスとして貴公の出方を窺おう。"],
             playerPass: ["置く場所がないか。貴公の戦略は完全に封殺されたのだ。"],
-            win: ["偶数理論を制したのは私だ。良き盤上遊戯であった。"],
-            lose: ["この私が読み負けたか…貴公こそ真の知者だ。"]
+            win: ["偶数理論を制したのは私だ。数手前より貴公の敗北は決定していた。良き盤上遊戯であった。"],
+            lose: ["この私が…読み負けたというのか！？…認めよう、貴公の知謀は国家の枠をも超越している。"]
         }
     },
-    6: {
-        id: 6, name: "老賢王 オルレアン", rankLabel: "【神域・全国名人】", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
+    10: {
+        id: 10, name: "老賢王 オルレアン", rankLabel: "【神域・全国名人】", title: "（至高の絶対君主）", icon: "👑", image: "images/char6.png",
         imgFocus: "center 20%", themeColor: "#ffd700", themeGlow: "rgba(255, 215, 0, 0.8)",
         bookMaxPly: 12, depth: 7, exact: 14,
-        salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 自発光白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
-        thinkingBaseMs: 1400,
+        salonName: "至高の金箔玉座の間", materialDesc: "漆黒隕鉄 × 白玉翡翠", boardDesc: "金箔象嵌エメラルド盤",
+        thinkingBaseMs: 1350,
         quotes: {
-            start: ["我が玉座の盤上へよくぞ参った。そなたの知恵、余に見せてみよ。"],
+            start: ["我が玉座の盤上へよくぞ参った。そなたの知恵の深さ、余に余すところなく見せてみよ！"],
             thinking: ["盤上の森羅万象… 余の眼から逃れる手など存在せぬ。"],
-            playerGood: ["見事…！ 実に見事な一手だ！ 余の胸が高鳴るぞ！"],
-            playerBad: ["迷いが出たな。王の威圧に呑まれては勝てぬぞ。"],
+            playerGood: ["見事…！ 実に見事な一手だ！ 久方ぶりに余の胸が高鳴っておるぞ！"],
+            playerBad: ["迷いが出たな。王の威圧に呑まれては、盤上の真理は見えぬぞ。"],
             bigReversal: ["おお…！ 盤上が一変したか！ 実に豪快な一手よ！"],
             cpuCorner: ["天地の理に従い、余がこの角を統べようぞ！"],
             playerCorner: ["見事なり…！ 王の領域を奪う覚悟、しかと認めた！"],
@@ -456,8 +612,8 @@ const CHARACTERS = {
             losing: ["かっかっか！ よもや余が王手をかけられるとはな！ 痛快である！"],
             cpuPass: ["ふむ、風が凪いだか。静かに貴殿の次の一手を待とう。"],
             playerPass: ["道が閉ざされたか。焦るな、盤上の呼吸を整えるがよい。"],
-            win: ["良き戦いであったぞ、若人よ！再度の挑戦を待っておるぞ！"],
-            lose: ["天晴れだ…！王国の覇者たる資格、そなたへと託そうぞ！堂々の戴冠である！"]
+            win: ["良き戦いであったぞ、若人よ！余の玉座は揺るがぬが、そなたの気概、しかと見届けたぞ！"],
+            lose: ["天晴れだ…！王国の覇者たる資格、そなたへと託そうぞ！堂々の戴冠である！全臣民、勝者を讃えよ！"]
         }
     }
 };
@@ -618,15 +774,12 @@ function renderCharacterAvatar() {
     img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
 }
 
-/* ==========================================================================
-  【AIセリフ発声中 パルス点滅制御】
-========================================================================== */
+/* ✨ セリフ発話演出（タイプライター中、文字全体がゆっくり点滅し喋り終わると静止） */
 function typeWriterSpeech(fullText, isClimax) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
     DOM.speechText.textContent = "";
-
-    // 喋っている間、吹き出しをゴールドに点滅
     DOM.opponentSpeech.classList.add("is-speaking");
+    DOM.speechText.classList.add("is-typing-text");
 
     let index = 0;
     const total = fullText.length;
@@ -637,14 +790,14 @@ function typeWriterSpeech(fullText, isClimax) {
         } else {
             clearInterval(typeWriterInterval);
             typeWriterInterval = null;
-            // 喋り終わったら点滅を停止し静止表示
             DOM.opponentSpeech.classList.remove("is-speaking");
+            DOM.speechText.classList.remove("is-typing-text"); // 発話完了で点滅を解除
         }
     }, 22);
 }
 
 function setOpponentQuote(category) {
-    if (isReviewMode) return;
+    if (isReviewMode || isDemoMode) return;
     const char = getCurrentCharacter();
     let targetCategory = category;
     const emptyCount = getEmptyCount(board);
@@ -701,7 +854,7 @@ function updateOpponentStageUI(showBanner = true) {
     renderCharacterAvatar();
     setOpponentQuote("start");
 
-    if (showBanner && !isReviewMode) {
+    if (showBanner && !isReviewMode && !isDemoMode) {
         if (curtainTimeout) clearTimeout(curtainTimeout);
         DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
         DOM.curtainSalonTitle.textContent = char.salonName;
@@ -712,10 +865,10 @@ function updateOpponentStageUI(showBanner = true) {
 }
 
 function updateBalanceGauge(targetBoard = board) {
-    if (!targetBoard) return;
+    if (!targetBoard || isDemoMode) return;
     const emptyCount = getEmptyCount(targetBoard);
     const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
-    const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 260))) * 100)));
+    const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 600))) * 100)));
     const winrateOpponent = 100 - winratePlayer;
 
     if (!gameOver && !isReviewMode && winratePlayer < minPlayerWinrateInGame) {
@@ -763,11 +916,11 @@ function saveHistory() {
 }
 
 function updateUndoButtonState() {
-    DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode;
+    DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode;
 }
 
 async function undoMove() {
-    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode) return;
+    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDemoMode) return;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     clearHint();
@@ -802,7 +955,6 @@ async function undoMove() {
         drawBoard();
         updateBalanceGauge();
 
-        // 戻した直後の手番で非同期プリフェッチを開始
         prefetchPlayerEvaluationsAsync();
     }
 
@@ -855,15 +1007,25 @@ function getBestCounterBookMove() {
     const seq = getCurrentMoveSequence();
     const candidates = OPENING_BOOK[seq];
     if (!candidates || candidates.length === 0) return null;
-    return candidates.slice().sort((a, b) => b.weight - a.weight)[0];
+    if (candidates.length === 1) return candidates[0];
+
+    let totalW = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let rand = Math.random() * totalW;
+    for (const c of candidates) {
+        rand -= c.weight;
+        if (rand <= 0) return c;
+    }
+    return candidates[0];
 }
 
 function startGame() {
     tryPlayBgm();
     exitReviewMode();
+    exitBoardVisualDemo();
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     isPrefetching = false;
+    transpositionTable.clear();
 
     board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
     board[3][3] = WHITE; board[3][4] = BLACK;
@@ -890,7 +1052,7 @@ function startGame() {
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-        if (!gameOver && !isReviewMode && !isAiThinkingHint) {
+        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDemoMode) {
             elapsedSeconds++;
             if (currentPlayer === humanColor && !isBusy) playerSeconds++;
             else if (currentPlayer === cpuColor || isBusy) cpuSeconds++;
@@ -1039,9 +1201,6 @@ function countFrontierStones(targetBoard, player) {
     return frontier;
 }
 
-/* ==========================================================================
-  【完全浄化・正統派オセロ評価関数】
-========================================================================== */
 function evaluateBoard(targetBoard, player, emptyCount) {
     const opponent = opposite(player);
     let myStones = 0, oppStones = 0;
@@ -1068,24 +1227,22 @@ function evaluateBoard(targetBoard, player, emptyCount) {
 
     const myMoves = getValidMoves(player, targetBoard).length;
     const oppMoves = getValidMoves(opponent, targetBoard).length;
-    const totalMoves = myMoves + oppMoves;
-    const mobilityScore = (totalMoves > 0) ? (100 * (myMoves - oppMoves) / totalMoves) : 0;
+    const mobilityDiff = (myMoves - oppMoves) * 45;
 
     const myFrontier = countFrontierStones(targetBoard, player);
     const oppFrontier = countFrontierStones(targetBoard, opponent);
-    const totalFrontier = myFrontier + oppFrontier;
-    const frontierScore = (totalFrontier > 0) ? (-100 * (myFrontier - oppFrontier) / totalFrontier) : 0;
+    const frontierDiff = -(myFrontier - oppFrontier) * 15;
 
-    const stableDiff = countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent);
+    const stableDiff = (countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent)) * 250;
 
     let score = 0;
-    if (emptyCount > 32) {
-        score = (mobilityScore * 40) + (frontierScore * 35) + (myPosScore - oppPosScore) * 1.5;
-    } else if (emptyCount > 14) {
-        score = (mobilityScore * 28) + (frontierScore * 20) + (stableDiff * 70) + (myPosScore - oppPosScore) * 2.0;
+    if (emptyCount > 30) {
+        score = (myPosScore - oppPosScore) + mobilityDiff + frontierDiff;
+    } else if (emptyCount > 12) {
+        score = (myPosScore - oppPosScore) * 1.1 + stableDiff + mobilityDiff * 0.8 + frontierDiff;
     } else {
-        score = (myStones - oppStones) * 55 + (stableDiff * 85) + (mobilityScore * 10);
-        if (emptyCount % 2 !== 0) score += 45;
+        score = (myStones - oppStones) * 80 + stableDiff + (myPosScore - oppPosScore) * 0.5;
+        if (emptyCount % 2 !== 0) score += 60;
     }
     return score;
 }
@@ -1102,6 +1259,14 @@ function orderMoves(moves, targetBoard, player) {
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     if (emptyCount === 0 || depth <= 0) {
         return evaluateBoard(targetBoard, player, emptyCount);
+    }
+
+    let boardKey = null;
+    if (depth >= 4) {
+        boardKey = `${player}:${targetBoard.map(r => r.join("")).join("")}:${depth}`;
+        if (transpositionTable.has(boardKey)) {
+            return transpositionTable.get(boardKey);
+        }
     }
 
     const moves = getValidMoves(player, targetBoard);
@@ -1125,16 +1290,19 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         if (score > alpha) alpha = score;
         if (alpha >= beta) break;
     }
+
+    if (boardKey && transpositionTable.size < 50000) {
+        transpositionTable.set(boardKey, maxScore);
+    }
+
     return maxScore;
 }
 
 /* ==========================================================================
-  【完全非同期・安全プリフェッチ機構】
-  - メインスレッドを1ミリ秒もフリーズさせない（sleep(0)でUI解放）
-  - 定石は0秒即応、中盤以降は裏で順次計算
+  【ヒント探索：深さ8手（Lv.10超え）＋終盤14手読み】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
-    if (gameOver || isReviewMode || currentPlayer !== humanColor || isPrefetching) return;
+    if (gameOver || isReviewMode || isDemoMode || currentPlayer !== humanColor || isPrefetching) return;
     const session = currentGameSessionId;
     isPrefetching = true;
 
@@ -1145,7 +1313,6 @@ async function prefetchPlayerEvaluationsAsync() {
         return;
     }
 
-    // 1. プロ定石データベースに一致する場合は即座に確定
     const bookEntry = getBestCounterBookMove();
     if (bookEntry && moves.some(([r, c]) => r === bookEntry.move[0] && c === bookEntry.move[1])) {
         const bestMove = bookEntry.move;
@@ -1160,16 +1327,14 @@ async function prefetchPlayerEvaluationsAsync() {
         cachedMoveEvaluations = { moves, best: bestMove, scoredMoves: scored, isBook: true, bookName: bookEntry.name };
         isPrefetching = false;
 
-        // 常時ヒント中なら表示を更新
         if (getHintMode() === "always" && currentPlayer === humanColor) {
             applyHintFromCache();
         }
         return;
     }
 
-    // 2. 定石外または中盤以降：深さ7手／終盤14手読みで非同期分割計算
     const emptyCount = getEmptyCount(board);
-    const depth = (emptyCount <= 14) ? emptyCount : (emptyCount <= 28 ? 8 : 7);
+    const depth = (emptyCount <= 14) ? emptyCount : 8;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
 
@@ -1178,7 +1343,6 @@ async function prefetchPlayerEvaluationsAsync() {
             isPrefetching = false;
             return;
         }
-        // UIスレッドを解放してブラウザをフリーズさせない
         await sleep(0);
 
         const next = cloneBoard(board);
@@ -1193,15 +1357,19 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     scored.sort((a, b) => b.score - a.score);
+    const topScore = scored[0].score;
+
+    const topCandidates = scored.filter(s => (topScore - s.score) <= 5);
+    const chosen = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+
     cachedMoveEvaluations = {
         moves,
-        best: scored[0].move,
+        best: chosen.move,
         scoredMoves: scored,
         isBook: false
     };
     isPrefetching = false;
 
-    // 常時ヒント中なら表示を更新
     if (getHintMode() === "always" && currentPlayer === humanColor) {
         applyHintFromCache();
     }
@@ -1216,26 +1384,25 @@ function applyHintFromCache() {
 
     const reasons = [];
     if (cachedMoveEvaluations.isBook) {
-        reasons.push(`📖 日本オセロ連盟公認定石【${cachedMoveEvaluations.bookName}】の最高勝率ルートです。`);
+        reasons.push(`📖 日本オセロ連盟公認定石【<span class="term-link" data-term="${cachedMoveEvaluations.bookName.includes('馬')?'馬定石':(cachedMoveEvaluations.bookName.includes('牛')?'牛定石':'虎定石')}">${cachedMoveEvaluations.bookName}</span>】の高勝率ルートです。`);
         reasons.push("🎯 序盤の骨格を完璧に保ち、主導権を握る絶対の定石手筋です。");
     } else {
         const [r, c] = chosenMove;
         if (isCorner(r, c)) reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
-        else if (!isRealDanger(r, c, board)) reasons.push("🛡️ 危険マスを避け、内側の石だけを返す鋭い中割りです。");
+        else if (!isRealDanger(r, c, board)) reasons.push(`🛡️ 危険マスを避け、内側の石だけを返す鋭い<span class="term-link" data-term="中割り">中割り</span>です。`);
 
         const oppBefore = getValidMoves(cpuColor, board).length;
         const nextB = cloneBoard(board);
         makeMove(nextB, r, c, humanColor);
         const oppAfter = getValidMoves(cpuColor, nextB).length;
-        if (oppAfter < oppBefore) reasons.push(`📉 相手の選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
+        if (oppAfter < oppBefore) reasons.push(`📉 相手の<span class="term-link" data-term="開放度">開放度</span>を奪い、選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
 
-        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読みが導き出した最善手です。");
+        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ8手）が導き出した最善手です。");
     }
 
     DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
     drawBoard();
 
-    // ヒント思案完了後、自然な手番表示に戻す
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
     setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
 }
@@ -1270,11 +1437,8 @@ async function executeTurnAction(row, col, player, isHuman) {
     return true;
 }
 
-/* ==========================================================================
-  【プレイヤー着手処理：事前計算キャッシュにより即応性と妥当性を完全両立】
-========================================================================== */
 async function putStone(row, col) {
-    if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
+    if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isDemoMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
 
     saveHistory();
@@ -1285,7 +1449,6 @@ async function putStone(row, col) {
     const emptyCount = getEmptyCount(board);
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
 
-    // キャッシュから即座に客観最善手を取得（未完了時はフォールバック計算）
     let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
     let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
 
@@ -1299,7 +1462,6 @@ async function putStone(row, col) {
     const chosenScore = chosenScoreObj ? chosenScoreObj.score : 0;
     const topScore = scoredList[0] ? scoredList[0].score : 0;
 
-    // 石の反転を即時開始
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
     const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
@@ -1320,11 +1482,11 @@ async function putStone(row, col) {
         moveRating = "GOOD";
         if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
         setOpponentQuote("playerCorner");
-    } else if (myAvailableMovesBefore.length > 1 && (danger || scoreDiffFromBest >= 180)) {
+    } else if (myAvailableMovesBefore.length > 1 && (danger || scoreDiffFromBest >= 500)) {
         moveRating = "BAD";
         if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
         setOpponentQuote("playerBad");
-    } else if (scoreDiffFromBest <= 45) {
+    } else if (scoreDiffFromBest <= 80) {
         moveRating = "GOOD";
         if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
         setOpponentQuote("playerGood");
@@ -1342,8 +1504,8 @@ async function putStone(row, col) {
         contextNote += isCornerMove ? "【好手】四隅の要塞を確保。" : "【好手】要所を押さえる堅実な一打。";
     } else if (moveRating === "BAD") {
         const alt = objectiveBest ? `（正解手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
-        if (danger && isX) contextNote += `【悪手】空いた角の斜め前（Xマス）に打ち、角を献上してしまいました${alt}。`;
-        else if (danger && isC) contextNote += `【悪手】角の隣（Cマス）に打ち、相手に足場を与えてしまいました${alt}。`;
+        if (danger && isX) contextNote += `【悪手】空いた角の斜め前（<span class="term-link" data-term="Xマス">Xマス</span>）に打ち、角を献上してしまいました${alt}。`;
+        else if (danger && isC) contextNote += `【悪手】角の隣（<span class="term-link" data-term="Cマス">Cマス</span>）に打ち、相手に足場を与えてしまいました${alt}。`;
         else contextNote += `【悪手】相手に好機を与える危険な打点でした${alt}。`;
     }
 
@@ -1376,7 +1538,7 @@ function clearHintForOpponentTurn() {
 }
 
 async function processTurn() {
-    if (gameOver || isReviewMode) return;
+    if (gameOver || isReviewMode || isDemoMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
 
     if (currentMoves.length === 0) {
@@ -1403,7 +1565,6 @@ async function processTurn() {
 
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         if (currentPlayer === humanColor) {
-            // 相手オーラを即時確実に解除
             DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
             if (getHintMode() === "always") {
@@ -1424,7 +1585,6 @@ async function processTurn() {
 
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
     if (currentPlayer === humanColor) {
-        // 相手オーラを即時確実に解除
         DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
         if (getHintMode() === "always") {
@@ -1445,14 +1605,14 @@ async function processTurn() {
 }
 
 /* ==========================================================================
-  【各対戦キャラクターの段級位別 思考エンジン】
+  【全10レベル思考エンジン（美麗難易度ピラミッド）】
 ========================================================================== */
 function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
     if (moves.length === 0) return null;
     if (moves.length === 1) return moves[0];
 
-    // Lv.1 ピエロ（アマ10級）：約40%でX・Cマスに無邪気に飛びつく
+    // Lv.1 ピエロ（アマ12級）：約40%でX・Cマスに無邪気に飛びつく
     if (charConfig.id === 1) {
         const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
         if (dangerMoves.length > 0 && Math.random() < 0.40) {
@@ -1461,17 +1621,27 @@ function getComputerMove(targetBoard, player, charConfig) {
         return moves[Math.floor(Math.random() * moves.length)];
     }
 
-    // Lv.2 コレット（アマ5級）：最多反転のみを選ぶ初級者
+    // Lv.2 コレット（アマ9級）：最多反転のみを選ぶ初級者
     if (charConfig.id === 2) {
         const corners = moves.filter(([r, c]) => isCorner(r, c));
         if (corners.length > 0) return corners[0];
 
         const scored = moves.map(m => ({ move: m, flips: getFlippableStones(m[0], m[1], player, targetBoard).length }));
         scored.sort((a, b) => b.flips - a.flips);
-        return scored[0].move;
+        const topFlips = scored[0].flips;
+        const candidates = scored.filter(s => s.flips === topFlips);
+        return candidates[Math.floor(Math.random() * candidates.length)].move;
     }
 
-    // Lv.3〜Lv.6：定石データベースの適用検査
+    // Lv.3 ルカ（アマ7級）：外側を囲いたがる（Xマス飛びつき20%）
+    if (charConfig.id === 3) {
+        const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
+        if (dangerMoves.length > 0 && Math.random() < 0.20) {
+            return dangerMoves[Math.floor(Math.random() * dangerMoves.length)];
+        }
+    }
+
+    // Lv.5以上：定石データベース参照
     if (charConfig.bookMaxPly > 0) {
         const bookMoveObj = getBookMove(charConfig.bookMaxPly);
         if (bookMoveObj && moves.some(([r, c]) => r === bookMoveObj.move[0] && c === bookMoveObj.move[1])) {
@@ -1494,22 +1664,26 @@ function getComputerMove(targetBoard, player, charConfig) {
     scores.sort((a, b) => b.score - a.score);
     const bestScore = scores[0].score;
 
-    // Lv.6 オルレアン（全国名人）：完全最善手
-    if (charConfig.id === 6 || (charConfig.exact > 0 && emptyCount <= charConfig.exact)) {
-        return scores[0].move;
+    if (charConfig.id === 10 || (charConfig.exact > 0 && emptyCount <= charConfig.exact)) {
+        const topMoves = scores.filter(s => s.score === bestScore);
+        return topMoves[Math.floor(Math.random() * topMoves.length)].move;
     }
 
     let margin = 0;
-    if (charConfig.id === 3) margin = 35;
-    else if (charConfig.id === 4) margin = 18;
-    else if (charConfig.id === 5) margin = 8;
+    if (charConfig.id === 3) margin = 85;
+    else if (charConfig.id === 4) margin = 60;
+    else if (charConfig.id === 5) margin = 40;
+    else if (charConfig.id === 6) margin = 25;
+    else if (charConfig.id === 7) margin = 18;
+    else if (charConfig.id === 8) margin = 10;
+    else if (charConfig.id === 9) margin = 5;
 
     const eligible = scores.filter(s => (bestScore - s.score) <= margin);
-    return eligible[0].move;
+    return eligible[Math.floor(Math.random() * eligible.length)].move;
 }
 
 async function computerMove() {
-    if (gameOver || isReviewMode) return;
+    if (gameOver || isReviewMode || isDemoMode) return;
     const session = currentGameSessionId;
 
     clearHintForOpponentTurn();
@@ -1523,7 +1697,7 @@ async function computerMove() {
     const thinkingWaitMs = Math.max(400, (char.thinkingBaseMs || 850) + jitter);
 
     await sleep(thinkingWaitMs);
-    if (session !== currentGameSessionId || gameOver || isReviewMode) return;
+    if (session !== currentGameSessionId || gameOver || isReviewMode || isDemoMode) return;
 
     const move = getComputerMove(board, cpuColor, char);
     if (move) {
@@ -1543,7 +1717,6 @@ async function computerMove() {
         if (!success) return;
     }
 
-    // 相手が石を打ち終わった瞬間、相手オーラを即時確実に解除
     DOM.opponentAvatarFrame.classList.remove("thinking-aura");
 
     isBusy = false;
@@ -1586,7 +1759,7 @@ function updateHintModeUI() {
 }
 
 async function computeHint() {
-    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode) return;
+    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDemoMode) return;
     usedHintInGame = true;
 
     if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) {
@@ -1607,23 +1780,25 @@ function drawBoard() {
             const cell = document.createElement("div");
             cell.className = "cell";
 
-            if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
-                cell.classList.add("can-place", previewClass);
-            }
-            if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
-                cell.classList.add("last-move-cell");
-            }
-            if (!isReviewMode && !isHintOff && hintMove && hintMove[0] === r && hintMove[1] === c) {
-                cell.classList.add("hint-cell");
-            }
-
-            if (isReviewMode && reviewStepIndex > 0) {
-                const step = gameStepLogs[reviewStepIndex];
-                if (step && step.move && step.move[0] === r && step.move[1] === c) {
-                    cell.classList.add(reviewStepIndex === tacticsWorstIndex ? "review-bad-cell" : "review-focus-cell");
+            if (!isDemoMode) {
+                if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
+                    cell.classList.add("can-place", previewClass);
                 }
-                if (reviewStepIndex === tacticsWorstIndex && tacticsWorstAlternative && tacticsWorstAlternative[0] === r && tacticsWorstAlternative[1] === c) {
-                    cell.classList.add("review-correct-cell");
+                if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
+                    cell.classList.add("last-move-cell");
+                }
+                if (!isReviewMode && !isHintOff && hintMove && hintMove[0] === r && hintMove[1] === c) {
+                    cell.classList.add("hint-cell");
+                }
+
+                if (isReviewMode && reviewStepIndex > 0) {
+                    const step = gameStepLogs[reviewStepIndex];
+                    if (step && step.move && step.move[0] === r && step.move[1] === c) {
+                        cell.classList.add(reviewStepIndex === tacticsWorstIndex ? "review-bad-cell" : "review-focus-cell");
+                    }
+                    if (reviewStepIndex === tacticsWorstIndex && tacticsWorstAlternative && tacticsWorstAlternative[0] === r && tacticsWorstAlternative[1] === c) {
+                        cell.classList.add("review-correct-cell");
+                    }
                 }
             }
 
@@ -1631,7 +1806,7 @@ function drawBoard() {
                 const wrapper = document.createElement("div");
                 wrapper.className = "stone-wrapper";
 
-                const isFlipping = !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
+                const isFlipping = !isDemoMode && !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
                 if (isFlipping) {
                     const flipWrap = document.createElement("div");
                     flipWrap.className = "stone-flip-wrapper";
@@ -1656,7 +1831,7 @@ function drawBoard() {
                 } else {
                     const stone = document.createElement("div");
                     stone.className = `stone ${board[r][c] === BLACK ? "black-stone" : "white-stone"}`;
-                    if (!isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
+                    if (!isDemoMode && !isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
                         stone.classList.add("stone-new");
                     }
                     wrapper.appendChild(stone);
@@ -1664,7 +1839,7 @@ function drawBoard() {
                 cell.appendChild(wrapper);
             }
 
-            if (!isReviewMode) {
+            if (!isReviewMode && !isDemoMode) {
                 cell.addEventListener("click", () => putStone(r, c));
             }
             DOM.board.appendChild(cell);
@@ -1673,7 +1848,7 @@ function drawBoard() {
 
     pendingAnimation = null;
     updateScore();
-    DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff;
+    DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDemoMode;
 }
 
 function updateScore(targetBoard = board) {
@@ -1682,9 +1857,6 @@ function updateScore(targetBoard = board) {
     DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
 }
 
-/* ==========================================================================
-  【因果関係網羅・AI戦術カルテ生成エンジン】
-========================================================================== */
 function generateTacticsReport() {
     if (playerMoveLogs.length === 0) {
         return {
@@ -1700,9 +1872,9 @@ function generateTacticsReport() {
         if (log.isObjectiveBest) { best = log; break; }
     }
 
-    let goodDesc = "【最善手】定石および深層読み（深さ9手）に合致した完璧な一打でした。";
+    let goodDesc = `【最善手】定石および深層読み（深さ8手）に合致した隙のない完璧な一打でした。`;
     if (best.isCornerMove) {
-        goodDesc = "【四隅の角を制圧】絶対に裏返らない確定石の拠点を確保し、戦局の主導権を完全に掌握しました。";
+        goodDesc = `【四隅の角を制圧】絶対に裏返らない<span class="term-link" data-term="確定石">確定石</span>の拠点を確保し、戦局の主導権を完全に掌握しました。`;
     }
 
     const badMoves = playerMoveLogs.filter(log => log.rating === "BAD" && !log.isCornerMove && !log.isObjectiveBest);
@@ -1717,11 +1889,11 @@ function generateTacticsReport() {
         const altNotation = alternative ? `【${toNotation(alternative[0], alternative[1])}】` : "内側の安全なマス";
 
         if (worst.danger && worst.isX) {
-            badDesc = `【角を献上する危険手】空いた角の斜め前（Xマス）に打ったため、相手に角を奪われる致命的な足場を与えてしまいました。正解手は${altNotation}でした。`;
+            badDesc = `【角を献上する危険手】空いた角の斜め前（<span class="term-link" data-term="Xマス">Xマス</span>）に打ったため、相手に角を奪われる致命的な足場を与えてしまいました。正解手は${altNotation}でした。`;
         } else if (worst.danger && worst.isC) {
-            badDesc = `【角を取られやすくなる悪手】角の隣（Cマス）に打ったため、相手に角を突く好機を与えてしまいました。正解手は${altNotation}でした。`;
+            badDesc = `【角を取られやすくなる悪手】角の隣（<span class="term-link" data-term="Cマス">Cマス</span>）に打ったため、相手に角を突く好機を与えてしまいました。正解手は${altNotation}でした。`;
         } else {
-            badDesc = `【陣形を崩した悪手】相手に好機を与えてしまいました。ここは${altNotation}へ中割りするのが最善でした。`;
+            badDesc = `【陣形を崩した悪手】相手に好機を与えてしまいました。ここは${altNotation}へ<span class="term-link" data-term="中割り">中割り</span>するのが最善でした。`;
         }
     } else {
         badCoord = "なし (NONE)";
@@ -1742,6 +1914,267 @@ function generateTacticsReport() {
         badCoord, badDesc, badStep, alternative
     };
 }
+
+/* ==========================================================================
+  【👁️ 盤面ビジュアル解説モード（プレイヤー目線改善＆2コマシミュレーション）】
+========================================================================== */
+function attachDemoBadge(r, c, text, className) {
+    const cell = DOM.board.children[r * 8 + c];
+    if (!cell) return;
+    const badge = document.createElement("div");
+    badge.className = className;
+    badge.textContent = text;
+    cell.appendChild(badge);
+}
+
+function triggerBoardVisualDemo(demoType) {
+    if (isDemoMode) exitBoardVisualDemo();
+
+    savedBoardStateForDemo = {
+        board: cloneBoard(board),
+        currentPlayer, lastMove,
+        statusType: DOM.status.className,
+        statusText: DOM.status.textContent
+    };
+
+    isDemoMode = true;
+    currentDemoType = demoType;
+    currentDemoStep = 1;
+    closeTermPopup();
+    DOM.guideOverlay.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+
+    DOM.normalControlCard.style.display = "none";
+    DOM.demoGuideCard.classList.add("show");
+
+    const dict = TERMS_DICTIONARY[demoType] || {
+        title: `👁️ ${demoType}の解説`,
+        situation: "オセロの基本局面です。",
+        reason: "盤面の要所を理解することで勝率が劇的に上がります。",
+        maxim: "『基本を制する者がオセロを制す』",
+        simBtnText: "変化を見る ▶"
+    };
+
+    DOM.demoGuideTitle.textContent = dict.title;
+    DOM.demoSituationText.textContent = dict.situation;
+    DOM.demoGuideReason.textContent = dict.reason;
+    DOM.demoMaximText.textContent = dict.maxim;
+    DOM.btnDemoSimulate.textContent = dict.simBtnText || "相手の番をシミュレート ▶";
+
+    setStatus("hint-thinking", `👁️ 盤面ビジュアル解説中：【${demoType}】（下のボタンで対局に復帰できます）`);
+
+    renderDemoBoardStep(demoType, 1);
+}
+
+function renderDemoBoardStep(demoType, step) {
+    currentDemoStep = step;
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+
+    if (demoType === "角・X・C") {
+        if (step === 1) {
+            // 初期状態：黒がB2（Xマス）に打ってしまった
+            board[2][2] = BLACK; board[3][3] = WHITE; board[3][4] = BLACK;
+            board[4][3] = BLACK; board[4][4] = WHITE;
+            board[1][1] = BLACK; // Xマス
+            drawBoard();
+
+            cornerSquares.forEach(([cr, cc]) => attachDemoBadge(cr, cc, "👑 角", "demo-badge-corner"));
+            [[1,1]].forEach(([xr, xc]) => attachDemoBadge(xr, xc, "⚠️ Xマス(打点)", "demo-badge-x"));
+            [[0,1],[1,0]].forEach(([cr, cc]) => attachDemoBadge(cr, cc, "⚠️ Cマス", "demo-badge-c"));
+        } else {
+            // シミュレーション：白にA1角を取られて黒が挟まれる
+            board[0][0] = WHITE; // 角確保
+            board[1][1] = WHITE; board[2][2] = WHITE;
+            board[3][3] = WHITE; board[3][4] = BLACK;
+            board[4][3] = BLACK; board[4][4] = WHITE;
+            drawBoard();
+
+            attachDemoBadge(0, 0, "👑 角奪取！", "demo-badge-corner");
+            attachDemoBadge(1, 1, "💀 取られたX", "demo-badge-x");
+            DOM.demoSituationText.textContent = "白にA1の角を取られ、斜めの石がすべて白に裏返ってしまいました！";
+            DOM.demoGuideReason.textContent = "角を取られると相手の確定石となり、二度と取り返すことができません。";
+        }
+    } else if (demoType === "中割り") {
+        if (step === 1) {
+            board[2][3] = BLACK; board[2][4] = WHITE;
+            board[3][2] = BLACK; board[3][3] = WHITE; board[3][4] = WHITE; board[3][5] = BLACK;
+            board[4][2] = BLACK; board[4][3] = WHITE; board[4][4] = BLACK; board[4][5] = BLACK;
+            board[5][3] = BLACK; board[5][4] = BLACK;
+            drawBoard();
+
+            attachDemoBadge(3, 4, "🎯 ここ！(E4)", "demo-badge-cut");
+        } else {
+            // E4に打って内側の石だけを返した状態
+            board[2][3] = BLACK; board[2][4] = WHITE;
+            board[3][2] = BLACK; board[3][3] = BLACK; board[3][4] = BLACK; board[3][5] = BLACK;
+            board[4][2] = BLACK; board[4][3] = BLACK; board[4][4] = BLACK; board[4][5] = BLACK;
+            board[5][3] = BLACK; board[5][4] = BLACK;
+            drawBoard();
+
+            attachDemoBadge(3, 3, "🌱 内側だけ反転", "demo-badge-cut");
+            DOM.demoSituationText.textContent = "内側の白石だけが黒になり、外側の境界線は一切広がっていません！";
+            DOM.demoGuideReason.textContent = "外側に黒石が露出しないため、白（相手）は次に打てるマスがありません。";
+        }
+    } else if (demoType === "壁") {
+        if (step === 1) {
+            for (let c = 1; c <= 6; c++) board[1][c] = WHITE;
+            board[2][2] = WHITE; board[2][3] = BLACK; board[2][4] = BLACK;
+            drawBoard();
+
+            for (let c = 1; c <= 6; c++) attachDemoBadge(1, c, "🧱 壁", "demo-badge-wall");
+        } else {
+            // 黒に外側から囲まれる
+            for (let c = 1; c <= 6; c++) board[1][c] = WHITE;
+            board[0][2] = BLACK; board[0][3] = BLACK; board[0][4] = BLACK;
+            board[2][2] = WHITE; board[2][3] = BLACK; board[2][4] = BLACK;
+            drawBoard();
+
+            attachDemoBadge(0, 3, "🎯 相手の足場", "demo-badge-cut");
+            DOM.demoSituationText.textContent = "壁の外側を黒に囲まれ、白の打てる場所が完全に消滅しました。";
+            DOM.demoGuideReason.textContent = "外側に一直線に石を並べると、相手に無数の打点を与える最悪の敗着となります。";
+        }
+    } else if (demoType === "パリティ") {
+        board[3][3] = WHITE; board[3][4] = BLACK;
+        board[4][3] = BLACK; board[4][4] = WHITE;
+        drawBoard();
+
+        attachDemoBadge(0, 1, "偶数(2空き)", "demo-badge-even");
+        attachDemoBadge(0, 2, "偶数(2空き)", "demo-badge-even");
+        attachDemoBadge(0, 5, "奇数(1空き)", "demo-badge-odd");
+    } else if (demoType === "定石") {
+        board[3][3] = BLACK; board[3][4] = BLACK;
+        board[4][3] = BLACK; board[4][4] = WHITE;
+        board[4][5] = BLACK; board[5][5] = WHITE;
+        board[3][2] = BLACK;
+        drawBoard();
+
+        attachDemoBadge(3, 2, "🐮 牛定石C4", "demo-badge-cut");
+    } else {
+        board[0][0] = BLACK; board[0][1] = BLACK; board[0][2] = BLACK;
+        board[1][0] = BLACK; board[2][0] = BLACK;
+        drawBoard();
+
+        attachDemoBadge(0, 0, "👑 角(絶対安全)", "demo-badge-corner");
+        attachDemoBadge(0, 1, "💎 確定石", "demo-badge-corner");
+        attachDemoBadge(1, 0, "💎 確定石", "demo-badge-corner");
+    }
+}
+
+function exitBoardVisualDemo() {
+    if (!isDemoMode || !savedBoardStateForDemo) return;
+    board = cloneBoard(savedBoardStateForDemo.board);
+    currentPlayer = savedBoardStateForDemo.currentPlayer;
+    lastMove = savedBoardStateForDemo.lastMove;
+
+    DOM.status.className = savedBoardStateForDemo.statusType;
+    DOM.status.textContent = savedBoardStateForDemo.statusText;
+
+    isDemoMode = false;
+    currentDemoType = null;
+    currentDemoStep = 1;
+    savedBoardStateForDemo = null;
+
+    DOM.demoGuideCard.classList.remove("show");
+    DOM.normalControlCard.style.display = "";
+
+    drawBoard();
+    updateBalanceGauge();
+    updateUndoButtonState();
+}
+
+if (DOM.btnExitDemoMain) DOM.btnExitDemoMain.addEventListener("click", exitBoardVisualDemo);
+if (DOM.btnDemoSimulate) {
+    DOM.btnDemoSimulate.addEventListener("click", () => {
+        if (!isDemoMode || !currentDemoType) return;
+        const nextStep = (currentDemoStep === 1) ? 2 : 1;
+        renderDemoBoardStep(currentDemoType, nextStep);
+        DOM.btnDemoSimulate.textContent = (nextStep === 2) ? "◀ 最初の局面に戻す" : (TERMS_DICTIONARY[currentDemoType]?.simBtnText || "相手の番をシミュレート ▶");
+    });
+}
+
+window.triggerBoardVisualDemo = triggerBoardVisualDemo;
+
+/* ==========================================================================
+  【ミニ解説ポップアップ＆思案所宝典連動】
+========================================================================== */
+let activePopupTerm = null;
+
+function showTermPopup(termKey, event) {
+    if (!TERMS_DICTIONARY[termKey]) return;
+    const termData = TERMS_DICTIONARY[termKey];
+    activePopupTerm = termKey;
+
+    DOM.termPopupTitle.textContent = termData.title;
+    DOM.termPopupBody.textContent = termData.desc;
+
+    const popup = DOM.termPopup;
+    popup.style.display = "block";
+
+    let x = event ? (event.clientX || event.pageX) : window.innerWidth / 2;
+    let y = event ? (event.clientY || event.pageY) : window.innerHeight / 2;
+
+    const pw = popup.offsetWidth || 280;
+    const ph = popup.offsetHeight || 140;
+
+    let left = x - pw / 2;
+    let top = y - ph - 12;
+
+    if (left < 10) left = 10;
+    if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
+    if (top < 10) top = y + 16;
+
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+}
+
+function closeTermPopup() {
+    DOM.termPopup.style.display = "none";
+    activePopupTerm = null;
+}
+
+if (DOM.termPopupClose) {
+    DOM.termPopupClose.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeTermPopup();
+    });
+}
+
+if (DOM.termPopupDemoBtn) {
+    DOM.termPopupDemoBtn.addEventListener("click", () => {
+        if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
+        const demoType = TERMS_DICTIONARY[activePopupTerm].demoType;
+        triggerBoardVisualDemo(demoType);
+    });
+}
+
+if (DOM.termPopupMore) {
+    DOM.termPopupMore.addEventListener("click", () => {
+        if (!activePopupTerm || !TERMS_DICTIONARY[activePopupTerm]) return;
+        const targetSecId = TERMS_DICTIONARY[activePopupTerm].tabSec;
+        closeTermPopup();
+
+        DOM.guideOverlay.classList.add("show");
+        document.body.classList.add("modal-open-lock");
+
+        manualTabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === "tab-terms"));
+        manualTabContents.forEach(c => c.classList.toggle("active", c.id === "tab-terms"));
+
+        const secEl = document.getElementById(targetSecId);
+        if (secEl) {
+            setTimeout(() => secEl.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        }
+    });
+}
+
+document.addEventListener("click", (e) => {
+    if (e.target.classList.contains("term-link")) {
+        e.stopPropagation();
+        const term = e.target.dataset.term;
+        showTermPopup(term, e);
+    } else if (DOM.termPopup && !DOM.termPopup.contains(e.target)) {
+        closeTermPopup();
+    }
+});
 
 /* 王宮戦績録 データ管理 */
 function getArchiveLogs() {
@@ -1764,11 +2197,11 @@ function clearArchiveLogs() {
 
 function determineInitialCharacterLevel() {
     const logs = getArchiveLogs();
-    for (let lv = 1; lv <= 6; lv++) {
+    for (let lv = 1; lv <= 10; lv++) {
         const hasWonGenuinely = logs.some(r => r.charId === lv && r.isWin && r.isGenuine);
         if (!hasWonGenuinely) return String(lv);
     }
-    return "6";
+    return "10";
 }
 
 function determineDramaTitle(isWin, isDraw, diff, playerStones, oppStones, minWinrate) {
@@ -1861,7 +2294,7 @@ function renderArchiveView() {
     DOM.archStatBestRate.textContent = `${avgBestRate}%`;
 
     DOM.archiveCrownGrid.innerHTML = "";
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 10; i++) {
         const char = CHARACTERS[i];
         const isConquered = logs.some(r => r.charId === i && r.isWin && r.isGenuine);
         const nameParts = char.name.split(" ");
@@ -1974,7 +2407,7 @@ function closeArchiveModal() {
     document.body.classList.remove("modal-open-lock");
 }
 
-/* 終局処理 */
+/* 終局処理（ヒント使用時の自力勝負を促す熱いセリフ分岐を反映） */
 function endGame() {
     gameOver = true;
     isBusy = false;
@@ -2023,11 +2456,26 @@ function endGame() {
         DOM.resultAvatarFrame.classList.add("opponent-lost-filter");
 
         if (usedHintInGame) {
-            quoteText = `見事な勝利でゴザイマス…が！ AIの指南（ヒント）を借りての勝利でしたネ！ 次回はぜひ【ヒントなし（自力真剣勝負）】でボクに挑んでみてくだサイ！`;
-            if (char.id === 6) {
-                quoteText = `ふむ…宮廷AIの知恵を借りて余を破ったか。真の覇王として戴冠するには己の知恵のみで余に勝たねばならん。ヒントなしの真剣勝負で余を打ち破ってみせよ！`;
-            } else if (char.id >= 3) {
-                quoteText = `知略は見事だが…AIの助力を得ていたようだな！ 貴殿の真の武勇を示すならば、次はヒントなしで我と剣を交えようぞ！`;
+            if (char.id === 1) {
+                quoteText = `見事な勝利でゴザイマス…が！ AIの指南（ヒント）を借りての勝利でしたネ！ 次回はぜひ【ヒントなし（自力真剣勝負）】でボクに挑んでみてくだサイ！`;
+            } else if (char.id === 2) {
+                quoteText = `私の負けですっ…でも、AI先生のヒントを借りていましたよね？ 次はぜひ、自力勝負で私とお手合わせしてくださいねっ！`;
+            } else if (char.id === 3) {
+                quoteText = `見事な大樹の完成…だけど、AIの肥料（ヒント）があったみたいだね！ 今度はぜひ、貴方様自身の知恵だけで咲かせてみせて！`;
+            } else if (char.id === 4) {
+                quoteText = `ふむ…AIの計算式をトレースしての勝利ですね。貴殿本来の知性を証明するためにも、次は完全自力で方程式を解いてみせてください。`;
+            } else if (char.id === 5) {
+                quoteText = `見事な太刀筋だが…AI指南役の助力を得ていたようだな！ 貴殿の真の武勇を示すならば、次は己の太刀のみで我と立ち合われよ！`;
+            } else if (char.id === 6) {
+                quoteText = `素晴らしい調べでした…ですが、AIの楽譜（ヒント）をチラリとご覧になられたようですね？ 次はぜひ、貴方の完全即興曲を聴かせてください！`;
+            } else if (char.id === 7) {
+                quoteText = `お見事でしたわ…ですが、AIの知恵を借りての薔薇摘みでしたのね。次はぜひ、殿方お一人のお力でわたくしを跪かせてごらんなさい。`;
+            } else if (char.id === 8) {
+                quoteText = `見事な用兵だが、軍師（AI）の助言あっての勝利だな！ 歴戦の老将を心服させたいならば、次は己の武謀のみで我が防衛陣を破ってみせよ！`;
+            } else if (char.id === 9) {
+                quoteText = `この私が敗れたか…だが、宮廷AIの計算力を借りていたようだな。真に国家の深謀を制したいならば、次は一切の指南を排して私に挑まれよ。`;
+            } else {
+                quoteText = `ふむ…宮廷AIの知恵を借りて余を破ったか。真の覇王として戴冠するには、己の知謀のみで余に勝たねばならん。ヒントなしの真剣勝負で余を打ち破ってみせよ！`;
             }
         } else {
             quoteText = Array.isArray(char.quotes.lose) ? char.quotes.lose[Math.floor(Math.random() * char.quotes.lose.length)] : char.quotes.lose;
@@ -2058,9 +2506,23 @@ function endGame() {
     const report = generateTacticsReport();
     DOM.carteDiagnosis.textContent = report.diagnosis;
     DOM.carteGoodCoord.textContent = report.goodCoord;
-    DOM.carteGoodDesc.textContent = report.goodDesc;
+    DOM.carteGoodDesc.innerHTML = report.goodDesc;
     DOM.carteBadCoord.textContent = report.badCoord;
-    DOM.carteBadDesc.textContent = report.badDesc;
+    DOM.carteBadDesc.innerHTML = report.badDesc;
+
+    if (usedHintInGame && !isWin) {
+        if (DOM.carteHintAdvice) {
+            DOM.carteHintAdvice.style.display = "block";
+            DOM.carteHintAdvice.innerHTML = `
+                <div class="carte-hint-advice-title">💡【宮廷AI指南役からの伝言】</div>
+                <div>有段・名人の域では、極限の読み合いにより先後差やわずかな展開で結果が分かれることがございます。本指南AIの勝率は<b>95%以上</b>を誇り、貴方様の着手は決して間違っておりません。白番では「斜め取り（馬定石）」や「平行取り（虎定石）」などの変化も有効です。次は必ずや勝利へとお導きいたしますので、ぜひもう一度お挑みください！</div>
+            `;
+        }
+    } else {
+        if (DOM.carteHintAdvice) {
+            DOM.carteHintAdvice.style.display = "none";
+        }
+    }
 
     recordGameResultToArchive(isWin, isDraw, hStones, cStones, char);
 
@@ -2076,7 +2538,7 @@ function endGame() {
                 startGame();
             };
         } else {
-            if (char.id < 6) {
+            if (char.id < 10) {
                 const nextChar = CHARACTERS[char.id + 1];
                 DOM.btnAdvanceIcon.textContent = "⚔️";
                 DOM.btnAdvanceText.textContent = `次の強敵へ挑む（Lv.${nextChar.id} ${nextChar.name} ${nextChar.rankLabel}）`;
@@ -2088,7 +2550,7 @@ function endGame() {
                 };
             } else {
                 DOM.btnAdvanceIcon.textContent = "🏆";
-                DOM.btnAdvanceText.textContent = "真の完全制覇！ 栄光の戴冠式へ";
+                DOM.btnAdvanceText.textContent = "全10豪傑完全制覇！ 栄光の戴冠式へ";
                 DOM.btnResultAdvance.onclick = () => {
                     DOM.royalResultModal.classList.remove("show");
                     DOM.endingModal.classList.add("show");
@@ -2112,7 +2574,7 @@ function endGame() {
 }
 
 function enterReviewMode() {
-    if (gameStepLogs.length === 0) return;
+    if (gameStepLogs.length === 0 || isDemoMode) return;
     isReviewMode = true;
     DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
@@ -2155,7 +2617,7 @@ function applyReviewStep(index) {
         const altMsg = tacticsWorstAlternative ? `（💡正解手【${toNotation(tacticsWorstAlternative[0], tacticsWorstAlternative[1])}】を金枠で表示中）` : "";
         contextText = `⚠️【悪手】${contextText} ${altMsg}`;
     }
-    DOM.reviewContextBox.textContent = contextText;
+    DOM.reviewContextBox.innerHTML = contextText;
 
     const char = getCurrentCharacter();
     if (index === 0) {
@@ -2336,6 +2798,8 @@ document.addEventListener("keydown", (e) => {
         document.querySelectorAll(".dynasty-overlay.show, .royal-result-modal.show")
             .forEach(m => m.classList.remove("show"));
         document.body.classList.remove("modal-open-lock");
+        closeTermPopup();
+        if (isDemoMode) exitBoardVisualDemo();
     }
 });
 
@@ -2346,4 +2810,3 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
-

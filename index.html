@@ -1,4 +1,3 @@
-
 <!-- ==========================================================================
   【オセロプログラム バージョン管理・変更履歴（Update History）】
   
@@ -38,9 +37,14 @@
   [Ver 6.8.1] 2026/10/22 : 【白黒UI完全同期・純CSS立体石アイコン・戦術カルテ因果関係網羅エディション】
   [Ver 6.9.0] 2026/10/22 : 【公式プロ定石ツリー完全搭載・段級位数理完全調律・事前計算プリフェッチエディション】
   [Ver 6.9.1] 2026/10/22 : 【完全非同期プリフェッチ・UI正常化＆躍動セリフパルス調律エディション】
-    - 【非同期プリフェッチ調律】相手着手後の画面フリーズを根絶し、相手思考中オーラの即時解除と「AI思案中…」表示を完全復元。
-    - 【打った瞬間の正確判定】裏計算キャッシュにより、ユーザー着手時のゼロ遅延パタパタ反転と妥当な採点判定を完全両立。
-    - 【AIセリフ発声パルス演出】セリフ出力中は吹き出しがゴールドに脈動点滅し、発声完了で静止する臨場感演出を実装。
+  [Ver 6.9.2] 2026/10/19 : 【ヒント数理スケール正常化・角献上バグ根絶＆安心指南フォローエディション】
+  [Ver 6.9.3] 2026/10/19 : 【ヒント深さ8手Lv.6超え・定石多様性確立＆オセロ用語・定石宝典エディション】
+  [Ver 7.0.0] 2026/10/19 : 【全10大豪傑集結・宮廷サロン完全具現化＆対話型盤面ビジュアル解説エディション】
+  [Ver 7.1.0] 2026/10/20 : 【セリフ発話文字パルス点滅・盤面ビジュアル解説特製指南カード＆全10豪傑台詞調律エディション】
+    - 【セリフ発話演出刷新】枠の金パルスを廃止し、セリフ文字全体が喋っている間ゆっくり点滅し発話完了で静止する新演出へ。
+    - 【対話型盤面ビジュアル解説のプレイヤー目線改善】盤面直下に「状況・急所の理由・格言」が直感的に読める特製指南カードを新設。
+    - 【盤面立体バッジ】急所マスに「👑角」「⚠️Xマス危険」「🎯中割り」等の立体ラベルを直接マウント。2コマシミュレーション機能を追加。
+    - 【全10大豪傑セリフ＆勝敗温度感の全面洗練】10名それぞれの身分・性格・世界観、および勝ち負け・ヒント使用時の台詞を完全個別調律。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -78,10 +82,6 @@
             --char-glow: rgba(230, 57, 70, 0.65);
             --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
 
-            /* バロック宮廷ダマスクパターン */
-            --damask-pattern: radial-gradient(circle at 50% 50%, rgba(212, 167, 72, 0.08) 2px, transparent 2.5px),
-                               linear-gradient(45deg, rgba(212, 167, 72, 0.04) 25%, transparent 25%, transparent 75%, rgba(212, 167, 72, 0.04) 75%);
-
             /* ステージ動的バインド変数（デフォルト：Lv.1） */
             --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
             --st-bg-size: 40px 40px;
@@ -106,48 +106,29 @@
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #c5973e 0%, #684814 100%); border-radius: 4px; border: 1px solid rgba(255, 240, 200, 0.2); }
 
         html, body {
-            width: 100%;
-            height: 100%;
-            height: 100dvh;
-            max-height: 100dvh;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-            background: var(--dynasty-bg);
-            color: #f7eed8;
+            width: 100%; height: 100%; height: 100dvh; max-height: 100dvh;
+            overflow: hidden; overscroll-behavior: none; touch-action: manipulation;
+            background: var(--dynasty-bg); color: #f7eed8;
             font-family: 'Shippori Mincho', "Yu Mincho", "Hiragino Mincho ProN", serif;
-            -webkit-font-smoothing: antialiased;
-            transition: background 0.8s ease-in-out;
-            position: fixed;
-            inset: 0;
+            -webkit-font-smoothing: antialiased; transition: background 0.8s ease-in-out;
+            position: fixed; inset: 0;
         }
 
         body {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
             padding: env(safe-area-inset-top, 2px) env(safe-area-inset-right, 2px) 0 env(safe-area-inset-left, 2px);
             position: relative;
         }
 
-        body.modal-open-lock {
-            overflow: hidden !important;
-            touch-action: none !important;
-        }
+        body.modal-open-lock { overflow: hidden !important; touch-action: none !important; }
 
         body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background-image: var(--st-bg-pattern);
-            background-size: var(--st-bg-size);
-            pointer-events: none;
-            z-index: 0;
-            transition: all 0.8s ease;
-            opacity: 0.6;
+            content: ""; position: fixed; inset: 0; background-image: var(--st-bg-pattern);
+            background-size: var(--st-bg-size); pointer-events: none; z-index: 0;
+            transition: all 0.8s ease; opacity: 0.6;
         }
 
+        /* 🏛️ 全10ステージ美術テーマ（背景・盤面・美術石） */
         body.stage-theme-1 {
             --dynasty-bg: radial-gradient(circle at 50% 20%, #2f1c13 0%, #190e09 60%, #0a0503 100%);
             --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
@@ -175,6 +156,32 @@
         }
 
         body.stage-theme-3 {
+            --dynasty-bg: radial-gradient(circle at 50% 20%, #162a1c 0%, #0c1810 60%, #040805 100%);
+            --st-bg-pattern: radial-gradient(circle at 50% 50%, rgba(82, 183, 136, 0.1) 2px, transparent 2px);
+            --st-bg-size: 32px 32px; --st-chassis-bg: linear-gradient(135deg, #2d4a36 0%, #1b2e21 50%, #0e1a12 100%);
+            --st-chassis-border: 3px solid #407553; --st-chassis-shadow: 0 10px 28px rgba(0,0,0,0.9), inset 0 1px 2px rgba(180, 240, 200, 0.35);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #244630 0%, #162e1f 70%, #0a170f 100%); --st-board-border: #122418; --st-cell-border: rgba(45, 95, 60, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 35% 25%, #2d5a3f 0%, #143020 45%, #05120a 90%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(180, 255, 210, 0.6), inset -2px -2px 5px rgba(0,0,0,0.95), 0 0 0 1px rgba(60, 140, 90, 0.45);
+            --st-b-stone-border: 1.5px solid #3b7a54; --st-w-stone-bg: radial-gradient(circle at 35% 25%, #ffffff 0%, #f7f3e4 35%, #eedfa6 75%, #d6bd6d 100%);
+            --st-w-stone-shadow: inset 2px 2px 3px #ffffff, inset -2px -2.5px 5px rgba(110, 85, 30, 0.4);
+            --st-w-stone-border: 1.5px solid #ebd793; --st-edge-rim: linear-gradient(90deg, #07140c 0%, #1f422b 49%, #5db37e 51%, #f4faee 100%);
+        }
+
+        body.stage-theme-4 {
+            --dynasty-bg: radial-gradient(circle at 50% 15%, #231633 0%, #120a1c 55%, #06020b 100%);
+            --st-bg-pattern: linear-gradient(45deg, rgba(175, 110, 255, 0.06) 25%, transparent 25%, transparent 75%, rgba(175, 110, 255, 0.06) 75%);
+            --st-bg-size: 36px 36px; --st-chassis-bg: linear-gradient(135deg, #372350 0%, #1e112e 50%, #0d0614 100%);
+            --st-chassis-border: 3px solid #6c429c; --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 2px rgba(220, 180, 255, 0.4);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #2f1d44 0%, #1c0f2a 70%, #0c0513 100%); --st-board-border: #14091e; --st-cell-border: rgba(95, 55, 135, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 30% 25%, #582b82 0%, #250f3b 45%, #090212 90%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(220, 180, 255, 0.7), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(160, 90, 240, 0.4);
+            --st-b-stone-border: 1.5px solid #7c3fb5; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fcf7e6 30%, #ecd688 65%, #c5a643 100%);
+            --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(90, 70, 20, 0.45);
+            --st-w-stone-border: 1.5px solid #f2e09b; --st-edge-rim: linear-gradient(90deg, #10041a 0%, #31154c 49%, #9b58da 51%, #fcedd7 100%);
+        }
+
+        body.stage-theme-5 {
             --dynasty-bg: radial-gradient(circle at 50% 20%, #142238 0%, #0a1220 55%, #03060c 100%);
             --st-bg-pattern: linear-gradient(45deg, rgba(60, 110, 180, 0.06) 25%, transparent 25%, transparent 75%, rgba(60, 110, 180, 0.06) 75%);
             --st-bg-size: 50px 50px; --st-chassis-bg: linear-gradient(135deg, #2b384e 0%, #182233 50%, #0d131f 100%);
@@ -187,7 +194,20 @@
             --st-w-stone-border: 1.5px solid #dbe6f7; --st-edge-rim: linear-gradient(90deg, #090e17 0%, #202c40 49%, #6884b2 51%, #ebf2fd 100%);
         }
 
-        body.stage-theme-4 {
+        body.stage-theme-6 {
+            --dynasty-bg: radial-gradient(circle at 50% 15%, #30171d 0%, #18090d 55%, #080204 100%);
+            --st-bg-pattern: repeating-linear-gradient(60deg, rgba(220, 150, 170, 0.05) 0px, rgba(220, 150, 170, 0.05) 1px, transparent 1px, transparent 24px);
+            --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #4d232c 0%, #2d1017 50%, #16060a 100%);
+            --st-chassis-border: 3px solid #8e4453; --st-chassis-shadow: 0 10px 30px rgba(0,0,0,0.95), inset 0 1px 3px rgba(255, 190, 210, 0.4);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #441d26 0%, #280d14 70%, #120307 100%); --st-board-border: #1a050a; --st-cell-border: rgba(135, 55, 75, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 30% 25%, #4d3c45 0%, #22151b 45%, #0d060a 90%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(240, 180, 205, 0.6), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(180, 110, 130, 0.4);
+            --st-b-stone-border: 1.5px solid #6b4350; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #fdf5f7 35%, #edd4db 75%, #c89da9 100%);
+            --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(110, 50, 70, 0.4);
+            --st-w-stone-border: 1.5px solid #ebd3da; --st-edge-rim: linear-gradient(90deg, #140408 0%, #3b1520 49%, #aa5469 51%, #fef3f6 100%);
+        }
+
+        body.stage-theme-7 {
             --dynasty-bg: radial-gradient(circle at 50% 15%, #380d17 0%, #1d050a 55%, #0a0104 100%);
             --st-bg-pattern: radial-gradient(circle at 25px 25px, rgba(255, 80, 120, 0.08) 3%, transparent 0%), radial-gradient(circle at 75px 75px, rgba(255, 80, 120, 0.08) 3%, transparent 0%);
             --st-bg-size: 60px 60px; --st-chassis-bg: linear-gradient(135deg, #4f1523 0%, #2e0912 50%, #170408 100%);
@@ -201,7 +221,20 @@
             --st-w-stone-border: 1.5px solid #ffe1ec; --st-edge-rim: linear-gradient(90deg, #170307 0%, #3a0d17 49%, #cc496c 51%, #fff0f5 100%);
         }
 
-        body.stage-theme-5 {
+        body.stage-theme-8 {
+            --dynasty-bg: radial-gradient(circle at 50% 18%, #2d1e12 0%, #170d06 55%, #080401 100%);
+            --st-bg-pattern: repeating-linear-gradient(45deg, rgba(210, 140, 80, 0.05) 0, rgba(210, 140, 80, 0.05) 2px, transparent 2px, transparent 20px);
+            --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #442a17 0%, #261509 50%, #120903 100%);
+            --st-chassis-border: 3px solid #85522a; --st-chassis-shadow: 0 12px 34px rgba(0,0,0,0.95), 0 0 16px rgba(190, 110, 50, 0.3);
+            --st-board-bg: radial-gradient(circle at 50% 50%, #3a2211 0%, #221207 70%, #0d0602 100%); --st-board-border: #1a0a03; --st-cell-border: rgba(120, 70, 35, 0.6);
+            --st-b-stone-bg: radial-gradient(circle at 30% 25%, #523120 0%, #241108 45%, #0a0401 90%);
+            --st-b-stone-shadow: inset 2px 2px 4px rgba(255, 170, 120, 0.6), inset -2.5px -2.5px 5px rgba(0,0,0,0.98), 0 0 0 1px rgba(190, 100, 50, 0.45);
+            --st-b-stone-border: 1.5px solid #824720; --st-w-stone-bg: radial-gradient(circle at 30% 25%, #ffffff 0%, #f4f6fa 35%, #cbd2e0 75%, #9da8be 100%);
+            --st-w-stone-shadow: inset 2px 2px 3.5px #ffffff, inset -2px -2.5px 5px rgba(60, 75, 100, 0.45);
+            --st-w-stone-border: 1.5px solid #d8e0ee; --st-edge-rim: linear-gradient(90deg, #140702 0%, #3d1f0d 49%, #b56c36 51%, #f6f7fa 100%);
+        }
+
+        body.stage-theme-9 {
             --dynasty-bg: radial-gradient(circle at 50% 15%, #241436 0%, #12091d 55%, #050209 100%);
             --st-bg-pattern: linear-gradient(60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px), linear-gradient(-60deg, rgba(160, 80, 240, 0.05) 1px, transparent 1px);
             --st-bg-size: 40px 70px; --st-chassis-bg: linear-gradient(135deg, #372150 0%, #1e0f30 50%, #0e0517 100%);
@@ -216,7 +249,7 @@
             --st-w-stone-border: 1.5px solid #ebdcf8; --st-edge-rim: linear-gradient(90deg, #10041a 0%, #2b1142 49%, #965bca 51%, #f6ecfd 100%);
         }
 
-        body.stage-theme-6 {
+        body.stage-theme-10 {
             --dynasty-bg: radial-gradient(circle at 50% 25%, #3d2f10 0%, #1f1705 55%, #0a0701 100%);
             --st-bg-pattern: repeating-conic-gradient(from 0deg at 50% 20%, rgba(255, 215, 0, 0.08) 0deg 15deg, transparent 15deg 30deg);
             --st-bg-size: auto; --st-chassis-bg: linear-gradient(135deg, #574013 0%, #352507 50%, #1c1303 100%);
@@ -230,8 +263,8 @@
             --st-w-stone-border: 1.5px solid #fff5cb; --st-edge-rim: linear-gradient(90deg, #171002 0%, #3b2b09 49%, #d4a748 51%, #fffde8 100%);
         }
 
-        body.stage-theme-6::before { opacity: 0.8; }
-        body.stage-theme-6 .black-stone::after {
+        body.stage-theme-10::before { opacity: 0.8; }
+        body.stage-theme-10 .black-stone::after {
             content: ""; position: absolute; inset: 0; border-radius: 50%;
             background-image: radial-gradient(circle at 65% 40%, rgba(255, 215, 0, 0.8) 1.5px, transparent 1.5px),
                               radial-gradient(circle at 45% 70%, rgba(255, 240, 180, 0.8) 1px, transparent 1.5px),
@@ -272,6 +305,90 @@
         .black-stone { background: var(--st-b-stone-bg); box-shadow: var(--st-b-stone-shadow); border: var(--st-b-stone-border); }
         .white-stone { background: var(--st-w-stone-bg); box-shadow: var(--st-w-stone-shadow); border: var(--st-w-stone-border); }
         .stone-edge-rim { background: var(--st-edge-rim); }
+
+        /* 👁️ 盤面立体バッジ（プレイヤー目線の直感ラベル） */
+        .demo-badge-corner {
+            position: absolute; z-index: 20; background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+            color: #121008; font-size: 9.5px; font-weight: 900; padding: 2px 4px; border-radius: 4px;
+            border: 1px solid #ffffff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.9), 0 2px 5px rgba(0,0,0,0.8);
+            pointer-events: none; animation: badge-pulse-gold 1.2s infinite alternate ease-in-out;
+            white-space: nowrap;
+        }
+        @keyframes badge-pulse-gold { from { transform: scale(0.95); } to { transform: scale(1.08); filter: drop-shadow(0 0 6px #fff); } }
+
+        .demo-badge-x {
+            position: absolute; z-index: 20; background: linear-gradient(135deg, #ff4d4d 0%, #a61212 100%);
+            color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 4px; border-radius: 4px;
+            border: 1px solid #ffd0d0; box-shadow: 0 0 12px rgba(255, 77, 77, 0.95), 0 2px 5px rgba(0,0,0,0.8);
+            pointer-events: none; animation: badge-pulse-red 1.1s infinite alternate ease-in-out;
+            white-space: nowrap;
+        }
+        @keyframes badge-pulse-red { from { transform: scale(0.95); } to { transform: scale(1.1); filter: drop-shadow(0 0 8px #ff0000); } }
+
+        .demo-badge-c {
+            position: absolute; z-index: 20; background: linear-gradient(135deg, #e5a724 0%, #8c600f 100%);
+            color: #ffffff; font-size: 8.5px; font-weight: 900; padding: 1.5px 3.5px; border-radius: 3px;
+            border: 1px solid #fff2cc; box-shadow: 0 0 8px rgba(229, 167, 36, 0.8), 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none; white-space: nowrap;
+        }
+
+        .demo-badge-cut {
+            position: absolute; z-index: 20; background: linear-gradient(135deg, #2ecc71 0%, #196f3d 100%);
+            color: #ffffff; font-size: 9.5px; font-weight: 900; padding: 2px 5px; border-radius: 4px;
+            border: 1.5px solid #ffffff; box-shadow: 0 0 14px rgba(46, 204, 113, 0.95);
+            pointer-events: none; animation: badge-pulse-gold 1.1s infinite alternate; white-space: nowrap;
+        }
+
+        .demo-badge-wall {
+            position: absolute; z-index: 20; background: rgba(220, 20, 60, 0.85); color: #fff;
+            font-size: 8.5px; font-weight: 900; padding: 1px 3px; border-radius: 3px; border: 1px solid #ff9999;
+            pointer-events: none; white-space: nowrap;
+        }
+
+        .demo-badge-even {
+            position: absolute; z-index: 20; background: #0284c7; color: #fff; font-size: 8.5px; font-weight: 900;
+            padding: 1px 4px; border-radius: 3px; border: 1px solid #7dd3fc; pointer-events: none;
+        }
+        .demo-badge-odd {
+            position: absolute; z-index: 20; background: #e11d48; color: #fff; font-size: 8.5px; font-weight: 900;
+            padding: 1px 4px; border-radius: 3px; border: 1px solid #fda4af; pointer-events: none;
+        }
+
+        /* 👁️ 盤面直下の特製ビジュアル解説カード（指南スクロール） */
+        .demo-guide-card {
+            display: none; width: min(calc(100vw - 8px), 480px);
+            background: linear-gradient(145deg, rgba(22, 26, 36, 0.98) 0%, rgba(12, 14, 20, 0.99) 100%);
+            border: 2px solid #ffd700; border-radius: 12px; padding: 9px 12px; margin-top: 5px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 18px rgba(255, 215, 0, 0.4);
+            flex-direction: column; gap: 5px; text-align: left; z-index: 120;
+            animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+        }
+        .demo-guide-card.show { display: flex; }
+
+        .demo-guide-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1.5px solid rgba(212, 167, 72, 0.4); padding-bottom: 4px;
+        }
+        .demo-guide-title { font-size: 13px; font-weight: 900; color: #ffd700; display: flex; align-items: center; gap: 6px; }
+        .demo-guide-badge { font-size: 9px; font-weight: 800; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; padding: 1px 6px; border-radius: 10px; }
+
+        .demo-guide-body { display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.45; }
+        .demo-guide-situation { color: #ffffff; font-weight: 700; display: flex; align-items: baseline; gap: 4px; }
+        .demo-guide-reason { color: #ecd08c; background: rgba(0, 0, 0, 0.45); border-left: 3px solid #ffd700; padding: 4px 7px; border-radius: 0 4px 4px 0; font-size: 10.5px; }
+        .demo-guide-maxim { color: #ffd700; font-weight: 900; font-size: 10px; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+
+        .demo-guide-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; pt: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); }
+        .demo-btn-sim {
+            font-size: 10.5px; font-weight: 900; padding: 3px 10px; border-radius: 6px;
+            background: linear-gradient(180deg, #3a2e16 0%, #1c1507 100%); color: #ffd700;
+            border: 1.5px solid #ffd700; cursor: pointer; transition: all 0.2s ease;
+        }
+        .demo-btn-sim:hover { background: #ffd700; color: #121008; }
+        .demo-btn-exit-main {
+            font-size: 10.5px; font-weight: 900; padding: 3px 12px; border-radius: 6px;
+            background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        }
 
         .stage-curtain-banner {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85);
@@ -369,19 +486,6 @@
         .avatar-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .avatar-fallback-icon { font-size: 30px; color: #ffd700; }
 
-        .motion-char-1 { animation: clown-bounce 0.7s cubic-bezier(0.28, 0.84, 0.42, 1) !important; }
-        @keyframes clown-bounce { 0%, 100% { transform: scale(1) rotate(0deg) translateY(0); } 25% { transform: scale(1.06) rotate(-4deg) translateY(-4px); } 50% { transform: scale(0.96) rotate(3deg) translateY(2px); } 75% { transform: scale(1.03) rotate(-2deg) translateY(-2px); } }
-        .motion-char-2 { animation: colette-nod 0.65s ease-in-out !important; }
-        @keyframes colette-nod { 0%, 100% { transform: scale(1) translateY(0); } 35% { transform: scale(1.04) translateY(-2.5px); } 65% { transform: scale(1.02) translateY(3px) rotate(1.5deg); } }
-        .motion-char-3 { animation: roland-thrust 0.6s cubic-bezier(0.1, 0.9, 0.2, 1) !important; }
-        @keyframes roland-thrust { 0%, 100% { transform: scale(1) translateX(0); } 30% { transform: scale(1.08) translateX(3px) translateY(-1px); } 70% { transform: scale(1.02) translateX(1px); } }
-        .motion-char-4 { animation: elisabeth-float 0.8s ease-in-out !important; }
-        @keyframes elisabeth-float { 0%, 100% { transform: scale(1) translateY(0) rotate(0deg); } 40% { transform: scale(1.05) translateY(-5px) rotate(-1.5deg); } 70% { transform: scale(1.02) translateY(-2px) rotate(0.8deg); } }
-        .motion-char-5 { animation: wolfgang-glare 0.65s ease-out !important; }
-        @keyframes wolfgang-glare { 0%, 100% { transform: scale(1); filter: brightness(1); } 40% { transform: scale(1.03); filter: brightness(1.25) drop-shadow(0 0 10px #c084fc); } }
-        .motion-char-6 { animation: orleans-majesty 0.75s cubic-bezier(0.16, 1, 0.3, 1) !important; }
-        @keyframes orleans-majesty { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6)); } 50% { transform: scale(1.09) translateY(-2px); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.95)) brightness(1.15); } }
-
         .opponent-avatar-frame.thinking-aura { animation: oval-aura 1.8s infinite alternate ease-in-out !important; }
         @keyframes oval-aura { from { box-shadow: 0 0 0 2px #38240f, 0 0 10px var(--char-glow); } to { box-shadow: 0 0 0 3.5px var(--char-accent), 0 0 26px var(--char-glow); } }
 
@@ -415,7 +519,6 @@
             color: #ffffff; display: flex; align-items: center; gap: 5px;
         }
 
-        /* 純CSS立体ミニチュア石コンポーネント（フォント白化バグの根絶） */
         .mini-piece-stone {
             width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex-shrink: 0;
             box-shadow: 0 1.5px 3.5px rgba(0,0,0,0.9); position: relative;
@@ -431,33 +534,34 @@
             box-shadow: inset 1px 1px 2px #ffffff, 0 2px 4px rgba(0,0,0,0.6);
         }
 
-        /* AIセリフ吹き出し（タイピング中パルス点滅演出） */
+        /* 吹き出し枠：落ち着いた気品ある静止枠 */
         .opponent-speech-bubble {
             background: linear-gradient(135deg, rgba(28, 33, 46, 0.95) 0%, rgba(14, 16, 24, 0.98) 100%);
-            border: 1px solid rgba(212, 167, 72, 0.38); border-radius: 7px; border-top-left-radius: 2px;
-            padding: 3px 7px; font-size: 10.5px; line-height: 1.35; color: #f7eed8;
+            border: 1.5px solid rgba(212, 167, 72, 0.45); border-radius: 7px; border-top-left-radius: 2px;
+            padding: 3px 8px; font-size: 10.5px; line-height: 1.35; color: #f7eed8;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); position: relative; white-space: normal;
             word-break: break-all; animation: bubble-appear 0.28s ease-out; height: 30px;
-            display: flex; align-items: center; overflow: hidden; transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            display: flex; align-items: center; overflow: hidden;
         }
         .opponent-speech-bubble::before {
             content: ""; position: absolute; left: -5px; top: 10px; width: 0; height: 0;
             border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
         }
 
-        /* セリフ出力中の躍動点滅パルス */
-        .opponent-speech-bubble.is-speaking {
-            border-color: #ffd700 !important;
-            animation: speech-bubble-pulse 0.8s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        /* ✨ 喋っている最中の文字パルス点滅アニメーション（喋り終わると解除） */
+        #speechText.is-typing-text {
+            animation: speech-text-pulse 1.1s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
         }
-        @keyframes speech-bubble-pulse {
-            from {
-                box-shadow: 0 0 6px rgba(255, 215, 0, 0.4), inset 0 0 4px rgba(255, 215, 0, 0.2);
-                border-color: rgba(255, 215, 0, 0.6);
+        @keyframes speech-text-pulse {
+            0% {
+                color: #ffffff;
+                text-shadow: 0 0 8px rgba(255, 215, 0, 0.9), 0 0 16px rgba(255, 215, 0, 0.6);
+                transform: scale(1);
             }
-            to {
-                box-shadow: 0 0 16px rgba(255, 215, 0, 0.85), inset 0 0 8px rgba(255, 215, 0, 0.4);
-                border-color: #ffffff;
+            100% {
+                color: #faebd0;
+                text-shadow: 0 0 2px rgba(255, 215, 0, 0.3);
+                transform: scale(0.995);
             }
         }
 
@@ -498,15 +602,9 @@
         }
         .battle-center-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.35); z-index: 10; transform: translateX(-50%); }
 
-        /* 天秤ゲージ配色：手番石と完全同期する動的バインド */
-        .battle-power-player {
-            height: 100%; transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
-        }
-        .battle-power-opponent {
-            height: 100%; flex: 1; transition: all 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative;
-        }
+        .battle-power-player { height: 100%; transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; }
+        .battle-power-opponent { height: 100%; flex: 1; transition: all 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; }
 
-        /* プレイヤーが黒のとき：左＝漆黒・黒曜石、右＝真珠・白磁 */
         .gauge-player-black .battle-power-player {
             background: linear-gradient(90deg, #0d0f14 0%, #20242e 70%, #414a5d 100%);
             box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.15);
@@ -516,7 +614,6 @@
             box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
         }
 
-        /* プレイヤーが白のとき：左＝真珠・白磁、右＝漆黒・黒曜石 */
         .gauge-player-white .battle-power-player {
             background: linear-gradient(90deg, #ffffff 0%, #ebe6dc 60%, #d2ccc0 100%);
             box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
@@ -629,7 +726,6 @@
             to { transform: translateY(0) scale(1); opacity: 1; filter: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.82)); }
         }
 
-        /* 3D反転アニメーション（0.68s） */
         .stone-flip-wrapper {
             position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
             perspective: 1000px; animation: flip-lift-shadow 0.68s cubic-bezier(0.22, 1, 0.36, 1) forwards; z-index: 10;
@@ -740,7 +836,6 @@
             color: #faebd0; outline: none; width: 100%;
         }
 
-        /* 4大操作ボタン */
         button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; white-space: nowrap; }
         .btn-royal {
             padding: 4px 2px; font-size: 10px; font-weight: 800;
@@ -880,6 +975,18 @@
             font-size: 11.5px; font-weight: 800; color: #fae6b2; display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px solid rgba(212, 167, 72, 0.25);
         }
+        
+        .carte-hint-advice {
+            background: linear-gradient(135deg, rgba(45, 36, 18, 0.95) 0%, rgba(24, 18, 8, 0.98) 100%);
+            border: 1.5px solid #ffd700; border-radius: 8px; padding: 7px 9px; margin-bottom: 8px;
+            font-size: 10.5px; line-height: 1.45; color: #fff6d6;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+        }
+        .carte-hint-advice-title {
+            font-size: 11px; font-weight: 900; color: #ffd700; display: flex; align-items: center; gap: 5px;
+            margin-bottom: 3px;
+        }
+
         .carte-diagnosis-banner {
             font-size: 10.5px; color: #fff2cc; background: rgba(255, 215, 0, 0.1); border: 1px dashed rgba(255, 215, 0, 0.4);
             border-radius: 6px; padding: 5px 7px; margin-bottom: 7px; line-height: 1.4;
@@ -895,6 +1002,31 @@
         }
         .carte-desc { color: #ecd08c; margin-top: 2px; padding-left: 6px; font-size: 10px; line-height: 1.45; }
 
+        .term-link {
+            color: #ffd700; text-decoration: underline; text-decoration-style: dotted;
+            text-underline-offset: 3px; cursor: pointer; font-weight: 800; padding: 0 2px;
+            transition: all 0.2s ease;
+        }
+        .term-link:hover { color: #ffffff; background: rgba(255, 215, 0, 0.2); border-radius: 3px; }
+
+        .term-popup {
+            display: none; position: fixed; z-index: 3000;
+            background: linear-gradient(135deg, rgba(26, 30, 42, 0.98) 0%, rgba(12, 14, 20, 0.99) 100%);
+            border: 1.5px solid #ffd700; border-radius: 10px; padding: 10px 12px; width: min(88vw, 320px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9), 0 0 18px rgba(255, 215, 0, 0.4);
+            font-size: 11px; line-height: 1.5; color: #f7eed8; text-align: left;
+            animation: popup-fade-in 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+        }
+        @keyframes popup-fade-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+        .term-popup-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(212, 167, 72, 0.35); padding-bottom: 4px; margin-bottom: 5px; }
+        .term-popup-title { font-size: 12px; font-weight: 900; color: #ffd700; display: flex; align-items: center; gap: 4px; }
+        .term-popup-close { cursor: pointer; font-size: 12px; color: #ecd08c; padding: 1px 5px; }
+        .term-popup-body { margin-bottom: 6px; }
+        .term-popup-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+        .term-popup-demo-btn { font-size: 10px; font-weight: 800; color: #121008; background: var(--pure-gold-btn); border: 1px solid #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+        .term-popup-more { font-size: 10px; color: #ecd08c; text-decoration: underline; cursor: pointer; font-weight: 800; }
+        .term-popup-more:hover { color: #ffffff; }
+
         .result-actions { display: flex; flex-direction: column; gap: 6px; }
         .result-main-btn-row { display: flex; gap: 8px; }
         .result-btn-gold {
@@ -907,17 +1039,21 @@
         .result-btn-dark { background: rgba(255, 255, 255, 0.08); color: #f7eed8; border: 1px solid var(--gold-border); padding: 7px 12px; font-size: 11px; font-weight: 800; border-radius: 8px; cursor: pointer; }
         .result-btn-dark:hover { background: rgba(255, 255, 255, 0.15); border-color: #ffd700; }
 
-        #endingModal .royal-result-card { max-width: 500px; border-color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95); }
+        /* 👑 栄光の戴冠式モーダル */
+        #endingModal .royal-result-card { max-width: 600px; border-color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0, 0, 0, 0.95); }
         .ending-hero-title {
-            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 23px; font-weight: 900;
-            letter-spacing: 0.15em; background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
+            font-family: 'Cinzel Decorative', 'Shippori Mincho', serif; font-size: 22px; font-weight: 900;
+            letter-spacing: 0.15em; background: var(--royal-gold-bright); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px;
         }
-        .ending-tribute-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 14px 0; }
-        .tribute-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 8px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
-        .tribute-img { width: 42px; height: 56px; border-radius: 8px; border: 1.5px solid #ffd700; overflow: hidden; background: #111; box-shadow: 0 2px 6px rgba(0,0,0,0.7); }
+        .ending-tribute-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 8px 0 12px 0; }
+        @media (max-width: 540px) {
+            .ending-tribute-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+        }
+        .tribute-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(212, 167, 72, 0.3); border-radius: 6px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+        .tribute-img { width: 36px; height: 48px; border-radius: 6px; border: 1.5px solid #ffd700; overflow: hidden; background: #111; box-shadow: 0 2px 6px rgba(0,0,0,0.7); }
         .tribute-img img { width: 100%; height: 100%; object-fit: cover; }
-        .tribute-name { font-size: 9px; font-weight: 800; color: #fff4bd; }
-        .tribute-msg { font-size: 8.5px; color: #d6cbba; line-height: 1.25; font-style: italic; }
+        .tribute-name { font-size: 8.5px; font-weight: 800; color: #fff4bd; }
+        .tribute-msg { font-size: 7.5px; color: #d6cbba; line-height: 1.2; font-style: italic; }
 
         /* バロック調モーダル */
         .dynasty-overlay {
@@ -927,7 +1063,7 @@
         .dynasty-overlay.show { display: flex; }
         
         .dynasty-modal {
-            width: 100%; max-width: 620px; max-height: 88dvh; overflow-y: auto; text-align: left; color: #f7eed8;
+            width: 100%; max-width: 660px; max-height: 88dvh; overflow-y: auto; text-align: left; color: #f7eed8;
             background: linear-gradient(160deg, #181c26 0%, #0e1017 60%, #07080c 100%);
             border: 2px solid #d4a748; border-radius: 14px; padding: 18px 16px;
             box-shadow: 0 0 35px rgba(212, 167, 72, 0.35), 0 20px 60px rgba(0, 0, 0, 0.95);
@@ -956,10 +1092,10 @@
         }
         .modal-close-btn:hover { border-color: #ffd700; color: #fff; transform: scale(1.08); }
 
-        .manual-tabs { display: flex; gap: 5px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; }
+        .manual-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 6px; flex-wrap: wrap; }
         .manual-tab-btn {
-            flex: 1; padding: 6px 4px; font-size: 11px; font-weight: 800; background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(212, 167, 72, 0.25); color: #c9ba9f; border-radius: 6px; transition: all 0.2s ease;
+            flex: 1; min-width: 65px; padding: 5px 2px; font-size: 10px; font-weight: 800; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 167, 72, 0.25); color: #c9ba9f; border-radius: 6px; transition: all 0.2s ease; text-align: center;
         }
         .manual-tab-btn.active {
             background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #1a1204;
@@ -973,22 +1109,23 @@
             border-radius: 10px; padding: 11px 13px; margin-bottom: 10px; font-size: 11.5px; line-height: 1.6;
             box-shadow: inset 0 1px 4px rgba(255, 215, 0, 0.1), 0 3px 8px rgba(0,0,0,0.5);
         }
-        .manual-card-title { font-size: 12.5px; font-weight: 900; color: #fff2cc; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        
+        .manual-card-title { font-size: 12.5px; font-weight: 900; color: #fff2cc; display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+        .btn-inline-demo { font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; cursor: pointer; }
+
         .manual-char-card {
-            display: flex; gap: 12px; align-items: center; border: 1.5px solid rgba(212, 167, 72, 0.35);
+            display: flex; gap: 10px; align-items: center; border: 1.5px solid rgba(212, 167, 72, 0.35);
             background: linear-gradient(135deg, rgba(30, 34, 46, 0.75) 0%, rgba(15, 17, 24, 0.9) 100%);
-            border-radius: 10px; padding: 9px 11px; margin-bottom: 9px;
+            border-radius: 10px; padding: 8px 10px; margin-bottom: 8px;
             box-shadow: inset 0 1px 4px rgba(255, 215, 0, 0.1), 0 3px 10px rgba(0,0,0,0.6);
         }
         .manual-char-avatar-mini {
-            width: 54px; height: 72px; border-radius: 8px; border: 2px solid #d4a748;
+            width: 48px; height: 64px; border-radius: 8px; border: 2px solid #d4a748;
             overflow: hidden; flex-shrink: 0; background: #111; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 0 0 8px rgba(212, 167, 72, 0.4);
         }
         .manual-char-avatar-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .manual-char-info { flex: 1; min-width: 0; font-size: 11px; line-height: 1.45; }
-        .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; color: #ffd700; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.45); padding: 1.5px 6px; border-radius: 4px; }
-        .manual-strength-tag { font-size: 10px; color: #ffd700; font-weight: 800; margin-left: 6px; }
+        .manual-char-info { flex: 1; min-width: 0; font-size: 10.5px; line-height: 1.4; }
+        .manual-rank-badge { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 900; color: #ffd700; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.45); padding: 1px 5px; border-radius: 4px; }
+        .manual-strength-tag { font-size: 9.5px; color: #ffd700; font-weight: 800; margin-left: 5px; }
 
         /* 王宮戦績録モーダル */
         #archiveModal { max-width: 720px; max-height: 90dvh; display: flex; flex-direction: column; }
@@ -1010,14 +1147,14 @@
         .archive-stat-val { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 900; color: #ffd700; }
 
         .archive-crown-grid {
-            display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;
             padding: 8px 6px 6px 6px; background: rgba(0,0,0,0.45); border-radius: 10px;
             border: 1px solid rgba(212, 167, 72, 0.3);
         }
         .crown-item { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
 
         .crown-item-avatar {
-            width: 100%; max-width: 58px; aspect-ratio: 1 / 1.32; border-radius: 8px; border: 2px solid #555;
+            width: 100%; max-width: 52px; aspect-ratio: 1 / 1.32; border-radius: 6px; border: 2px solid #555;
             overflow: hidden; background: #111; position: relative; filter: grayscale(0.85) opacity(0.55);
             transition: all 0.3s ease; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
         }
@@ -1033,11 +1170,11 @@
             padding: 1px 2px 2px 2px; text-align: center; z-index: 4;
         }
         .crown-badge-mark {
-            font-size: 8px; font-weight: 900; padding: 0.5px 3px; border-radius: 3px;
+            font-size: 7.5px; font-weight: 900; padding: 0.5px 3px; border-radius: 3px;
             background: #2a2a2a; color: #aaa; display: inline-block; line-height: 1.1; margin-bottom: 1px;
         }
         .crown-item.conquered .crown-badge-mark { background: #ffd700; color: #121008; font-weight: 900; box-shadow: 0 0 6px #ffd700; }
-        .crown-item-name { font-size: 8px; font-weight: 800; color: #f2e9d2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .crown-item-name { font-size: 7.5px; font-weight: 800; color: #f2e9d2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .archive-toolbar {
             display: flex; flex-direction: column; gap: 6px;
@@ -1150,6 +1287,19 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
+    <!-- ミニ解説ポップアップコンテナ -->
+    <div id="termPopup" class="term-popup">
+        <div class="term-popup-header">
+            <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
+            <span class="term-popup-close" id="termPopupClose">✕</span>
+        </div>
+        <div class="term-popup-body" id="termPopupBody">解説テキスト</div>
+        <div class="term-popup-actions">
+            <button type="button" class="term-popup-demo-btn" id="termPopupDemoBtn">盤面で確認 👁️</button>
+            <span class="term-popup-more" id="termPopupMore">思案所宝典へ ➔</span>
+        </div>
+    </div>
+
     <header>
         <div class="header-left-space"></div>
         <div class="header-title-wrap">
@@ -1189,12 +1339,11 @@
                 <div class="opponent-header-row">
                     <div class="opponent-name-group">
                         <span class="opponent-name" id="opponentName">道化師 ピエロ</span>
-                        <span class="opponent-title" id="opponentTitle">【入門・アマ10級】</span>
+                        <span class="opponent-title" id="opponentTitle">【入門・アマ12級】</span>
                     </div>
                     <div class="opponent-stats-group">
                         <span class="opponent-timer" id="opponentTime" title="相手の総消費思考時間">⏱️ 00:00</span>
                         <div class="opponent-score-badge">
-                            <!-- 純CSS立体ミニ石コンポーネント（JSから動的同期） -->
                             <div class="mini-piece-stone piece-white" id="opponentPieceIcon"></div>
                             <span id="opponentScore">2</span>
                         </div>
@@ -1211,7 +1360,6 @@
 
         <!-- ゾーン②：盤面ゾーン -->
         <div class="board-zone">
-            <!-- 動的バインドクラス gauge-player-black / gauge-player-white -->
             <div class="battle-gauge-container gauge-player-black" id="battleGaugeContainer">
                 <div class="battle-gauge-header">
                     <span id="battleStatPlayer" class="battle-stat-tag">⚫ あなた 50%</span>
@@ -1246,6 +1394,29 @@
                     <div class="board-star-dot star-f6"></div>
                 </div>
             </div>
+
+            <!-- 👁️ 盤面直下の特製ビジュアル解説カード（指南スクロール） -->
+            <div class="demo-guide-card" id="demoGuideCard">
+                <div class="demo-guide-header">
+                    <span class="demo-guide-title" id="demoGuideTitle">👁️ 盤面ビジュアル解説</span>
+                    <span class="demo-guide-badge" id="demoGuideBadge">指南デモ</span>
+                </div>
+                <div class="demo-guide-body">
+                    <div class="demo-guide-situation" id="demoGuideSituation">
+                        <span>【局面】</span><span id="demoSituationText">局面の解説</span>
+                    </div>
+                    <div class="demo-guide-reason" id="demoGuideReason">
+                        急所の理由解説
+                    </div>
+                    <div class="demo-guide-maxim" id="demoGuideMaxim">
+                        <span>💡 格言：</span><span id="demoMaximText">オセロの格言</span>
+                    </div>
+                </div>
+                <div class="demo-guide-actions">
+                    <button type="button" class="demo-btn-sim" id="btnDemoSimulate">相手の番をシミュレート ▶</button>
+                    <button type="button" class="demo-btn-exit-main" id="btnExitDemoMain">対局に戻る ✕</button>
+                </div>
+            </div>
         </div>
 
         <!-- ゾーン③：操作ゾーン -->
@@ -1258,7 +1429,6 @@
                 <div class="player-sub-row">
                     <div class="player-stats-group">
                         <div class="player-score-badge">
-                            <!-- 純CSS立体ミニ石コンポーネント（JSから動的同期） -->
                             <div class="mini-piece-stone piece-black" id="playerPieceIcon"></div>
                             <span id="playerScore">2</span>
                         </div>
@@ -1272,12 +1442,16 @@
 
                 <div class="action-grid-row1">
                     <select id="characterSelect" aria-label="対戦相手の選択">
-                        <option value="1" selected>Lv.1 ピエロ 【入門・アマ10級】</option>
-                        <option value="2">Lv.2 コレット 【初級・アマ5級】</option>
-                        <option value="3">Lv.3 ローラン 【中級・アマ1級】</option>
-                        <option value="4">Lv.4 エリザベート 【上級・アマ三段】</option>
-                        <option value="5">Lv.5 ヴォルフガング 【有段・アマ五段】</option>
-                        <option value="6">Lv.6 オルレアン 【神域・全国名人】</option>
+                        <option value="1" selected>Lv.1 ピエロ 【入門・アマ12級】</option>
+                        <option value="2">Lv.2 コレット 【初級入門・アマ9級】</option>
+                        <option value="3">Lv.3 ルカ 【初級・アマ7級】</option>
+                        <option value="4">Lv.4 ニコラ 【初中級・アマ4級】</option>
+                        <option value="5">Lv.5 ローラン 【中級・アマ2級】</option>
+                        <option value="6">Lv.6 ジュリアン 【中上級・アマ1級】</option>
+                        <option value="7">Lv.7 エリザベート 【上級・アマ初段】</option>
+                        <option value="8">Lv.8 フェルディナント 【強豪有段・アマ三段】</option>
+                        <option value="9">Lv.9 ヴォルフガング 【宮廷最強・アマ五段】</option>
+                        <option value="10">Lv.10 オルレアン 【神域・全国名人】</option>
                     </select>
 
                     <select id="hintMode" aria-label="学習モード">
@@ -1338,7 +1512,7 @@
                     【対戦相手】道化師 ピエロ（降参・完敗）
                 </div>
                 <div class="result-avatar-frame" id="resultAvatarFrame"></div>
-                <div class="result-char-name-badge" id="resultCharNameBadge">道化師 ピエロ 【入門・アマ10級】</div>
+                <div class="result-char-name-badge" id="resultCharNameBadge">道化師 ピエロ 【入門・アマ12級】</div>
             </div>
 
             <div class="result-quote-card" id="resultQuoteBox">
@@ -1356,11 +1530,14 @@
                 </div>
             </div>
 
-            <!-- 刷新されたAI戦術カルテ -->
+            <!-- AI戦術カルテ -->
             <div class="ai-tactics-carte">
                 <div class="carte-header">
                     <span>📜 宮廷AI戦術カルテ（敗着・勝着分析）</span>
                 </div>
+                
+                <div class="carte-hint-advice" id="carteHintAdvice" style="display:none;"></div>
+
                 <div class="carte-diagnosis-banner" id="carteDiagnosis">
                     【総括診断】戦況の把握中...
                 </div>
@@ -1387,12 +1564,12 @@
         </div>
     </div>
 
-    <!-- 栄光の戴冠式モーダル -->
+    <!-- 👑 栄光の戴冠式モーダル（全10豪傑完全網羅） -->
     <div id="endingModal" class="royal-result-modal">
         <div class="royal-result-card">
             <div class="ending-hero-title">🏆 GRAND TRIUMPH</div>
-            <div style="font-size:13px; font-weight:800; color:#ffd700; margin-bottom:4px;">全宮廷豪傑制覇・栄光の戴冠式</div>
-            <p style="font-size:11px; color:#e0d3bc; line-height:1.5; margin-bottom:10px;">
+            <div style="font-size:13px; font-weight:800; color:#ffd700; margin-bottom:4px;">全宮廷10大豪傑制覇・栄光の戴冠式</div>
+            <p style="font-size:11px; color:#e0d3bc; line-height:1.5; margin-bottom:8px;">
                 AIの指南に一切頼ることなく、己の知謀のみで至高の老賢王オルレアンをも打ち破り、貴方様は王国の頂点たる「真のオセロ覇王」へと戴冠いたしました！
             </p>
 
@@ -1400,32 +1577,52 @@
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char1.png" alt="ピエロ" onerror="this.src='';this.parentElement.textContent='🃏'"></div>
                     <div class="tribute-name">ピエロ</div>
-                    <div class="tribute-msg">「自力で王様を倒すなんて本物の天才でゴザイマス！」</div>
+                    <div class="tribute-msg">「本物の天才でゴザイマス！」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char2.png" alt="コレット" onerror="this.src='';this.parentElement.textContent='🎀'"></div>
                     <div class="tribute-name">コレット</div>
-                    <div class="tribute-msg">「すごいですっ！お城の歴史に永遠に名前が残りますね！」</div>
+                    <div class="tribute-msg">「お城の歴史に残りますっ！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char7.png" alt="ルカ" onerror="this.src='';this.parentElement.textContent='🌱'"></div>
+                    <div class="tribute-name">ルカ</div>
+                    <div class="tribute-msg">「最高の薔薇を捧げます！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';this.parentElement.textContent='🔮'"></div>
+                    <div class="tribute-name">ニコラ</div>
+                    <div class="tribute-msg">「完全無欠の知の極致です！」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char3.png" alt="ローラン" onerror="this.src='';this.parentElement.textContent='⚔️'"></div>
                     <div class="tribute-name">ローラン</div>
-                    <div class="tribute-msg">「我が剣を捧げよう！貴殿こそ真の盤上の覇王だ！」</div>
+                    <div class="tribute-msg">「我が剣を捧げよう！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char9.png" alt="ジュリアン" onerror="this.src='';this.parentElement.textContent='🪕'"></div>
+                    <div class="tribute-name">ジュリアン</div>
+                    <div class="tribute-msg">「覇王の詩を歌い継ぎます。」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="tribute-name">エリザベート</div>
-                    <div class="tribute-msg">「ふふ…至高の知性に乾杯。今宵は貴方様の宴ですわ。」</div>
+                    <div class="tribute-msg">「今宵は貴方様の宴ですわ。」</div>
                 </div>
                 <div class="tribute-card">
-                    <div class="tribute-img"><img src="images/char4.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
+                    <div class="tribute-img"><img src="images/char10.png" alt="フェルディナント" onerror="this.src='';this.parentElement.textContent='🛡️'"></div>
+                    <div class="tribute-name">フェルディナント</div>
+                    <div class="tribute-msg">「王国全軍、貴殿に従おう！」</div>
+                </div>
+                <div class="tribute-card">
+                    <div class="tribute-img"><img src="images/char5.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
                     <div class="tribute-name">ヴォルフガング</div>
-                    <div class="tribute-msg">「冷徹な知略の極み、完全無欠の勝利に敬服いたす。」</div>
+                    <div class="tribute-msg">「冷徹な知略の極み、敬服す。」</div>
                 </div>
                 <div class="tribute-card">
                     <div class="tribute-img"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
                     <div class="tribute-name">オルレアン</div>
-                    <div class="tribute-msg">「余の玉座を託そう！新しき覇王の誕生を祝福せよ！」</div>
+                    <div class="tribute-msg">「余の玉座を託そうぞ！」</div>
                 </div>
             </div>
 
@@ -1464,7 +1661,7 @@
                 </div>
 
                 <div style="font-size:10px; font-weight:800; color:#ffd700; margin-top:2px;">
-                    ⚔️ 6大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
+                    ⚔️ 10大豪傑 真剣勝負（ヒントなし）完全制覇の勲章
                 </div>
                 <div class="archive-crown-grid" id="archiveCrownGrid"></div>
             </div>
@@ -1475,10 +1672,14 @@
                         <option value="all">全対戦相手</option>
                         <option value="1">Lv.1 ピエロ</option>
                         <option value="2">Lv.2 コレット</option>
-                        <option value="3">Lv.3 ローラン</option>
-                        <option value="4">Lv.4 エリザベート</option>
-                        <option value="5">Lv.5 ヴォルフガング</option>
-                        <option value="6">Lv.6 オルレアン</option>
+                        <option value="3">Lv.3 ルカ</option>
+                        <option value="4">Lv.4 ニコラ</option>
+                        <option value="5">Lv.5 ローラン</option>
+                        <option value="6">Lv.6 ジュリアン</option>
+                        <option value="7">Lv.7 エリザベート</option>
+                        <option value="8">Lv.8 フェルディナント</option>
+                        <option value="9">Lv.9 ヴォルフガング</option>
+                        <option value="10">Lv.10 オルレアン</option>
                     </select>
 
                     <select id="archFilterMode" aria-label="形式フィルター">
@@ -1538,7 +1739,7 @@
         </div>
     </div>
 
-    <!-- 思案所モーダル -->
+    <!-- 宮廷思案所モーダル -->
     <div id="guideOverlay" class="dynasty-overlay">
         <div id="guideModal" class="dynasty-modal">
             <div class="guide-header">
@@ -1546,10 +1747,12 @@
                 <button id="guideCloseButton" class="modal-close-btn" type="button">✕</button>
             </div>
             <div class="manual-tabs">
-                <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 対面操作体系</button>
-                <button type="button" class="manual-tab-btn" data-tab="tab-rank">📊 宮廷6大豪傑と美術石</button>
+                <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作体系</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-rank">📊 10大豪傑</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-tips">📖 戦術の極意</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-terms">📚 用語・定石宝典</button>
             </div>
+            
             <div id="tab-ops" class="manual-tab-content active">
                 <div class="manual-card">
                     <div class="manual-card-title">👑 宮廷対面コロシアム構図</div>
@@ -1557,67 +1760,182 @@
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">🏛️ 宮廷サロン・盤面・美術石の劇的昇華</div>
-                    <div>対戦相手（階位）に応じて、サロン背景空間だけでなく、<b>盤面フィールドそのもの（オリーブ木目卓 ➔ ペールミント磁器 ➔ アイアンネイビー鋼鉄 ➔ 深紅ベルベット ➔ 黒大理石 ➔ 金箔エメラルド）</b>とオセロ石のリアル素材が劇的に変化します。</div>
+                    <div>対戦相手（階位）に応じて、サロン背景空間だけでなく、<b>盤面フィールドそのもの（オリーブ木目卓 ➔ ペールミント磁器 ➔ 翠緑苔盤 ➔ スレート鉱物盤 ➔ 鋼鉄盤 ➔ ローズウッド木目金盤 ➔ 深紅ベルベット ➔ ブロンズ盤 ➔ 黒大理石 ➔ 金箔エメラルド）</b>とオセロ石のリアル素材が劇的に変化します。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">✨ 公式仕様の4大ガイドドット（星）</div>
                     <div>盤面上の4箇所（C3/F3/C6/F6の交点）に刻まれた真鍮リベットは、日本オセロ連盟公認盤に準拠した目印です。</div>
                 </div>
             </div>
+
+            <!-- 📊 全10大豪傑紹介 -->
             <div id="tab-rank" class="manual-tab-content">
                 <div class="manual-char-card">
                     <div class="manual-char-avatar-mini"><img src="images/char1.png" alt="ピエロ" onerror="this.src='';this.parentElement.textContent='🃏'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.1</span> 道化師 ピエロ <span class="manual-strength-tag">【入門・アマ10級】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 旅の酒場 / 盤：オリーブ卓 / 石：年輪黒檀 × 白木メイプル</div>
-                        <div>オセロのルールを覚えたてレベル。おどけながら危険マス（X・C打点）に平気で石を置いてくれます。</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.1</span> 道化師 ピエロ <span class="manual-strength-tag">【入門・アマ12級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 旅の酒場 / 盤：オリーブ卓 / 石：年輪黒檀 × 白木メイプル</div>
+                        <div>オセロのルールを覚えたて。おどけながら危険マス（X・C打点）に平気で石を置いてくれます。</div>
                     </div>
                 </div>
                 <div class="manual-char-card">
                     <div class="manual-char-avatar-mini"><img src="images/char2.png" alt="コレット" onerror="this.src='';this.parentElement.textContent='🎀'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.2</span> 見習い侍女 コレット <span class="manual-strength-tag">【初級・アマ5級】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 侍女サロン / 盤：ペールミント磁器 / 石：釉薬黒磁器 × 高級白磁</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.2</span> 見習い侍女 コレット <span class="manual-strength-tag">【初級入門・アマ9級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 侍女サロン / 盤：ペールミント磁器 / 石：釉薬黒磁器 × 高級白磁</div>
                         <div>「たくさんひっくり返せるマス」に無邪気に飛びつく典型的な初級者です。</div>
+                    </div>
+                </div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char7.png" alt="ルカ" onerror="this.src='';this.parentElement.textContent='🌱'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.3</span> 庭園番 ルカ <span class="manual-strength-tag">【初級・アマ7級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 王宮大温室 / 盤：フォレスト苔盤 / 石：翠緑碧玉 × 薄黄琥珀</div>
+                        <div>盤面の外側を囲い込もうとする少年庭師。石を少なく取る感覚を養う好敵手です。</div>
+                    </div>
+                </div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char8.png" alt="ニコラ" onerror="this.src='';this.parentElement.textContent='🔮'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 錬金術師 ニコラ <span class="manual-strength-tag">【初中級・アマ4級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 錬金実験室 / 盤：スレート鉱物盤 / 石：紫水晶 × 黄鉄鉱</div>
+                        <div>角の価値を意識し始め、Xマスを慎重に避けるようになる理論派見習いです。</div>
                     </div>
                 </div>
                 <div class="manual-char-card">
                     <div class="manual-char-avatar-mini"><img src="images/char3.png" alt="ローラン" onerror="this.src='';this.parentElement.textContent='⚔️'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.3</span> 近衛騎士 ローラン <span class="manual-strength-tag">【中級・アマ1級】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 鍛錬の間 / 盤：アイアンネイビー鋼鉄 / 石：玄武岩 × 白雲母</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.5</span> 近衛騎士 ローラン <span class="manual-strength-tag">【中級・アマ2級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 鍛錬の間 / 盤：鋼鉄盤 / 石：玄武岩 × 白雲母</div>
                         <div>四隅の角を最優先で狙う王道騎士道スタイル。オセロの基礎を身につける好敵手です。</div>
+                    </div>
+                </div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char9.png" alt="ジュリアン" onerror="this.src='';this.parentElement.textContent='🪕'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 吟遊詩人 ジュリアン <span class="manual-strength-tag">【中上級・アマ1級】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 音楽回廊 / 盤：ローズウッド木目金盤 / 石：黒真珠 × 白蝶貝</div>
+                        <div>序盤定石をしっかり理解し、「中割り」を使いこなす有段への門番です。</div>
                     </div>
                 </div>
                 <div class="manual-char-card">
                     <div class="manual-char-avatar-mini"><img src="images/char4.png" alt="エリザベート" onerror="this.src='';this.parentElement.textContent='🌹'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.4</span> 薔薇の伯爵夫人 エリザベート <span class="manual-strength-tag">【上級・アマ三段】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 薔薇の舞踏会 / 盤：深紅ベルベット / 石：鏡面黒瑪瑙 × オーロラ白蝶貝</div>
-                        <div>序盤はあえて石を少なく取り、こちらの打てるマスを巧みに狭めてきます。</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.7</span> 伯爵夫人 エリザベート <span class="manual-strength-tag">【上級・アマ初段】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 舞踏会サロン / 盤：深紅ベルベット / 石：黒瑪瑙 × 白蝶貝</div>
+                        <div>相手に石を多く取らせて足場を奪う高等戦術。ウイングの罠を仕掛けてきます。</div>
                     </div>
                 </div>
                 <div class="manual-char-card">
-                    <div class="manual-char-avatar-mini"><img src="images/char4.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
+                    <div class="manual-char-avatar-mini"><img src="images/char10.png" alt="フェルディナント" onerror="this.src='';this.parentElement.textContent='🛡️'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.5</span> 宮廷宰相 ヴォルフガング <span class="manual-strength-tag">【有段・アマ五段】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 深謀の間 / 盤：ネロマルキーナ黒大理石 / 石：黒曜石 × カルカッタ大理石</div>
-                        <div>パリティ（偶数理論）を計算し、こちらの選択肢を完全に奪う冷徹な高等戦術を展開します。</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.8</span> 近衛総督 フェルディナント <span class="manual-strength-tag">【強豪有段・アマ三段】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 軍議室 / 盤：ブロンズ盤 / 石：赤銅石 × 白銀チタン</div>
+                        <div>鉄壁の防陣。中盤での緩着を決して許さない冷徹な重厚オセロを展開します。</div>
+                    </div>
+                </div>
+                <div class="manual-char-card">
+                    <div class="manual-char-avatar-mini"><img src="images/char5.png" alt="ヴォルフガング" onerror="this.src='';this.parentElement.textContent='📜'"></div>
+                    <div class="manual-char-info">
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.9</span> 宮廷宰相 ヴォルフガング <span class="manual-strength-tag">【宮廷最強・アマ五段】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 深謀の間 / 盤：黒大理石盤 / 石：黒曜石 × 大理石</div>
+                        <div>パリティ（偶数理論）を計算し、終盤12手完全読みで逃げ場を完全に塞ぎます。</div>
                     </div>
                 </div>
                 <div class="manual-char-card">
                     <div class="manual-char-avatar-mini"><img src="images/char6.png" alt="オルレアン" onerror="this.src='';this.parentElement.textContent='👑'"></div>
                     <div class="manual-char-info">
-                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.6</span> 老賢王 オルレアン <span class="manual-strength-tag">【神域・全国名人】</span></div>
-                        <div style="font-size: 10px; color:#ecd08c; margin-bottom:2px;">🏛️ 金箔玉座の間 / 盤：金箔象嵌エメラルド / 石：漆黒隕鉄 × 自発光白玉翡翠</div>
+                        <div class="manual-card-title"><span class="manual-rank-badge">Lv.10</span> 老賢王 オルレアン <span class="manual-strength-tag">【神域・全国名人】</span></div>
+                        <div style="font-size: 9.5px; color:#ecd08c;">🏛️ 金箔玉座の間 / 盤：金箔象嵌エメラルド / 石：漆黒隕鉄 × 白玉翡翠</div>
                         <div>神域の完全計算AI。終盤完全読みを誇り、ヒントなしの真剣勝負で戴冠式への扉が開かれます。</div>
                     </div>
                 </div>
             </div>
             <div id="tab-tips" class="manual-tab-content">
-                <div class="manual-card"><div class="manual-card-title">🌱 序盤の極意「中割り理論」</div><div>序盤は外側の石を取らず、内側の石だけをめくる「中割り」を徹底しましょう。外側を取ると相手に足場をプレゼントしてしまいます。</div></div>
-                <div class="manual-card"><div class="manual-card-title">⚔️ 中盤の極意「壁の回避」</div><div>一列に自分の石が並ぶ「壁」を作ると、相手の打てる場所を増やしてしまいます。相手の石を囲むように内側をめくりましょう。</div></div>
-                <div class="manual-card"><div class="manual-card-title">👑 終盤の極意「パリティ理論」</div><div>空きマスが偶数のエリアには、相手に先に打たせて自分が最後に打つのが鉄則です。</div></div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🌱 序盤の極意「中割り理論」</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">盤面で確認 👁️</button>
+                    </div>
+                    <div>序盤は外側の石を取らず、内側の石だけをめくる「中割り」を徹底しましょう。外側を取ると相手に足場をプレゼントしてしまいます。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🧱 中盤の極意「壁の回避」</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('壁')">盤面で確認 👁️</button>
+                    </div>
+                    <div>一列に自分の石が並ぶ「壁」を作ると、相手の打てる場所を増やしてしまいます。相手の石を囲むように内側をめくりましょう。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>👑 終盤の極意「パリティ理論」</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('パリティ')">盤面で確認 👁️</button>
+                    </div>
+                    <div>空きマスが偶数のエリアには、相手に先に打たせて自分が最後に打つのが鉄則です。</div>
+                </div>
+            </div>
+
+            <!-- 第4タブ【オセロ用語・定石の宝典】 -->
+            <div id="tab-terms" class="manual-tab-content">
+                <div class="manual-card" id="term-sec-board">
+                    <div class="manual-card-title">
+                        <span>🎯 盤面エリアの名称と急所</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('角・X・C')">盤面で確認 👁️</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>👑 四隅（角・隅）：</b>A1, A8, H1, H8の4箇所。一度取ると絶対に相手にひっくり返されない、オセロ最大の要塞。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>⚠️ Xマス（エックス）：</b>B2, G2, B7, G7の4箇所。角の斜め前にある最危険マス。角が空いている時にここに打つと、相手に角を即座に取られてしまいます。
+                    </div>
+                    <div>
+                        <b>⚠️ Cマス（シー）：</b>角に縦横で隣接する8箇所（A2, B1, G1, H2等）。不用意に打つと相手に角へ潜り込む足場を与えてしまいます。
+                    </div>
+                </div>
+
+                <div class="manual-card" id="term-sec-tactics">
+                    <div class="manual-card-title">
+                        <span>⚔️ オセロ戦術の専門用語</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">盤面で確認 👁️</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🌱 中割り（なかわり）：</b>既に相手の石に囲まれている「内側の石」だけを返す着手。外側に自分の石が露出しないため、相手に打てるマスを与えません。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🧱 壁（かべ）：</b>外側に自分の石がずらりと一直線に並んでしまうこと。相手に無数の足場を与えてしまうため、敗着の典型とされます。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>📉 開放度（かいほうど）：</b>打った石の周りにある「空きマスの数」。開放度が低い（周りに空きマスが少ない）手ほど好手とされます。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>⚖️ パリティ（偶数理論）：</b>オセロ終盤の絶対法則。盤面が複数の空きマス領域に分かれた際、「偶数空きのエリアは相手に先に打たせ、奇数空きのエリアは自分が先に打つ」ことで最後の一手を自分が独占できます。
+                    </div>
+                    <div>
+                        <b>💎 確定石（かくていせき）：</b>終局まで絶対に裏返らない石（確保した角や、角から連続して並んだ石）。確定石を多く作った側が勝利します。
+                    </div>
+                </div>
+
+                <div class="manual-card" id="term-sec-openings">
+                    <div class="manual-card-title">
+                        <span>📖 公式プロ6大定石図鑑</span>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('定石')">盤面で確認 👁️</button>
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐯 虎定石（トラ）：</b>初手F5に対し平行取りD6または縦取りF6から展開する、オセロ界で最も歴史ある王道定石。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐮 牛定石（ウシ）：</b>縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐰 兎定石（ウサギ）：</b>軽快に石を動かし、相手の選択肢を絞る攻撃的で鋭い定石。
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <b>🐴 馬定石（ウマ）：</b>斜め取りF4からE3に展開する、後手（白）が高勝率を誇る柔軟な名定石。
+                    </div>
+                    <div>
+                        <b>🌹 ローズ定石 / ✈️ 飛行機定石：</b>斜め取りから広がる華麗な定石。中央の制圧力を巡るハイレベルな戦いが楽しめます。
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1636,7 +1954,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 6.9.1</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.1.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1645,4 +1963,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 
