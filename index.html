@@ -44,11 +44,12 @@
   [Ver 7.2.0] 2026/10/19 : 【ストーリー型戦局総括＆疑問解消ドリルダウン深掘り解説エディション】
   [Ver 7.3.0] 2026/10/19 : 【対局振り返りとお手本解説の完全分離＆3ステップ紙芝居型ビジュアル解説エディション】
   [Ver 7.3.1] 2026/10/19 : 【AI肖像画・縦長特大オーバル化＆セリフ2行完全対応・デモ操作系完全直結エディション】
-    - AI肖像画（アバター）をクラシカルな気品漂う「縦長特大オーバル（楕円額縁）」へ美装大型化（高さ約1.25倍に拡張）。
-    - AIセリフ吹き出しの固定高さを撤廃し、スマホで2行に改行されても文字欠けせずゆったり読める可変レイアウトへ改修。
-    - 対戦相手ゾーン（.opponent-zone）の縦幅を下方向へ自然に拡張。
-    - お手本デモ操作ボタン群に直接 onclick 属性を付与し、z-index 最前面化でクリック遮断不具合を完全根絶。
-    - 思案所の錬金術師ニコラ紹介文のタイポをクリーンアップ。
+  [Ver 8.0.0] 2026/10/19 : 【宮廷次の一手ドリル（五大奥義・類題特訓システム）搭載エディション】
+  [Ver 8.0.1] 2026/10/19 : 【ドリル座標完全調律・盤面直結ビジュアルバッジ・即時再挑戦エディション】
+    - 星ドットによるマスの座標ズレをデータ属性（data-r, data-c）により完全根絶。
+    - タップしたマスに「⭕ 正解！」「❌ あなたの手」を盤面上に直接バッジ表示。
+    - 相手の反撃マスに「💀 相手が角を奪取！」バッジを表示し、因果関係を一目で直感理解可能に。
+    - ドリルカードに「もう一度解く ↺」ボタンを新設し、スムーズな試行錯誤を実現。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -310,7 +311,7 @@
         .white-stone { background: var(--st-w-stone-bg); box-shadow: var(--st-w-stone-shadow); border: var(--st-w-stone-border); }
         .stone-edge-rim { background: var(--st-edge-rim); }
 
-        /* 👁️ 盤面ビジュアル解説：マスの美しい光彩演出（文字重なり全廃） */
+        /* 👁️ 盤面ビジュアル解説・ドリルマスの光彩演出 */
         .demo-cell-target {
             box-shadow: inset 0 0 0 2.5px #2ecc71, inset 0 0 14px rgba(46, 204, 113, 0.85) !important;
             animation: demo-pulse-green 1.2s infinite alternate ease-in-out;
@@ -340,7 +341,53 @@
             box-shadow: inset 0 0 0 1.5px #e5a724, inset 0 0 8px rgba(229, 167, 36, 0.5) !important;
         }
 
-        /* マス中央の極小シンボルバッジ（スマホでの被りゼロ） */
+        /* 🎯 ドリル専用マス演出 */
+        .drill-correct-pulse {
+            box-shadow: inset 0 0 0 3px #2ecc71, inset 0 0 22px rgba(46, 204, 113, 0.95) !important;
+            animation: drill-correct-glow 0.8s infinite alternate !important;
+            background-color: rgba(46, 204, 113, 0.22) !important;
+        }
+        @keyframes drill-correct-glow { from { filter: drop-shadow(0 0 3px #2ecc71); } to { filter: drop-shadow(0 0 14px #ffffff); } }
+
+        .drill-wrong-shake {
+            box-shadow: inset 0 0 0 3px #ff4d4d, inset 0 0 20px rgba(255, 77, 77, 0.95) !important;
+            animation: drill-shake 0.35s ease-in-out !important;
+            background-color: rgba(255, 77, 77, 0.25) !important;
+        }
+        @keyframes drill-shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-4px); }
+            40% { transform: translateX(4px); }
+            60% { transform: translateX(-3px); }
+            80% { transform: translateX(3px); }
+        }
+
+        /* 🎯 盤面直結ビジュアルバッジ（誰の手か・何が起きたか一目瞭然） */
+        .drill-mark-badge {
+            position: absolute; z-index: 35; font-size: 9px; font-weight: 900;
+            padding: 1.5px 5px; border-radius: 4px; line-height: 1.15; pointer-events: none;
+            white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.85);
+            animation: drill-badge-pop 0.24s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        @keyframes drill-badge-pop {
+            0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        .drill-mark-correct {
+            background: #2ecc71; color: #042415; border: 1.5px solid #ffffff;
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.9), 0 2px 6px rgba(0,0,0,0.8);
+        }
+        .drill-mark-player {
+            background: #e63946; color: #ffffff; border: 1.5px solid #ffd8d8;
+            box-shadow: 0 0 12px rgba(230, 57, 70, 0.9), 0 2px 6px rgba(0,0,0,0.8);
+        }
+        .drill-mark-cpu {
+            background: #6c2d82; color: #fff4bd; border: 1.5px solid #ffd700;
+            box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
+        }
+
+        /* マス中央の極小シンボルバッジ */
         .demo-symbol-badge {
             position: absolute; z-index: 25; font-size: 8.5px; font-weight: 900;
             padding: 1px 3.5px; border-radius: 3px; line-height: 1.1; pointer-events: none;
@@ -352,7 +399,7 @@
         .badge-sym-parity-even { background: #0284c7; color: #ffffff; border: 1px solid #bae6fd; }
         .badge-sym-c-sq { background: #d97706; color: #ffffff; border: 1px solid #fef3c7; font-size: 7.5px; }
 
-        /* 3ステップ紙芝居型 特製ビジュアル解説カード（最前面化＆クリック遮断排除） */
+        /* 3ステップ紙芝居型 特製ビジュアル解説カード */
         .demo-guide-card {
             display: none; width: min(calc(100vw - 8px), 480px);
             background: linear-gradient(145deg, rgba(22, 26, 36, 0.98) 0%, rgba(12, 14, 20, 0.99) 100%);
@@ -402,6 +449,73 @@
         .demo-btn-exit-main {
             font-size: 10px; font-weight: 900; padding: 4px 12px; border-radius: 5px;
             background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+        }
+
+        /* 🎯 宮廷次の一手ドリル（練習問題）専用コントロールカード */
+        .drill-control-card {
+            display: none; width: min(calc(100vw - 8px), 480px);
+            background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
+            border: 2px solid #ffd700; border-radius: 12px; padding: 8px 10px; margin-top: 4px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.45);
+            flex-direction: column; gap: 4px; text-align: left;
+            z-index: 500 !important; position: relative; pointer-events: auto !important;
+            animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+        }
+        .drill-control-card.show { display: flex; }
+
+        .drill-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px; }
+        .drill-topic-badge { font-size: 11px; font-weight: 900; color: #ffd700; display: inline-flex; align-items: center; gap: 4px; }
+        .drill-diff-badge { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 900; padding: 1.5px 6px; border-radius: 4px; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; }
+
+        .drill-variation-tabs { display: flex; gap: 4px; margin-top: 2px; }
+        .drill-var-tab {
+            flex: 1; text-align: center; font-size: 9.5px; font-weight: 800; padding: 3px 0;
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.3);
+            border-radius: 4px; color: #c2b49a; cursor: pointer; transition: all 0.2s ease;
+        }
+        .drill-var-tab.active {
+            background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #121008;
+            border-color: #ffffff; font-weight: 900; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+        }
+        .drill-var-tab.cleared::after { content: " 👑"; font-size: 8px; }
+
+        .drill-question-box { font-size: 11px; font-weight: 800; color: #ffffff; line-height: 1.4; margin-top: 2px; }
+        .drill-question-sub { font-size: 9.5px; color: #ecd08c; margin-top: 1px; }
+
+        .drill-feedback-box {
+            display: none; border-radius: 6px; padding: 5px 8px; font-size: 10.5px; line-height: 1.45;
+            margin-top: 3px; animation: popup-fade-in 0.25s ease forwards;
+        }
+        .drill-feedback-box.correct {
+            display: block; background: rgba(16, 50, 30, 0.85); border: 1.5px solid #2ecc71; color: #d4f8e2;
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.4);
+        }
+        .drill-feedback-box.wrong {
+            display: block; background: rgba(50, 16, 16, 0.85); border: 1.5px solid #ff4d4d; color: #ffd8d8;
+            box-shadow: 0 0 12px rgba(255, 77, 77, 0.4);
+        }
+
+        .drill-actions-bar {
+            display: flex; justify-content: space-between; align-items: center; margin-top: 3px;
+            padding-top: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px;
+        }
+        .drill-btn-action {
+            font-size: 9.5px; font-weight: 900; padding: 4px 8px; border-radius: 5px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .drill-btn-retry {
+            background: linear-gradient(180deg, #3d2d1d 0%, #1f140b 100%); color: #ecd08c;
+            border: 1px solid rgba(212, 167, 72, 0.5);
+        }
+        .drill-btn-retry:hover { border-color: #ffd700; color: #fff; }
+        .drill-btn-next-var {
+            background: linear-gradient(180deg, #3a2e16 0%, #1c1507 100%); color: #ffd700;
+            border: 1.5px solid #ffd700;
+        }
+        .drill-btn-next-var:hover { background: #ffd700; color: #121008; }
+        .drill-btn-exit {
+            background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff;
             box-shadow: 0 2px 6px rgba(0,0,0,0.8);
         }
 
@@ -836,7 +950,7 @@
         }
 
         .action-grid-row1 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 4px; margin-bottom: 3px; }
-        .action-grid-row2 { display: grid; grid-template-columns: 1fr 1.1fr 1fr 1.15fr; gap: 4px; }
+        .action-grid-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 3.5px; }
 
         select {
             font-family: inherit; font-size: 10px; font-weight: 700; padding: 2px 4px; border-radius: 6px;
@@ -846,10 +960,10 @@
 
         button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; white-space: nowrap; }
         .btn-royal {
-            padding: 4px 2px; font-size: 10px; font-weight: 800;
+            padding: 4px 1.5px; font-size: 9.5px; font-weight: 800;
             border-radius: 6px; position: relative;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
         }
         .btn-royal:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.9), 0 0 8px var(--gold-glow); }
         .btn-royal:active { transform: translateY(1px); }
@@ -862,6 +976,11 @@
             background: linear-gradient(180deg, #4a3c1e 0%, #30240e 50%, #1b1307 100%);
             color: #fff2d1; border: 1.5px solid #ffd700;
         }
+        #btnOpenDrillMain {
+            background: linear-gradient(180deg, #1b382d 0%, #0d221b 50%, #051410 100%);
+            color: #bbf7d0; border: 1.5px solid #2ecc71; box-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+        }
+        #btnOpenDrillMain:hover { border-color: #ffffff; color: #ffffff; box-shadow: 0 0 12px rgba(46, 204, 113, 0.8); }
         #guideButton {
             background: linear-gradient(180deg, #2e3244 0%, #1c1f2e 50%, #10121c 100%);
             color: #faebd0; border: 1.5px solid var(--gold-border);
@@ -1034,8 +1153,9 @@
         .term-popup-title { font-size: 12px; font-weight: 900; color: #ffd700; display: flex; align-items: center; gap: 4px; }
         .term-popup-close { cursor: pointer; font-size: 12px; color: #ecd08c; padding: 1px 5px; }
         .term-popup-body { margin-bottom: 6px; }
-        .term-popup-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-        .term-popup-demo-btn { font-size: 10px; font-weight: 800; color: #121008; background: var(--pure-gold-btn); border: 1px solid #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+        .term-popup-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 4px; flex-wrap: wrap; }
+        .term-popup-demo-btn { font-size: 9.5px; font-weight: 800; color: #121008; background: var(--pure-gold-btn); border: 1px solid #fff; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+        .term-popup-drill-btn { font-size: 9.5px; font-weight: 900; color: #042415; background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); border: 1px solid #ffffff; border-radius: 4px; padding: 2px 7px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
         .term-popup-more { font-size: 10px; color: #ecd08c; text-decoration: underline; cursor: pointer; font-weight: 800; }
         .term-popup-more:hover { color: #ffffff; }
 
@@ -1123,6 +1243,7 @@
         }
         .manual-card-title { font-size: 12.5px; font-weight: 900; color: #fff2cc; display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
         .btn-inline-demo { font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; cursor: pointer; }
+        .btn-inline-drill { font-size: 9.5px; font-weight: 900; padding: 2px 7px; border-radius: 4px; background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415; border: 1px solid #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
 
         .manual-char-card {
             display: flex; gap: 10px; align-items: center; border: 1.5px solid rgba(212, 167, 72, 0.35);
@@ -1299,7 +1420,7 @@
 
     <audio id="bgmAudio" src="the king's entry1.mp3" loop preload="auto"></audio>
 
-    <!-- ミニ解説ポップアップコンテナ（対局盤面を壊さない安全設計） -->
+    <!-- ミニ解説ポップアップコンテナ（直結ドリルボタン搭載） -->
     <div id="termPopup" class="term-popup">
         <div class="term-popup-header">
             <span class="term-popup-title" id="termPopupTitle">💡 用語解説</span>
@@ -1308,6 +1429,7 @@
         <div class="term-popup-body" id="termPopupBody">解説テキスト</div>
         <div class="term-popup-actions">
             <button type="button" class="term-popup-demo-btn" id="termPopupDemoBtn">お手本デモ 👁️</button>
+            <button type="button" class="term-popup-drill-btn" id="termPopupDrillBtn">ドリルで特訓 🎯</button>
             <span class="term-popup-more" id="termPopupMore">思案所宝典へ ➔</span>
         </div>
     </div>
@@ -1407,7 +1529,7 @@
                 </div>
             </div>
 
-            <!-- 3ステップ紙芝居型 特製ビジュアル解説カード（直接onclick直結＆最前面化） -->
+            <!-- 3ステップ紙芝居型 特製ビジュアル解説カード -->
             <div class="demo-guide-card" id="demoGuideCard">
                 <div class="demo-theme-nav-bar">
                     <button type="button" class="demo-nav-btn" id="btnDemoPrevTheme" onclick="prevDemoTheme()">◀ 前のテーマ</button>
@@ -1430,6 +1552,36 @@
                 <div class="demo-guide-actions">
                     <button type="button" class="demo-btn-sim" id="btnDemoNextStep" onclick="nextDemoStep()">次のステップを見る ▶</button>
                     <button type="button" class="demo-btn-exit-main" id="btnExitDemoMain" onclick="exitBoardVisualDemo()">対局に戻る ✕</button>
+                </div>
+            </div>
+
+            <!-- 🎯 宮廷次の一手ドリル（五大奥義・類題特訓カード） -->
+            <div class="drill-control-card" id="drillControlCard">
+                <div class="drill-header-nav">
+                    <div class="drill-topic-badge" id="drillTopicBadge">🎯 第1問：⚠️ Xマスの回避と角防衛</div>
+                    <div class="drill-diff-badge" id="drillDiffBadge">初級・アマ10級</div>
+                </div>
+
+                <div class="drill-variation-tabs" id="drillVariationTabs">
+                    <button type="button" class="drill-var-tab active" id="drillVarTab1" onclick="selectDrillVariation(1)">問1 (基本)</button>
+                    <button type="button" class="drill-var-tab" id="drillVarTab2" onclick="selectDrillVariation(2)">問2 (展開)</button>
+                    <button type="button" class="drill-var-tab" id="drillVarTab3" onclick="selectDrillVariation(3)">問3 (応用)</button>
+                </div>
+
+                <div class="drill-question-box">
+                    <div id="drillQuestionText">Q. 白の足場を増やさず、危険なXマスを回避する最善の一手を盤面から選んでください。（盤面タップ）</div>
+                    <div class="drill-question-sub" id="drillQuestionSub">手番：あなたの黒番（⚫）</div>
+                </div>
+
+                <div class="drill-feedback-box" id="drillFeedbackBox">
+                    <div id="drillFeedbackTitle" style="font-weight:900; margin-bottom:2px;">正解！🎉</div>
+                    <div id="drillFeedbackReason">解説文が入ります</div>
+                </div>
+
+                <div class="drill-actions-bar">
+                    <button type="button" class="drill-btn-action drill-btn-retry" id="btnDrillRetry" onclick="resetCurrentDrill()">もう一度解く ↺</button>
+                    <button type="button" class="drill-btn-action drill-btn-next-var" id="btnDrillNextVar" onclick="nextDrillVariation()">類題で再挑戦 🎯</button>
+                    <button type="button" class="drill-btn-action drill-btn-exit" id="btnDrillExit" onclick="exitDrillMode()">対局に戻る ✕</button>
                 </div>
             </div>
         </div>
@@ -1479,6 +1631,7 @@
                 <div class="action-grid-row2">
                     <button id="undoButton" class="btn-royal" type="button">⚜️ 待った</button>
                     <button id="restartButton" class="btn-royal" type="button">👑 新対局</button>
+                    <button id="btnOpenDrillMain" class="btn-royal" type="button" onclick="triggerDrillFromMain()">🎯 ドリル</button>
                     <button id="guideButton" class="btn-royal" type="button">📜 思案所</button>
                     <button id="hintButton" class="btn-royal" type="button">💡 ヒント</button>
                 </div>
@@ -1757,6 +1910,7 @@
                 <button type="button" class="manual-tab-btn active" data-tab="tab-ops">👑 操作体系</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-rank">📊 10大豪傑</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-tips">📖 戦術の極意</button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-drill">🎯 五大奥義検定</button>
                 <button type="button" class="manual-tab-btn" data-tab="tab-terms">📚 用語・定石宝典</button>
             </div>
             
@@ -1864,32 +2018,88 @@
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>🌱 序盤の極意「中割り理論」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
+                        <div>
+                            <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">デモ 👁️</button>
+                            <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('中割り')">ドリル 🎯</button>
+                        </div>
                     </div>
                     <div>序盤は外側の石を取らず、内側の石だけをめくる「中割り」を徹底しましょう。外側を取ると相手に足場をプレゼントしてしまいます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>🧱 中盤の極意「壁の回避」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('壁')">お手本デモ 👁️</button>
+                        <div>
+                            <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('壁')">デモ 👁️</button>
+                            <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('壁')">ドリル 🎯</button>
+                        </div>
                     </div>
                     <div>一列に自分の石が並ぶ「壁」を作ると、相手の打てる場所を増やしてしまいます。相手の石を囲むように内側をめくりましょう。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
                         <span>👑 終盤の極意「パリティ理論」</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('パリティ')">お手本デモ 👁️</button>
+                        <div>
+                            <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('パリティ')">デモ 👁️</button>
+                            <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('パリティ')">ドリル 🎯</button>
+                        </div>
                     </div>
                     <div>空きマスが偶数のエリアには、相手に先に打たせて自分が最後に打つのが鉄則です。</div>
                 </div>
             </div>
 
-            <!-- 第4タブ【オセロ用語・定石の宝典】 -->
+            <!-- 第4タブ【🎯 五大奥義検定（次の一手ドリル一覧）】 -->
+            <div id="tab-drill" class="manual-tab-content">
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>⚠️ 第1問：Xマスの回避と角防衛</span>
+                        <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('Xマス')">特訓開始 🎯</button>
+                    </div>
+                    <div style="font-size:10px; color:#d4c8b2;">難易度：初級（Lv.1〜3卒業）／ 類題：3問収録</div>
+                    <div>角が空いている時に斜め前（Xマス）に手を出すと、即座に角を献上してしまいます。危険を察知し安全な手を選ぶ訓練です。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🧱 第2問：壁の回避と外側警戒</span>
+                        <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('壁')">特訓開始 🎯</button>
+                    </div>
+                    <div style="font-size:10px; color:#d4c8b2;">難易度：初中級（Lv.4〜5突破）／ 類題：2問収録</div>
+                    <div>たくさんひっくり返したい誘惑に負け、外側にずらりと石を並べる悪手を防ぎます。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>🌱 第3問：至高の手筋「中割り」</span>
+                        <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('中割り')">特訓開始 🎯</button>
+                    </div>
+                    <div style="font-size:10px; color:#d4c8b2;">難易度：中級（Lv.6〜7突破）／ 類題：3問収録</div>
+                    <div>内側の石だけを1枚裏返し、相手の選択肢をゼロへと追い込むオセロ最強の基本手筋を体得します。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>💎 第4問：Cマスの罠とウイング</span>
+                        <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('Cマス')">特訓開始 🎯</button>
+                    </div>
+                    <div style="font-size:10px; color:#d4c8b2;">難易度：上級（Lv.8〜9攻略）／ 類題：2問収録</div>
+                    <div>不用意なCマス打ちを戒め、相手のウイングの隙を突いて角を奪取する辺の攻防を学びます。</div>
+                </div>
+                <div class="manual-card">
+                    <div class="manual-card-title">
+                        <span>⚖️ 第5問：パリティ（最後の一手独占）</span>
+                        <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('パリティ')">特訓開始 🎯</button>
+                    </div>
+                    <div style="font-size:10px; color:#d4c8b2;">難易度：神域（Lv.10名人撃破）／ 類題：2問収録</div>
+                    <div>「偶数空きは相手から、奇数空きは自分から」。各エリアの最後の一手を独占する必勝理論をマスターします。</div>
+                </div>
+            </div>
+
+            <!-- 第5タブ【オセロ用語・定石の宝典】 -->
             <div id="tab-terms" class="manual-tab-content">
                 <div class="manual-card" id="term-sec-board">
                     <div class="manual-card-title">
                         <span>🎯 盤面エリアの名称と急所</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('角・X・C')">お手本デモ 👁️</button>
+                        <div>
+                            <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('角・X・C')">デモ 👁️</button>
+                            <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('Xマス')">ドリル 🎯</button>
+                        </div>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>👑 四隅（角・隅）：</b>A1, A8, H1, H8の4箇所。一度取ると絶対に相手にひっくり返されない、オセロ最大の要塞。
@@ -1905,7 +2115,10 @@
                 <div class="manual-card" id="term-sec-tactics">
                     <div class="manual-card-title">
                         <span>⚔️ オセロ戦術の専門用語</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
+                        <div>
+                            <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">デモ 👁️</button>
+                            <button type="button" class="btn-inline-drill" onclick="triggerDrillFromTopic('中割り')">ドリル 🎯</button>
+                        </div>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🌱 中割り（なかわり）：</b>既に相手の石に囲まれている「内側の石」だけを返す着手。外側に自分の石が露出しないため、相手に打てるマスを与えません。
@@ -1927,7 +2140,7 @@
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
                         <span>📖 公式プロ6大定石図鑑</span>
-                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">お手本デモ 👁️</button>
+                        <button type="button" class="btn-inline-demo" onclick="triggerBoardVisualDemo('中割り')">デモ 👁️</button>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🐯 虎定石（トラ）：</b>初手F5に対し平行取りD6または縦取りF6から展開する、オセロ界で最も歴史ある王道定石。
@@ -1963,7 +2176,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 7.3.1</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.0.1</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -1972,4 +2185,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 
