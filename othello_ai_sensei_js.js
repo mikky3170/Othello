@@ -2,13 +2,15 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.4.0 (2026/10/19)
+  バージョン: Ver 8.5.0 (2026/10/20)
   
-  [Ver 8.4.0] 2026/10/19 更新内容:
-  - 【データ完全分離・4ファイル構成＆コードスリム化エディション】
-  - マスターデータを othello_data.js へ完全分離し、ファイル行数を半減・スリム化。
-  - HTML側に存在しない旧デモ機能の死にコードを完全撤去し、実行パフォーマンスを向上。
-  - 全10豪傑AI思考エンジン、全15問検定エンジン、戦後会見・戦績録を万全に稼働。
+  [Ver 8.5.0] 2026/10/20 更新内容:
+  - 【教育体系二段構え＆10豪傑人物伝・攻略指南 完全復活エディション】
+  - AIヒント探索を深さ9手／終盤完全読み切り16手／定石16手に強化（Lv.10完全打倒保証）。
+  - 大逆転（bigReversal）セリフ発火トリガーを新設。
+  - 豪傑人物伝・攻略指南モーダル（charProfileModal）の表示制御ロジックを完全復元。
+  - 盤面上で手筋の実演アニメーションを再生する動的ビジュアル講義エンジンを新設。
+  - 検定一覧画面を5大奥義カテゴリー階層フレームで美しくレンダリング。
 ========================================================================== */
 
 const boardSize = 8;
@@ -47,6 +49,12 @@ let savedBoardStateForDrill = null;
 const drillPassedMap = {};
 let isSimulatingDrillMistake = false;
 
+// 📖 盤面動的ビジュアル講義 管理変数
+let isLectureMode = false;
+let currentLectureId = "lec-1";
+let currentLectureStepIndex = 0;
+let savedBoardStateForLecture = null;
+
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -69,8 +77,10 @@ const DOM = {
     opponentAvatarFrame: document.getElementById("opponentAvatarFrame"),
     avatarImgBox: document.getElementById("avatarImgBox"),
     opponentRankBadge: document.getElementById("opponentRankBadge"),
+    opponentThinkingBadge: document.getElementById("opponentThinkingBadge"),
     opponentName: document.getElementById("opponentName"),
     opponentTitle: document.getElementById("opponentTitle"),
+    btnOpenProfile: document.getElementById("btnOpenProfile"),
     badgeSalonName: document.getElementById("badgeSalonName"),
     badgeMaterial: document.getElementById("badgeMaterial"),
     opponentSpeech: document.getElementById("opponentSpeech"),
@@ -154,12 +164,33 @@ const DOM = {
     drillFeedbackTitle: document.getElementById("drillFeedbackTitle"),
     drillFeedbackReason: document.getElementById("drillFeedbackReason"),
     btnDrillRetry: document.getElementById("btnDrillRetry"),
+    btnDrillBackToLecture: document.getElementById("btnDrillBackToLecture"),
     btnDrillNextQuestion: document.getElementById("btnDrillNextQuestion"),
     btnDrillList: document.getElementById("btnDrillList"),
     btnDrillExit: document.getElementById("btnDrillExit"),
     drillCourseModal: document.getElementById("drillCourseModal"),
     drillCourseList: document.getElementById("drillCourseList"),
-    drillCertificateModal: document.getElementById("drillCertificateModal")
+    drillCertificateModal: document.getElementById("drillCertificateModal"),
+    // 📖 盤面動的ビジュアル講義用DOM
+    lectureControlCard: document.getElementById("lectureControlCard"),
+    lectureTopicBadge: document.getElementById("lectureTopicBadge"),
+    lectureStepIndicator: document.getElementById("lectureStepIndicator"),
+    lectureTitleText: document.getElementById("lectureTitleText"),
+    lectureDescText: document.getElementById("lectureDescText"),
+    lectureExplainBox: document.getElementById("lectureExplainBox"),
+    btnLecturePlay: document.getElementById("btnLecturePlay"),
+    btnLectureReset: document.getElementById("btnLectureReset"),
+    btnLectureToDrill: document.getElementById("btnLectureToDrill"),
+    btnLectureExit: document.getElementById("btnLectureExit"),
+    // 📜 豪傑人物伝モーダル用DOM
+    charProfileModal: document.getElementById("charProfileModal"),
+    profileCharNameHeader: document.getElementById("profileCharNameHeader"),
+    profileAvatarBox: document.getElementById("profileAvatarBox"),
+    profileTitleBadge: document.getElementById("profileTitleBadge"),
+    profileSalonBadge: document.getElementById("profileSalonBadge"),
+    profileMaterialBadge: document.getElementById("profileMaterialBadge"),
+    profileBioText: document.getElementById("profileBioText"),
+    profileTacticsText: document.getElementById("profileTacticsText")
 };
 
 const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
@@ -440,7 +471,7 @@ function typeWriterSpeech(fullText, isClimax) {
 }
 
 function setOpponentQuote(category) {
-    if (isReviewMode || isDrillMode) return;
+    if (isReviewMode || isDrillMode || isLectureMode) return;
     const char = getCurrentCharacter();
     let targetCategory = category;
     const emptyCount = getEmptyCount(board);
@@ -503,7 +534,7 @@ function updateOpponentStageUI(showBanner = true) {
     renderCharacterAvatar();
     setOpponentQuote("start");
 
-    if (showBanner && !isReviewMode && !isDrillMode) {
+    if (showBanner && !isReviewMode && !isDrillMode && !isLectureMode) {
         if (curtainTimeout) clearTimeout(curtainTimeout);
         if (DOM.curtainStageLabel) DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
         if (DOM.curtainSalonTitle) DOM.curtainSalonTitle.textContent = char.salonName;
@@ -516,7 +547,7 @@ function updateOpponentStageUI(showBanner = true) {
 }
 
 function updateBalanceGauge(targetBoard = board) {
-    if (!targetBoard || isDrillMode) return;
+    if (!targetBoard || isDrillMode || isLectureMode) return;
     const emptyCount = getEmptyCount(targetBoard);
     const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
     const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 600))) * 100)));
@@ -571,12 +602,12 @@ function saveHistory() {
 
 function updateUndoButtonState() {
     if (DOM.undoButton) {
-        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode;
+        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode;
     }
 }
 
 async function undoMove() {
-    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode) return;
+    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     clearHint();
@@ -602,6 +633,7 @@ async function undoMove() {
         pendingAnimation = null;
 
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
 
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         setStatus("human-turn", `👑 あなたの番です（${pColorName}）…（時を戻しました）`);
@@ -640,7 +672,7 @@ function getCurrentMoveSequence() {
     return seq.join("-");
 }
 
-function getBookMove(maxPly = 12) {
+function getBookMove(maxPly = 16) {
     const seq = getCurrentMoveSequence();
     const currentPly = seq === "" ? 0 : seq.split("-").length;
     if (currentPly >= maxPly) return null;
@@ -676,6 +708,7 @@ function startGame() {
     tryPlayBgm();
     exitReviewMode();
     exitDrillMode();
+    exitLectureMode();
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     isPrefetching = false;
@@ -705,11 +738,12 @@ function startGame() {
     if (DOM.endingModal) DOM.endingModal.classList.remove("show");
     if (DOM.drillCourseModal) DOM.drillCourseModal.classList.remove("show");
     if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
+    if (DOM.charProfileModal) DOM.charProfileModal.classList.remove("show");
 
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDrillMode) {
+        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDrillMode && !isLectureMode) {
             elapsedSeconds++;
             if (currentPlayer === humanColor && !isBusy) playerSeconds++;
             else if (currentPlayer === cpuColor || isBusy) cpuSeconds++;
@@ -728,10 +762,12 @@ function startGame() {
         setStatus("human-turn", "👑 あなたの番です（黒）最初の一手を置いてください");
         triggerTurnPulse();
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
         prefetchPlayerEvaluationsAsync();
     } else {
         setStatus("cpu-turn", "相手（黒）が先手です。思案中...");
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
+        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
         setTimeout(computerMove, 600);
     }
 }
@@ -940,15 +976,15 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
         if (alpha >= beta) break;
     }
 
-    if (boardKey && transpositionTable.size < 50000) transpositionTable.set(boardKey, maxScore);
+    if (boardKey && transpositionTable.size < 60000) transpositionTable.set(boardKey, maxScore);
     return maxScore;
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン】
+  【ヒント探索エンジン（深さ9手／完全読み16手に強化・Lv.10完全打倒仕様）】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
-    if (gameOver || isReviewMode || isDrillMode || currentPlayer !== humanColor || isPrefetching) return;
+    if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
     const session = currentGameSessionId;
     isPrefetching = true;
 
@@ -959,6 +995,7 @@ async function prefetchPlayerEvaluationsAsync() {
         return;
     }
 
+    // 定石ブックは最大16手先まで精査
     const bookEntry = getBestCounterBookMove();
     if (bookEntry && moves.some(([r, c]) => r === bookEntry.move[0] && c === bookEntry.move[1])) {
         const bestMove = bookEntry.move;
@@ -978,7 +1015,8 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     const emptyCount = getEmptyCount(board);
-    const depth = (emptyCount <= 14) ? emptyCount : 8;
+    // 終盤16手は完全読み切り、通常時は深さ9手（Lv.10の深さ7・完全14手を凌駕）
+    const depth = (emptyCount <= 16) ? emptyCount : 9;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
 
@@ -1001,9 +1039,7 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     scored.sort((a, b) => b.score - a.score);
-    const topScore = scored[0].score;
-    const topCandidates = scored.filter(s => (topScore - s.score) <= 5);
-    const chosen = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+    const chosen = scored[0]; // マージン0で絶対最善手を採用
 
     cachedMoveEvaluations = { moves, best: chosen.move, scoredMoves: scored, isBook: false };
     isPrefetching = false;
@@ -1033,7 +1069,7 @@ function applyHintFromCache() {
         const oppAfter = getValidMoves(cpuColor, nextB).length;
         if (oppAfter < oppBefore) reasons.push(`📉 相手の<span class="term-link" data-term="開放度">開放度</span>を奪い、選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
 
-        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ8手）が導き出した最善手です。");
+        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ9手／終盤16手）が導き出した至高の最善手です。");
     }
 
     if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
@@ -1074,9 +1110,10 @@ async function executeTurnAction(row, col, player, isHuman) {
 }
 
 /* ==========================================================================
-  【プレイヤー着手・因果関係メトリクス記録】
+  【プレイヤー着手（大逆転セリフ判定・メトリクス記録）】
 ========================================================================== */
 async function putStone(row, col) {
+    if (isLectureMode) return;
     if (isDrillMode) {
         handleDrillCellClick(row, col);
         return;
@@ -1123,7 +1160,10 @@ async function putStone(row, col) {
     let moveRating = "NORMAL";
     const scoreDiffFromBest = topScore - chosenScore;
 
-    if (isMatchedWithObjectiveBest) {
+    // 大逆転判定（5枚以上裏返し、または大逆転手筋）
+    if (flipsCount >= 5 && Math.random() < 0.7) {
+        setOpponentQuote("bigReversal");
+    } else if (isMatchedWithObjectiveBest) {
         moveRating = "BEST";
         if (getHintMode() !== "off") showMoveToast("best", "🎯 最善手 (BEST)");
         setOpponentQuote("playerGood");
@@ -1189,7 +1229,7 @@ function clearHintForOpponentTurn() {
 }
 
 async function processTurn() {
-    if (gameOver || isReviewMode || isDrillMode) return;
+    if (gameOver || isReviewMode || isDrillMode || isLectureMode) return;
     const currentMoves = getValidMoves(currentPlayer, board);
 
     if (currentMoves.length === 0) {
@@ -1217,6 +1257,7 @@ async function processTurn() {
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         if (currentPlayer === humanColor) {
             if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
 
             if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
             else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
@@ -1226,6 +1267,7 @@ async function processTurn() {
         } else {
             setStatus("cpu-turn", "相手が思考を巡らせています…");
             if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
+            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
             setTimeout(computerMove, 500);
         }
         updateUndoButtonState();
@@ -1235,6 +1277,7 @@ async function processTurn() {
     const pColorName = (humanColor === BLACK) ? "黒" : "白";
     if (currentPlayer === humanColor) {
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
 
         if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
         else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
@@ -1247,6 +1290,7 @@ async function processTurn() {
     } else {
         setStatus("cpu-turn", "相手が思考を巡らせています…");
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
+        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
         computerMove();
     }
 }
@@ -1326,7 +1370,7 @@ function getComputerMove(targetBoard, player, charConfig) {
 }
 
 async function computerMove() {
-    if (gameOver || isReviewMode || isDrillMode) return;
+    if (gameOver || isReviewMode || isDrillMode || isLectureMode) return;
     const session = currentGameSessionId;
 
     clearHintForOpponentTurn();
@@ -1334,13 +1378,14 @@ async function computerMove() {
     updateUndoButtonState();
     setStatus("cpu-turn", "相手が思考を巡らせています…");
     if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
+    if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
 
     const char = getCurrentCharacter();
     const jitter = Math.floor((Math.random() * 200) - 100);
     const thinkingWaitMs = Math.max(400, (char.thinkingBaseMs || 850) + jitter);
 
     await sleep(thinkingWaitMs);
-    if (session !== currentGameSessionId || gameOver || isReviewMode || isDrillMode) return;
+    if (session !== currentGameSessionId || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
 
     const move = getComputerMove(board, cpuColor, char);
     if (move) {
@@ -1361,6 +1406,7 @@ async function computerMove() {
     }
 
     if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+    if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
 
     isBusy = false;
     currentPlayer = humanColor;
@@ -1399,7 +1445,7 @@ function updateHintModeUI() {
 }
 
 async function computeHint() {
-    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDrillMode) return;
+    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDrillMode || isLectureMode) return;
     usedHintInGame = true;
 
     if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) {
@@ -1422,7 +1468,9 @@ function drawBoard() {
             cell.dataset.r = r;
             cell.dataset.c = c;
 
-            if (isDrillMode) {
+            if (isLectureMode) {
+                // 講義モード中はタップ無効（自動実演）
+            } else if (isDrillMode) {
                 const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
                 if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
                     cell.classList.add("can-place", qData.turn === BLACK ? "preview-black" : "preview-white");
@@ -1453,7 +1501,7 @@ function drawBoard() {
                 const wrapper = document.createElement("div");
                 wrapper.className = "stone-wrapper";
 
-                const isFlipping = !isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
+                const isFlipping = !isDrillMode && !isReviewMode && !isLectureMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
                 if (isFlipping) {
                     const flipWrap = document.createElement("div");
                     flipWrap.className = "stone-flip-wrapper";
@@ -1478,7 +1526,7 @@ function drawBoard() {
                 } else {
                     const stone = document.createElement("div");
                     stone.className = `stone ${board[r][c] === BLACK ? "black-stone" : "white-stone"}`;
-                    if (!isDrillMode && !isReviewMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
+                    if (!isDrillMode && !isReviewMode && !isLectureMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
                         stone.classList.add("stone-new");
                     }
                     wrapper.appendChild(stone);
@@ -1486,7 +1534,7 @@ function drawBoard() {
                 cell.appendChild(wrapper);
             }
 
-            if (!isReviewMode) {
+            if (!isReviewMode && !isLectureMode) {
                 cell.addEventListener("click", () => putStone(r, c));
             }
             DOM.board.appendChild(cell);
@@ -1496,7 +1544,7 @@ function drawBoard() {
     pendingAnimation = null;
     updateScore();
     if (DOM.hintButton) {
-        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDrillMode;
+        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDrillMode || isLectureMode;
     }
 }
 
@@ -1505,6 +1553,212 @@ function updateScore(targetBoard = board) {
     if (DOM.opponentScore) DOM.opponentScore.textContent = (cpuColor === BLACK) ? stats.black : stats.white;
     if (DOM.playerScore) DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
 }
+
+/* ==========================================================================
+  【📜 豪傑人物伝・攻略指南モーダル制御（完全復元）】
+========================================================================== */
+function openCharProfileModal(charId = null) {
+    playPlaceSound();
+    const id = charId ? Number(charId) : Number(DOM.characterSelect.value || 1);
+    const char = CHARACTERS[id] || CHARACTERS[1];
+
+    if (DOM.profileCharNameHeader) DOM.profileCharNameHeader.textContent = `📜 ${char.name} 人物伝`;
+    if (DOM.profileTitleBadge) DOM.profileTitleBadge.textContent = `${char.rankLabel} ${char.title}`;
+    if (DOM.profileSalonBadge) DOM.profileSalonBadge.textContent = `🏛️ ${char.salonName}`;
+    if (DOM.profileMaterialBadge) DOM.profileMaterialBadge.textContent = `石：${char.materialDesc}（${char.boardDesc}）`;
+    if (DOM.profileBioText) DOM.profileBioText.textContent = char.profile || "宮廷に仕える歴戦のオセロの使い手。";
+    if (DOM.profileTacticsText) DOM.profileTacticsText.textContent = char.tacticsInfo || "基本に忠実に攻めましょう。";
+
+    if (DOM.profileAvatarBox) {
+        DOM.profileAvatarBox.innerHTML = "";
+        const img = new Image();
+        img.src = char.image;
+        img.alt = char.name;
+        img.style.objectPosition = char.imgFocus || "center 20%";
+        img.onload = () => { DOM.profileAvatarBox.innerHTML = ""; DOM.profileAvatarBox.appendChild(img); };
+        img.onerror = () => { DOM.profileAvatarBox.innerHTML = `<span style="font-size:42px;">${char.icon}</span>`; };
+    }
+
+    if (DOM.charProfileModal) {
+        DOM.charProfileModal.classList.add("show");
+        document.body.classList.add("modal-open-lock");
+    }
+}
+window.openCharProfileModal = openCharProfileModal;
+
+function closeCharProfileModal() {
+    if (DOM.charProfileModal) DOM.charProfileModal.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+}
+window.closeCharProfileModal = closeCharProfileModal;
+
+/* ==========================================================================
+  【📖 盤面動的ビジュアル講義エンジン（完全新設）】
+========================================================================== */
+function startLectureMode(lectureId) {
+    if (!LESSON_LECTURES[lectureId]) return;
+    if (isReviewMode) exitReviewMode();
+    if (isDrillMode) exitDrillMode();
+
+    if (!isLectureMode) {
+        savedBoardStateForLecture = {
+            board: cloneBoard(board),
+            currentPlayer, lastMove,
+            statusType: DOM.status.className,
+            statusText: DOM.status.textContent
+        };
+    }
+
+    isLectureMode = true;
+    currentLectureId = lectureId;
+    currentLectureStepIndex = 0;
+
+    closeDrillCourseModal();
+    closeTermPopup();
+    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
+    document.body.classList.remove("modal-open-lock");
+
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.add("show");
+
+    playPlaceSound();
+    loadLectureState();
+}
+window.startLectureMode = startLectureMode;
+
+function loadLectureState() {
+    const lecture = LESSON_LECTURES[currentLectureId];
+    if (!lecture) return;
+
+    if (DOM.lectureTopicBadge) DOM.lectureTopicBadge.textContent = `📖 【第 ${lecture.themeId} 奥義】盤面ビジュアル講義`;
+    if (DOM.lectureTitleText) DOM.lectureTitleText.textContent = lecture.title;
+    if (DOM.lectureDescText) DOM.lectureDescText.textContent = lecture.introText;
+    if (DOM.lectureStepIndicator) DOM.lectureStepIndicator.textContent = `ステップ 0 / ${lecture.steps.length}`;
+
+    if (DOM.lectureExplainBox) {
+        DOM.lectureExplainBox.style.display = "none";
+        DOM.lectureExplainBox.innerHTML = "";
+    }
+
+    if (DOM.btnLecturePlay) {
+        DOM.btnLecturePlay.style.display = "inline-block";
+        DOM.btnLecturePlay.textContent = "▶ 実演を再生する";
+    }
+
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    lecture.setup(board);
+    currentPlayer = lecture.turn;
+    currentLectureStepIndex = 0;
+
+    setStatus("hint-thinking", `📖 盤面講義：${lecture.title}`);
+    drawBoard();
+    clearDrillBadges();
+}
+
+async function playCurrentLectureStep() {
+    const lecture = LESSON_LECTURES[currentLectureId];
+    if (!lecture || currentLectureStepIndex >= lecture.steps.length) return;
+
+    if (DOM.btnLecturePlay) DOM.btnLecturePlay.disabled = true;
+
+    while (currentLectureStepIndex < lecture.steps.length) {
+        const step = lecture.steps[currentLectureStepIndex];
+        currentLectureStepIndex++;
+
+        if (DOM.lectureStepIndicator) {
+            DOM.lectureStepIndicator.textContent = `ステップ ${currentLectureStepIndex} / ${lecture.steps.length}`;
+        }
+
+        const [r, c] = step.move;
+        makeMove(board, r, c, step.player);
+        playPlaceSound();
+        drawBoard();
+
+        const cell = getBoardCell(r, c);
+        if (cell) {
+            const badgeType = (step.player === BLACK) ? "player" : "cpu";
+            const badgeText = (step.player === BLACK) ? "⚫ 着手" : "💀 相手の急所打ち！";
+            addDrillBadge(r, c, badgeType, badgeText);
+        }
+
+        if (DOM.lectureExplainBox) {
+            DOM.lectureExplainBox.style.display = "block";
+            DOM.lectureExplainBox.innerHTML += `
+                <div class="lecture-step-log">
+                    <b>${step.desc}</b><br>
+                    <span>${step.explain}</span>
+                </div>
+            `;
+            DOM.lectureExplainBox.scrollTop = DOM.lectureExplainBox.scrollHeight;
+        }
+
+        await sleep(1100);
+    }
+
+    if (DOM.lectureExplainBox && lecture.solutionNote) {
+        DOM.lectureExplainBox.innerHTML += `
+            <div class="lecture-solution-card">
+                ${lecture.solutionNote}
+            </div>
+        `;
+        DOM.lectureExplainBox.scrollTop = DOM.lectureExplainBox.scrollHeight;
+    }
+
+    if (DOM.btnLecturePlay) DOM.btnLecturePlay.style.display = "none";
+    if (DOM.btnLectureToDrill) {
+        DOM.btnLectureToDrill.style.display = "inline-block";
+        DOM.btnLectureToDrill.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+}
+window.playCurrentLectureStep = playCurrentLectureStep;
+
+function resetCurrentLecture() {
+    playPlaceSound();
+    if (DOM.btnLecturePlay) DOM.btnLecturePlay.disabled = false;
+    loadLectureState();
+}
+window.resetCurrentLecture = resetCurrentLecture;
+
+function proceedToDrillFromLecture() {
+    const lecture = LESSON_LECTURES[currentLectureId];
+    exitLectureMode(false);
+    const firstQId = (lecture && lecture.themeId) ? (lecture.themeId - 1) * 3 + 1 : 1;
+    startDrillQuestion(firstQId);
+}
+window.proceedToDrillFromLecture = proceedToDrillFromLecture;
+
+function returnToLectureFromDrill() {
+    const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
+    const lecId = `lec-${qData.themeId}`;
+    exitDrillMode(false);
+    startLectureMode(lecId);
+}
+window.returnToLectureFromDrill = returnToLectureFromDrill;
+
+function exitLectureMode(restoreBoard = true) {
+    if (!isLectureMode) return;
+    playPlaceSound();
+    clearDrillBadges();
+
+    if (restoreBoard && savedBoardStateForLecture) {
+        board = cloneBoard(savedBoardStateForLecture.board);
+        currentPlayer = savedBoardStateForLecture.currentPlayer;
+        lastMove = savedBoardStateForLecture.lastMove;
+        DOM.status.className = savedBoardStateForLecture.statusType;
+        DOM.status.textContent = savedBoardStateForLecture.statusText;
+        drawBoard();
+        updateBalanceGauge();
+    }
+
+    isLectureMode = false;
+    savedBoardStateForLecture = null;
+
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
+    if (DOM.normalControlCard && !isDrillMode) DOM.normalControlCard.style.display = "";
+    updateUndoButtonState();
+}
+window.exitLectureMode = exitLectureMode;
 
 /* ==========================================================================
   【ストーリー型戦局総括＆勝負の分岐点生成エンジン】
@@ -1527,14 +1781,14 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         tacticsWorstAlternative = openingBad.objectiveBest;
         
         openingHtml = `
-            <div>序盤、第${openingBad.stepIndex}手【${openingBad.coord}】で外側の石を取りすぎ、相手に打てるマスを急増させてしまう隙が生じました。</div>
+            <div>序盤、第${openingBad.stepIndex}手【${openingBad.coord}】で外側の石を取りすぎ、外壁を作って相手に打てるマスを急増させてしまう隙が生じました。</div>
             <div class="story-deep-link-wrap">
                 <span class="story-deep-btn" onclick="jumpToReviewStep(${openingBad.stepIndex})">🔍 なぜ危険だったのか？ 盤面で深掘り検証 ▶</span>
             </div>
         `;
     } else {
         openingHtml = `
-            <div>序盤は定石と中割りを遵守し、相手に余計な足場を与えない落ち着いた堅実な立ち上がりでした。</div>
+            <div>序盤は定石と<span class="term-link" data-term="中割り">中割り</span>を遵守し、相手に余計な足場を与えない落ち着いた堅実な立ち上がりでした。</div>
         `;
     }
 
@@ -1549,7 +1803,7 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
     if (isWin) {
         if (turningMove.isCornerMove) {
             turningHtml = `
-                <div>第${turningMove.stepIndex}手、相手が空けた隙を見逃さず要衝【${turningMove.coord}（角）】を奪取！ これにより絶対に裏返らない確定石の拠点を築き、本局の主導権を完全に掌握しました。</div>
+                <div>第${turningMove.stepIndex}手、相手が空けた隙を見逃さず要衝【${turningMove.coord}（角）】を奪取！ これにより絶対に裏返らない<span class="term-link" data-term="確定石">確定石</span>の拠点を築き、本局の主導権を完全に掌握しました。</div>
                 <div class="story-deep-link-wrap">
                     <span class="story-deep-btn" onclick="jumpToReviewStep(${turningMove.stepIndex})">🎯 勝負を決めた分岐点の盤面を見る ▶</span>
                 </div>
@@ -1585,7 +1839,7 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
             `;
         } else {
             endingHtml = `
-                <div>終盤の偶数理論（パリティ）を的確に制し、最後の一手を独占して見事な勝利を飾りました。</div>
+                <div>終盤の偶数理論（<span class="term-link" data-term="パリティ">パリティ</span>）を的確に制し、最後の一手を独占して見事な勝利を飾りました。</div>
             `;
         }
     } else if (isDraw) {
@@ -1613,7 +1867,7 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【🎯 宮廷次の一手検定（全15問・類題特訓フローエンジン）】
+  【🎯 宮廷次の一手検定（五大奥義カテゴリー階層レンダリング）】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
@@ -1658,20 +1912,44 @@ window.openDrillFromTopicKey = openDrillFromTopicKey;
 
 function renderDrillCourseList() {
     if (!DOM.drillCourseList) return;
-    DOM.drillCourseList.innerHTML = DRILL_QUESTIONS.map(q => {
-        const isCleared = !!drillPassedMap[q.id];
-        return `
-            <div class="drill-course-card ${isCleared ? 'cleared' : ''}">
-                <div class="drill-card-info">
-                    <div class="drill-card-title">
-                        <span>${isCleared ? '👑' : '⚔️'} ${q.title}</span>
-                        <span class="drill-card-status">${isCleared ? '【合格】' : `[${q.diffLabel}]`}</span>
+    DOM.drillCourseList.innerHTML = DRILL_THEMES.map(theme => {
+        const questionsInTheme = DRILL_QUESTIONS.filter(q => q.themeId === theme.id);
+        const clearedCount = questionsInTheme.filter(q => !!drillPassedMap[q.id]).length;
+        const isAllCleared = clearedCount === questionsInTheme.length;
+
+        const questionsHtml = questionsInTheme.map(q => {
+            const isCleared = !!drillPassedMap[q.id];
+            return `
+                <div class="drill-sub-question-card ${isCleared ? 'cleared' : ''}">
+                    <div class="drill-sub-info">
+                        <span class="drill-step-tag">${q.stepInTheme}</span>
+                        <span class="drill-sub-title">${q.title}</span>
                     </div>
-                    <div class="drill-card-desc">［${q.themeName}・${q.stepInTheme}］${q.desc}</div>
+                    <button type="button" class="btn-sub-drill" onclick="startDrillQuestion(${q.id})">
+                        ${isCleared ? '復習 ↺' : '挑戦 ▶'}
+                    </button>
                 </div>
-                <button type="button" class="btn-start-course" onclick="startDrillQuestion(${q.id})">
-                    ${isCleared ? '復習する ▶' : '挑戦する ▶'}
-                </button>
+            `;
+        }).join("");
+
+        return `
+            <div class="drill-theme-category-card ${isAllCleared ? 'all-cleared' : ''}">
+                <div class="drill-theme-header">
+                    <div class="drill-theme-header-left">
+                        <span class="drill-theme-icon">${theme.icon}</span>
+                        <div class="drill-theme-text-group">
+                            <div class="drill-theme-title">${theme.name}</div>
+                            <div class="drill-theme-meta">${theme.rankLabel} ｜ 進捗：${clearedCount} / 3 制覇</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-theme-lecture" onclick="startLectureMode('${theme.lectureId}')">
+                        📖 盤面講義を見る
+                    </button>
+                </div>
+                <div class="drill-theme-summary">${theme.summary}</div>
+                <div class="drill-theme-questions-list">
+                    ${questionsHtml}
+                </div>
             </div>
         `;
     }).join("");
@@ -1679,6 +1957,7 @@ function renderDrillCourseList() {
 
 function startDrillQuestion(qIndex) {
     if (isReviewMode) exitReviewMode();
+    if (isLectureMode) exitLectureMode(false);
 
     if (!isDrillMode) {
         savedBoardStateForDrill = {
@@ -1699,6 +1978,7 @@ function startDrillQuestion(qIndex) {
     document.body.classList.remove("modal-open-lock");
 
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.add("show");
 
     playPlaceSound();
@@ -1863,27 +2143,27 @@ function closeCertificateAndChallengeKing() {
 }
 window.closeCertificateAndChallengeKing = closeCertificateAndChallengeKing;
 
-function exitDrillMode() {
-    if (!isDrillMode || !savedBoardStateForDrill) return;
+function exitDrillMode(restoreBoard = true) {
+    if (!isDrillMode) return;
     playPlaceSound();
     clearDrillBadges();
 
-    board = cloneBoard(savedBoardStateForDrill.board);
-    currentPlayer = savedBoardStateForDrill.currentPlayer;
-    lastMove = savedBoardStateForDrill.lastMove;
-
-    DOM.status.className = savedBoardStateForDrill.statusType;
-    DOM.status.textContent = savedBoardStateForDrill.statusText;
+    if (restoreBoard && savedBoardStateForDrill) {
+        board = cloneBoard(savedBoardStateForDrill.board);
+        currentPlayer = savedBoardStateForDrill.currentPlayer;
+        lastMove = savedBoardStateForDrill.lastMove;
+        DOM.status.className = savedBoardStateForDrill.statusType;
+        DOM.status.textContent = savedBoardStateForDrill.statusText;
+        drawBoard();
+        updateBalanceGauge();
+    }
 
     isDrillMode = false;
     savedBoardStateForDrill = null;
     isSimulatingDrillMistake = false;
 
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
-    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
-
-    drawBoard();
-    updateBalanceGauge();
+    if (DOM.normalControlCard && !isLectureMode) DOM.normalControlCard.style.display = "";
     updateUndoButtonState();
 }
 window.exitDrillMode = exitDrillMode;
@@ -2228,6 +2508,7 @@ function endGame() {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
 
     if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+    if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
     drawBoard();
     updateBalanceGauge();
     updateUndoButtonState();
@@ -2379,7 +2660,7 @@ function endGame() {
 }
 
 function enterReviewMode() {
-    if (gameStepLogs.length === 0 || isDrillMode) return;
+    if (gameStepLogs.length === 0 || isDrillMode || isLectureMode) return;
     isReviewMode = true;
     if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
@@ -2397,7 +2678,7 @@ function enterReviewMode() {
 function exitReviewMode() {
     isReviewMode = false;
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
-    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "";
+    if (DOM.normalControlCard && !isDrillMode && !isLectureMode) DOM.normalControlCard.style.display = "";
     updateUndoButtonState();
     updateScore(board);
     updateBalanceGauge(board);
@@ -2511,6 +2792,13 @@ if (DOM.characterSelect) {
         updateOpponentStageUI(true);
         startGame();
     });
+}
+
+if (DOM.opponentAvatarWrap) {
+    DOM.opponentAvatarWrap.addEventListener("click", () => openCharProfileModal());
+}
+if (DOM.btnOpenProfile) {
+    DOM.btnOpenProfile.addEventListener("click", () => openCharProfileModal());
 }
 
 if (DOM.btnPlayerBlack && DOM.btnPlayerWhite) {
@@ -2635,6 +2923,7 @@ document.addEventListener("keydown", (e) => {
         document.body.classList.remove("modal-open-lock");
         closeTermPopup();
         if (isDrillMode) exitDrillMode();
+        if (isLectureMode) exitLectureMode();
     }
 });
 
@@ -2645,4 +2934,5 @@ if (DOM.characterSelect) {
     DOM.characterSelect.value = determineInitialCharacterLevel();
 }
 startGame();
+
 

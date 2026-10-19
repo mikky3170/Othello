@@ -1,12 +1,15 @@
+
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.4.0 (2026/10/19)
+  バージョン: Ver 8.5.0 (2026/10/20)
   
-  [Ver 8.4.0] 2026/10/19 更新内容:
-  - 【データ完全分離・4ファイル構成＆コードスリム化エディション】
-  - 全10ステージテーマのCSS変数をベース集約し、デザイン品質を100%維持したまま軽量化。
-  - オーバル肖像画の完全固定・画像飛び出し防止、3層論理解説カードの最適調律。
+  [Ver 8.5.0] 2026/10/20 更新内容:
+  - 【教育体系二段構え＆10豪傑人物伝・攻略指南 完全復活エディション】
+  - 盤面動的ビジュアル講義カード（lecture-control-card）のスタイルを新設。
+  - 豪傑人物伝・攻略指南モーダル（charProfileModal）のバロック調レイアウトを完全復元。
+  - 相手AIの思考中を一目で識別する「思案中点滅バッジ」のスタイルを追加。
+  - 検定の5大奥義カテゴリー階層フレーム用スタイルを完全整備。
 ========================================================================== */
 
 * {
@@ -255,7 +258,7 @@ header {
     .opponent-zone { width: min(92vw, 680px); height: 124px; max-height: 124px; padding: 8px 14px; }
 }
 
-.opponent-avatar-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.opponent-avatar-wrap { position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .voice-wave-ring { position: absolute; inset: -5px; border-radius: 50%; border: 2.5px solid var(--char-accent); pointer-events: none; opacity: 0; z-index: 1; }
 .is-talking .voice-wave-ring.wave-1 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
 .is-talking .voice-wave-ring.wave-2 { animation: oval-voice-ripple 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) 0.2s forwards; }
@@ -302,11 +305,30 @@ header {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); line-height: 1.2; z-index: 3;
 }
 
+/* ⏱️ 相手AI思考中点滅バッジ */
+.opponent-thinking-badge {
+    position: absolute; top: -4px; left: -2px; z-index: 10;
+    font-size: 8px; font-weight: 900; color: #fff4bd;
+    background: linear-gradient(135deg, #a67314 0%, #442a0a 100%);
+    border: 1px solid #ffd700; border-radius: 6px; padding: 1px 4px;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.8); display: none;
+    animation: thinking-badge-pulse 0.9s infinite alternate;
+}
+.opponent-thinking-badge.show { display: inline-block; }
+@keyframes thinking-badge-pulse { from { opacity: 0.6; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
+
 .opponent-info-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2.5px; height: 100%; overflow: hidden; }
 .opponent-header-row { display: flex; align-items: center; justify-content: space-between; }
-.opponent-name-group { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.opponent-name-group { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .opponent-name { font-size: 13px; font-weight: 800; color: #fff4bd; letter-spacing: 0.04em; }
 .opponent-title { font-size: 10.5px; color: #e0be75; font-weight: 800; letter-spacing: 0.02em; }
+
+.btn-open-char-profile {
+    font-size: 8.5px; font-weight: 900; padding: 1px 5px; border-radius: 4px;
+    background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff2bd;
+    cursor: pointer; transition: all 0.2s ease;
+}
+.btn-open-char-profile:hover { background: #ffd700; color: #121008; }
 
 .stage-material-badge {
     font-size: 10px; font-weight: 800; color: #f2e3c6; background: rgba(0, 0, 0, 0.65);
@@ -624,6 +646,49 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
+/* 📖 盤面動的ビジュアル講義コントロールカード */
+.lecture-control-card {
+    display: none; width: min(calc(100vw - 8px), 480px);
+    background: linear-gradient(145deg, rgba(24, 28, 40, 0.98) 0%, rgba(12, 14, 22, 0.99) 100%);
+    border: 2px solid #5ef7a2; border-radius: 12px; padding: 9px 12px; margin-top: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(46, 204, 113, 0.4);
+    flex-direction: column; gap: 4px; text-align: left;
+    z-index: 500 !important; position: relative; pointer-events: auto !important;
+    animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+}
+.lecture-control-card.show { display: flex; }
+.lecture-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(46, 204, 113, 0.3); padding-bottom: 3px; }
+.lecture-topic-badge { font-size: 11px; font-weight: 900; color: #5ef7a2; display: inline-flex; align-items: center; gap: 4px; }
+.lecture-step-indicator { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; color: #ffd700; }
+
+.lecture-title-text { font-size: 12px; font-weight: 900; color: #ffffff; margin-top: 2px; }
+.lecture-desc-text { font-size: 10px; color: #ecd08c; line-height: 1.4; margin-top: 1px; }
+
+.lecture-explain-box {
+    background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(212, 167, 72, 0.3);
+    border-radius: 6px; padding: 6px 8px; font-size: 10px; line-height: 1.45; color: #fff4bd;
+    max-height: 120px; overflow-y: auto; margin-top: 4px;
+}
+.lecture-step-log { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
+.lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
+.lecture-step-log b { color: #5ef7a2; }
+.lecture-solution-card {
+    background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; border-radius: 6px;
+    padding: 5px 8px; color: #d4f8e2; font-weight: 800; margin-top: 4px;
+}
+
+.lecture-actions-bar {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 5px;
+    padding-top: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap;
+}
+.lecture-btn-action {
+    font-size: 10px; font-weight: 900; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+}
+.btn-lecture-play { background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415; border: 1px solid #fff; box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
+.btn-lecture-reset { background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4); }
+.btn-lecture-to-drill { background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); display: none; }
+.btn-lecture-exit { background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2); }
+
 /* 🎯 宮廷次の一手検定：盤面解答カード */
 .drill-control-card {
     display: none; width: min(calc(100vw - 8px), 480px);
@@ -665,10 +730,10 @@ header {
 
 .drill-actions-bar {
     display: flex; justify-content: space-between; align-items: center; margin-top: 4px;
-    padding-top: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px;
+    padding-top: 4px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap;
 }
 .drill-btn-action {
-    font-size: 10px; font-weight: 900; padding: 5px 12px; border-radius: 6px;
+    font-size: 10px; font-weight: 900; padding: 5px 10px; border-radius: 6px;
     cursor: pointer; transition: all 0.2s ease;
 }
 .drill-btn-retry {
@@ -676,6 +741,9 @@ header {
     border: 1.5px solid rgba(212, 167, 72, 0.6); display: none;
 }
 .drill-btn-retry:hover { border-color: #ffd700; color: #fff; transform: translateY(-1px); }
+.drill-btn-lecture {
+    background: rgba(46, 204, 113, 0.15); color: #bbf7d0; border: 1px solid #2ecc71;
+}
 .drill-btn-next-question {
     background: linear-gradient(180deg, #235835 0%, #102e1b 100%); color: #bbf7d0;
     border: 1.5px solid #2ecc71; display: none; box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
@@ -861,6 +929,70 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .turn-highlight .deep-card-title { color: #ffd700; }
 .deep-metrics-row { font-size: 10px; color: #fff4bd; background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 4px; margin: 2px 0; }
 .deep-card-detail { font-size: 9.5px; color: #ecd08c; line-height: 1.4; }
+
+/* 📜 豪傑人物伝・攻略指南モーダル */
+.profile-modal-body { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.profile-avatar-row { display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.4); padding: 6px; border-radius: 8px; border: 1px solid var(--gold-border); }
+.profile-avatar-frame {
+    width: 60px; height: 80px; border-radius: 50%; border: 2.5px solid #ffd700;
+    overflow: hidden; background: #111; flex-shrink: 0; box-shadow: 0 0 10px rgba(255,215,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+}
+.profile-avatar-frame img { width: 100%; height: 100%; object-fit: cover; }
+.profile-header-info { display: flex; flex-direction: column; gap: 2px; }
+.profile-title-badge { font-size: 11px; font-weight: 900; color: #ffd700; }
+.profile-salon-badge { font-size: 10px; color: #fff4bd; }
+.profile-material-badge { font-size: 9px; color: #c9ba9f; }
+
+.profile-card-section {
+    background: rgba(0, 0, 0, 0.45); border: 1.5px solid rgba(212, 167, 72, 0.35);
+    border-radius: 8px; padding: 7px 10px; font-size: 10.5px; line-height: 1.5; color: #f2e9d2; text-align: left;
+}
+.profile-card-section.tactics-highlight {
+    border-color: #ffd700; background: linear-gradient(135deg, rgba(40, 32, 15, 0.7) 0%, rgba(20, 15, 8, 0.85) 100%);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+}
+.profile-section-title { font-size: 11px; font-weight: 900; color: #ffd700; margin-bottom: 2px; }
+
+/* 📋 検定コース一覧モーダル（5大奥義カテゴリー階層フレーム） */
+#drillCourseModal .dynasty-modal { max-width: 580px; }
+.drill-course-list { display: flex; flex-direction: column; gap: 9px; margin: 10px 0; max-height: 65dvh; overflow-y: auto; }
+.drill-theme-category-card {
+    background: linear-gradient(135deg, rgba(32, 28, 20, 0.94) 0%, rgba(16, 14, 10, 0.98) 100%);
+    border: 1.5px solid rgba(212, 167, 72, 0.45); border-radius: 10px; padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+.drill-theme-category-card.all-cleared { border-color: #2ecc71; background: linear-gradient(135deg, rgba(16, 40, 26, 0.94) 0%, rgba(8, 20, 14, 0.98) 100%); }
+
+.drill-theme-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 4px; }
+.drill-theme-header-left { display: flex; align-items: center; gap: 6px; }
+.drill-theme-icon { font-size: 16px; }
+.drill-theme-title { font-size: 12px; font-weight: 900; color: #ffd700; }
+.drill-theme-meta { font-size: 9px; color: #c9ba9f; }
+.btn-theme-lecture {
+    font-size: 9px; font-weight: 900; padding: 3px 8px; border-radius: 4px;
+    background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; color: #bbf7d0; cursor: pointer;
+}
+.btn-theme-lecture:hover { background: #2ecc71; color: #042415; }
+
+.drill-theme-summary { font-size: 9.5px; color: #ecd08c; line-height: 1.35; }
+.drill-theme-questions-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+@media (max-width: 500px) {
+    .drill-theme-questions-list { grid-template-columns: 1fr; }
+}
+
+.drill-sub-question-card {
+    background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.25);
+    border-radius: 6px; padding: 5px 6px; display: flex; justify-content: space-between; align-items: center; gap: 4px;
+}
+.drill-sub-question-card.cleared { border-color: #2ecc71; background: rgba(46, 204, 113, 0.12); }
+.drill-sub-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.drill-step-tag { font-size: 8px; font-weight: 900; color: #ffd700; }
+.drill-sub-title { font-size: 9px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-sub-drill {
+    font-size: 8.5px; font-weight: 900; padding: 2.5px 6px; border-radius: 4px;
+    background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; cursor: pointer; flex-shrink: 0;
+}
 
 /* 👑 王宮戦後会見モーダル */
 .royal-result-modal {
@@ -1121,26 +1253,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .banner-salon-title { font-size: 14px; font-weight: 800; color: #ffffff; letter-spacing: 0.08em; margin-bottom: 3px; }
 .banner-relic-sub { font-size: 9.5px; color: #ecd08c; font-weight: 600; }
 
-/* 📋 検定コース一覧モーダル */
-#drillCourseModal .dynasty-modal { max-width: 540px; }
-.drill-course-list { display: flex; flex-direction: column; gap: 7px; margin: 10px 0; max-height: 65dvh; overflow-y: auto; }
-.drill-course-card {
-    background: linear-gradient(135deg, rgba(32, 28, 20, 0.9) 0%, rgba(18, 15, 10, 0.95) 100%);
-    border: 1.5px solid rgba(212, 167, 72, 0.4); border-radius: 8px; padding: 7px 11px;
-    display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease;
-}
-.drill-course-card:hover { border-color: #ffd700; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
-.drill-course-card.cleared { border-color: #2ecc71; background: linear-gradient(135deg, rgba(16, 40, 26, 0.9) 0%, rgba(8, 20, 14, 0.95) 100%); }
-.drill-card-info { display: flex; flex-direction: column; gap: 2px; }
-.drill-card-title { font-size: 11px; font-weight: 900; color: #fff4bd; display: flex; align-items: center; gap: 6px; }
-.drill-card-desc { font-size: 9px; color: #d1c4aa; }
-.drill-card-status { font-family: 'Cinzel', serif; font-size: 8.5px; font-weight: 900; color: #ffd700; }
-.btn-start-course {
-    font-size: 9.5px; font-weight: 900; padding: 4px 10px; border-radius: 6px;
-    background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.6); white-space: nowrap;
-}
-
 /* 🏆 免許皆伝・合格証モーダル */
 #drillCertificateModal .royal-result-card {
     border: 3px solid #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 20px 60px rgba(0,0,0,0.95);
@@ -1269,3 +1381,4 @@ footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-conte
     .opponent-zone { order: 3; width: clamp(280px, 24vw, 360px); height: auto; max-height: none; }
     .opponent-avatar-frame { width: clamp(84px, 8.5vw, 98px); height: clamp(110px, 11vw, 128px); }
 }
+
