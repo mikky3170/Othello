@@ -2,12 +2,11 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.8 (2025/05/20)
+  バージョン: Ver 8.6.9 (2025/05/20)
   
-  [Ver 8.6.8] 2025/05/20 更新内容:
-  - 【3段階ピラミッド教育体系＆撃破ターゲット完全連動エディション】
-  - 思案所「心得タブ」の導入解説を3段階ピラミッド（大枠・中枠・詳細）へ刷新。
-  - 用語・定石宝典の講義ボタンを新設の三大定石講義（lec-openings）へ最適化。
+  [Ver 8.6.9] 2025/05/20 更新内容:
+  - 【思考エンジン適正化・戦績録UI洗練＆教育精度極限エディション】
+  - 操作パネル下段の学習ボタン配置を最適化（左：宮廷思案所、右：宮廷検定）。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -199,10 +198,10 @@
                     <button id="hintButton" class="btn-royal btn-core" type="button">💡 ヒント</button>
                 </div>
 
-                <!-- ボタン下段：宮廷学習・特訓（ワイド2分割） -->
+                <!-- ボタン下段：宮廷学習・特訓（左：思案所、右：検定） -->
                 <div class="action-grid-row-study">
-                    <button id="btnOpenDrillMain" class="btn-royal btn-study-drill" type="button" onclick="openDrillCourseModal()">🎯 宮廷検定（全15問）</button>
                     <button id="guideButton" class="btn-royal btn-study-guide" type="button">📜 宮廷思案所（奥義宝典）</button>
+                    <button id="btnOpenDrillMain" class="btn-royal btn-study-drill" type="button" onclick="openDrillCourseModal()">🎯 宮廷検定（全15問）</button>
                 </div>
 
                 <div class="hint-fixed-display" id="hintFixedDisplay">
@@ -697,14 +696,14 @@
                         <b>🧱 壁（かべ）：</b>外側に自分の石がずらりと一直線に並んでしまうこと。相手に無数の足場を与えてしまうため、敗着の典型とされます。
                     </div>
                     <div style="margin-bottom:6px;">
-                        <b>📉 開放度（かいほうど）：</b>打った石の周りにある「空きマスの数」。開放度が低い手ほど好手とされます。
+                        <b>📉 開放度（かいほうど）：</b>打った石や裏返した石の周囲にある「空きマスの数」。開放度が低い手ほど相手に手番を与えない好手とされます。
                     </div>
                     <div>
                         <b>⚖️ パリティ（偶数理論）：</b>オセロ終盤の絶対法則。偶数空きエリアは相手に先に打たせ、奇数空きエリアは自分が先に打つことで最後の一手を独占できます。
                     </div>
                 </div>
 
-                <!-- 📖 三大王道定石セクション（新設の専用講義へリンク） -->
+                <!-- 📖 三大王道定石セクション -->
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
                         <span>📖 三大王道定石の系譜（虎・牛・馬）</span>
@@ -738,7 +737,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.8</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.9</div>
     </footer>
 
     <div class="bottom-safe-space"></div>

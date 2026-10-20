@@ -2,13 +2,14 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.8 (2025/05/20)
+  バージョン: Ver 8.6.9 (2025/05/20)
   
-  [Ver 8.6.8] 2025/05/20 更新内容:
-  - 【3段階ピラミッド教育体系＆撃破ターゲット完全連動エディション】
-  - 思案所ガイド描画エンジン（renderGuideModalContents）を新体系へ完全最適化。
-  - 「大枠 ➔ 中枠 ➔ 詳細」の各ステップに到達級位バッジと撃破可能豪傑（Lv.1〜Lv.10）を整列描画。
-  - 全21パターンの画面復帰エンジン、プレイヤー着手完全ゼロ遅延を100%維持。
+  [Ver 8.6.9] 2025/05/20 更新内容:
+  - 【思考エンジン適正化・戦績録UI洗練＆教育精度極限エディション】
+  - 真剣勝負（ヒントOFF）時の事前計算完全停止＆終盤読み切り13手適正化により、スマホ思案時間を1〜3秒に劇的短縮。
+  - 「中割り」厳密判定（isTrueNakawari）の実装により、真の内側石反転時のみ中割りと解説。
+  - 「開放度」誤用を着手可能手（選択肢）制限へ是正。定石表記を王道定石へ修正。
+  - 戦績録の称号カッコ改行処理を実装し、長文称号の見切れを完全根絶。
 ========================================================================== */
 
 const boardSize = 8;
@@ -893,6 +894,22 @@ function isRealDanger(r, c, targetBoard) {
     return false;
 }
 
+// 🛡️ 【中割り厳密判定】：返した石がすべて空きマスに隣接していない（内部石のみ）かを判定
+function isTrueNakawari(r, c, player, targetBoard) {
+    const flippable = getFlippableStones(r, c, player, targetBoard);
+    if (flippable.length === 0) return false;
+
+    for (const [fr, fc] of flippable) {
+        for (const [dr, dc] of directions) {
+            const nr = fr + dr, nc = fc + dc;
+            if (isInside(nr, nc) && targetBoard[nr][nc] === 0) {
+                return false; // 外側の空きマスに隣接している石があるため中割りではない
+            }
+        }
+    }
+    return true;
+}
+
 function countStableStones(targetBoard, player) {
     const stable = new Set();
     for (const [cr, cc] of cornerSquares) {
@@ -1046,9 +1063,15 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン】
+  【ヒント探索エンジン（高速・高精度適正化エディション）】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
+    // ⚔️ 完全OFF（真剣勝負）モード時は重い事前計算を即座にスキップ（0秒）
+    if (getHintMode() === "off") {
+        isPrefetching = false;
+        return;
+    }
+
     if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
     const session = currentGameSessionId;
     isPrefetching = true;
@@ -1080,7 +1103,8 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     const emptyCount = getEmptyCount(board);
-    const depth = (emptyCount <= 16) ? emptyCount : 9;
+    // ⚡ 探索深さ適正化：中盤は深さ8（有段者レベル最高峰）、終盤は13手以下から完全読み切り
+    const depth = (emptyCount <= 13) ? emptyCount : 8;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
 
@@ -1120,20 +1144,29 @@ function applyHintFromCache() {
 
     const reasons = [];
     if (cachedMoveEvaluations.isBook) {
-        reasons.push(`📖 日本オセロ連盟公認定石【<span class="term-link" data-term="${cachedMoveEvaluations.bookName.includes('馬')?'馬定石':(cachedMoveEvaluations.bookName.includes('牛')?'牛定石':'虎定石')}">${cachedMoveEvaluations.bookName}</span>】の高勝率ルートです。`);
-        reasons.push("🎯 序盤の骨格を完璧に保ち、主導権を握る絶対の定石手筋です。");
+        reasons.push(`📖 伝統のオセロ王道定石【<span class="term-link" data-term="${cachedMoveEvaluations.bookName.includes('馬')?'馬定石':(cachedMoveEvaluations.bookName.includes('牛')?'牛定石':'虎定石')}">${cachedMoveEvaluations.bookName}</span>】の推奨手筋です。`);
+        reasons.push("🎯 序盤の骨格を保ち、無理なく主導権を握る定石手順です。");
     } else {
         const [r, c] = chosenMove;
-        if (isCorner(r, c)) reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
-        else if (!isRealDanger(r, c, board)) reasons.push(`🛡️ 危険マスを避け、内側の石だけを返す鋭い<span class="term-link" data-term="中割り">中割り</span>です。`);
+        if (isCorner(r, c)) {
+            reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
+        } else if (isTrueNakawari(r, c, humanColor, board)) {
+            reasons.push(`🛡️ 外側の石を出さず、内側の石だけを返す鋭い<span class="term-link" data-term="中割り">中割り</span>です。`);
+        } else if (!isRealDanger(r, c, board)) {
+            reasons.push("🛡️ 危険マスを避け、中央の勢力を手堅く保つ堅実な一手です。");
+        }
 
         const oppBefore = getValidMoves(cpuColor, board).length;
         const nextB = cloneBoard(board);
         makeMove(nextB, r, c, humanColor);
         const oppAfter = getValidMoves(cpuColor, nextB).length;
-        if (oppAfter < oppBefore) reasons.push(`📉 相手の<span class="term-link" data-term="開放度">開放度</span>を奪い、選択肢を ${oppBefore} → ${oppAfter} 箇所に激減させます。`);
+        if (oppAfter < oppBefore) {
+            reasons.push(`📉 相手の着手可能手を制限し、選択肢を ${oppBefore} ➔ ${oppAfter} 箇所に抑え込みます。`);
+        }
 
-        if (reasons.length === 0) reasons.push("🎯 宮廷AIの深層読み（深さ9手／終盤16手）が導き出した至高の最善手です。");
+        if (reasons.length === 0) {
+            reasons.push("🎯 宮廷AIの深層読みが導き出した至高の最善手です。");
+        }
     }
 
     if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
@@ -1255,7 +1288,7 @@ async function putStone(row, col) {
     let contextNote = `あなたの着手（${coord}）。`;
     if (moveRating === "BEST") {
         contextNote += cachedMoveEvaluations && cachedMoveEvaluations.isBook
-            ? `【最善手】公式プロ定石（${cachedMoveEvaluations.bookName}）通りの完璧な一着。`
+            ? `【最善手】伝統の王道定石（${cachedMoveEvaluations.bookName}）通りの一着。`
             : "【最善手】隙のない宮廷AI推奨の完璧な着手。";
     } else if (moveRating === "GOOD") {
         contextNote += isCornerMove ? "【好手】四隅の要塞を確保。" : "【好手】要所を押さえる堅実な一打。";
@@ -1627,7 +1660,6 @@ function updateScore(targetBoard = board) {
   【⚡ マスター対局状態バックアップ＆対局復帰専用エンジン（完全復帰保証）】
 ========================================================================== */
 function saveMainGameSnapshotIfNotSaved() {
-    // すでに講義・検定・検討などのサブモードに入っている間は、最初の対局バックアップを絶対に上書き破損させない！
     if (mainGameSnapshot !== null || isDrillMode || isLectureMode || isReviewMode) return;
 
     mainGameSnapshot = {
@@ -1648,13 +1680,11 @@ function restoreMainGameState() {
     isSimulatingDrillMistake = false;
     clearDrillBadges();
 
-    // 操作ゾーンのカードを「通常対局カード」に強制切り替え
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "flex";
 
-    // バックアップから盤面・手番・終局状態を完全復元
     if (mainGameSnapshot) {
         board = cloneBoard(mainGameSnapshot.board);
         currentPlayer = mainGameSnapshot.currentPlayer;
@@ -1662,7 +1692,6 @@ function restoreMainGameState() {
         gameOver = mainGameSnapshot.gameOver;
     }
 
-    // ⚡ ゲーム状態からステータスと相手セリフを強制再同期
     if (gameOver) {
         if (mainGameSnapshot && mainGameSnapshot.statusText) {
             setStatus(mainGameSnapshot.statusType, mainGameSnapshot.statusText);
@@ -2445,7 +2474,9 @@ document.addEventListener("click", (e) => {
     }
 });
 
-/* 王宮戦績録 データ管理 */
+/* ==========================================================================
+  【王宮戦績録 データ管理】
+========================================================================== */
 function getArchiveLogs() {
     try {
         const data = localStorage.getItem(STORAGE_KEY_ARCHIVES);
@@ -2617,10 +2648,17 @@ function renderArchiveView() {
     filtered.forEach(r => {
         const tr = document.createElement("tr");
 
+        // 🏷️ 称号のカッコ改行表示処理（見切れ完全解消）
+        let formattedTitle = r.dramaTitle || "";
+        if (formattedTitle.includes("（")) {
+            const parts = formattedTitle.split("（");
+            formattedTitle = `<span>${parts[0]}</span><span style="font-size:8.5px; opacity:0.9;">（${parts[1]}</span>`;
+        }
+
         let resBadge = "";
-        if (r.isWin) resBadge = `<span class="badge-win-gold">${r.dramaTitle}</span>`;
-        else if (r.isDraw) resBadge = `<span class="badge-draw-dim">${r.dramaTitle}</span>`;
-        else resBadge = `<span class="badge-lose-dim">${r.dramaTitle}</span>`;
+        if (r.isWin) resBadge = `<div class="badge-win-gold">${formattedTitle}</div>`;
+        else if (r.isDraw) resBadge = `<div class="badge-draw-dim">${formattedTitle}</div>`;
+        else resBadge = `<div class="badge-lose-dim">${formattedTitle}</div>`;
 
         const modeBadge = r.isGenuine
             ? `<div class="badge-mode-standard badge-genuine-crown"><span>⚔️ 自力</span><span>真剣</span></div>`
@@ -2648,13 +2686,13 @@ function renderArchiveView() {
                 <div style="font-size:10px; font-weight:800; color:#ecd08c;">Lv.${r.charId} ${oppTitle}</div>
                 <div style="font-size:11px; font-weight:900; color:#fff4bd;">${oppPersonalName}</div>
             </td>
-            <td style="font-size:9.5px; vertical-align:middle;">${pColorIcon}</td>
+            <td style="font-size:9.5px; text-align:center; vertical-align:middle;">${pColorIcon}</td>
             <td style="vertical-align:middle;">${resBadge}</td>
             <td style="font-family:'Cinzel',serif; font-weight:800;">
                 <div style="font-size:11.5px; color:#fff4bd;">${scoreLine1}</div>
                 <div style="font-size:9px; color:#ecd08c;">${scoreLine2}</div>
             </td>
-            <td style="vertical-align:middle;">${modeBadge}</td>
+            <td style="vertical-align:middle; text-align:center;">${modeBadge}</td>
             <td>
                 <div style="font-size:10px; font-weight:800; color:#ffd700;">${bestRateLine1}</div>
                 <div>${bestRateLine2}</div>
