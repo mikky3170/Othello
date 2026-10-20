@@ -2,12 +2,12 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.6 (2026/10/20)
+  バージョン: Ver 8.6.8 (2025/05/20)
   
-  [Ver 8.6.6] 2026/10/20 更新内容:
-  - 【検討復帰ステータス完全復元・文字階層最適化＆操作ゾーン宮廷再編エディション】
-  - 操作ボタン群を【上段：対局3大操作】＋【下段：学習・指南2大ワイド】の2段構成へ再編。
-  - セレクトボックス1.5倍化に対応し、より直感的でミスタップのない美しい操作レイアウトを確立。
+  [Ver 8.6.8] 2025/05/20 更新内容:
+  - 【3段階ピラミッド教育体系＆撃破ターゲット完全連動エディション】
+  - 思案所「心得タブ」の導入解説を3段階ピラミッド（大枠・中枠・詳細）へ刷新。
+  - 用語・定石宝典の講義ボタンを新設の三大定石講義（lec-openings）へ最適化。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -603,21 +603,19 @@
                 <div id="opsGuideContainer" class="guide-cards-list"></div>
             </div>
 
-            <!-- 第2タブ【📖 初心者脱出！序中終盤の心得＆上達ロードマップ】 -->
+            <!-- 第2タブ【📖 3段階ピラミッド教育体系 × 撃破ターゲット完全連動】 -->
             <div id="tab-tips" class="manual-tab-content">
                 <div class="manual-card-highlight">
-                    <div style="font-size:12px; font-weight:900; color:#ffd700; margin-bottom:4px;">
-                        👑 初心者が最短で勝てるようになる「三段階の王道戦略」
+                    <div style="font-size:12.5px; font-weight:900; color:#ffd700; margin-bottom:4px;">
+                        👑 初心者を絶対に迷わせない「3段階ピラミッド教育体系」
                     </div>
-                    <div style="font-size:10px; color:#f2e9d2; line-height:1.4;">
-                        オセロは序盤、中盤、終盤で「目指すべきゴール」が180度変わります。この3つの心得を胸に刻むだけで、あなたの勝率は劇的に跳ね上がります。
+                    <div style="font-size:10.5px; color:#f2e9d2; line-height:1.45;">
+                        教材や上達の鉄則は、<b>「① 超わかりやすい大枠」➔「② 試合全体の流れ」➔「③ 具体的な奥義と定石」</b>のきれいな掘り下げ構造にすることです。<br>
+                        「どこまで理解すると誰を倒せるようになるのか」が直感的にわかります！
                     </div>
                 </div>
                 <div id="strategyPhasesContainer" class="guide-cards-list" style="margin-top:8px;"></div>
                 <div style="margin-top:10px;">
-                    <div style="font-size:11.5px; font-weight:900; color:#ffd700; margin-bottom:5px;">
-                        📈 初心者から神域（名人）への完全上達ロードマップ
-                    </div>
                     <div id="strategyRoadmapContainer" class="roadmap-cards-list"></div>
                 </div>
             </div>
@@ -706,11 +704,11 @@
                     </div>
                 </div>
 
-                <!-- 📖 三大王道定石セクション -->
+                <!-- 📖 三大王道定石セクション（新設の専用講義へリンク） -->
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
                         <span>📖 三大王道定石の系譜（虎・牛・馬）</span>
-                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">中割り講義 📖</button>
+                        <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-openings')">定石実演講義 📖</button>
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🐯 虎定石（トラ・平行取り）：</b>初手F5に対し平行取りD6や縦取りから展開する王道定石。中央を制圧し主導権を握りやすい基本形です。
@@ -740,7 +738,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.6</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.8</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -750,5 +748,4 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
-
 

@@ -2,14 +2,13 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.6.6 (2026/10/20)
+  バージョン: Ver 8.6.8 (2025/05/20)
   
-  [Ver 8.6.6] 2026/10/20 更新内容:
-  - 【検討復帰ステータス完全復元・文字階層最適化＆操作ゾーン宮廷再編エディション】
-  - 対局操作ボタンを【対局3大操作】＋【学習2大ワイド】の2段グリッドへ最適化。
-  - 対戦相手・ヒントモード選択ボックスを縦幅1.5倍（36px）＆文字11.5pxへ拡大し、誤タップを解消。
-  - 下部スロット枠（--slot-fixed-height）を黄金比寸法（clamp(224px, 27dvh, 238px)）へ微調整し、はみ出しゼロを確立。
-  - 検定・講義・ヒント・検討の解説文を「全体調和タイポグラフィ（10.5px〜12px）」へ拡大し、スマートフォンでの視認性を大幅向上。
+  [Ver 8.6.8] 2025/05/20 更新内容:
+  - 【3段階ピラミッド教育体系＆撃破ターゲット完全連動エディション】
+  - 思案所「心得タブ」の3段階ピラミッド専用カード（.pyramid-step-card）スタイル新設。
+  - 👑 到達目安バッジ（.pyramid-rank-badge）および ⚔️ 撃破ターゲットバッジ（.pyramid-enemy-badge）の装飾定義。
+  - スマートフォンでの視認性と美しい折り返しレイアウトを確立。
 ========================================================================== */
 
 * {
@@ -868,7 +867,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .deep-metrics-row { font-size: 10px; color: #fff4bd; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; margin: 1px 0; }
 .deep-card-detail { font-size: 10px; color: #ecd08c; line-height: 1.4; }
 
-/* ③ 📖 講義コントロールカード（文字10.5px〜12.5px最適化） */
+/* ③ 📖 講義コントロールカード */
 .lecture-control-card {
     display: none; background: linear-gradient(145deg, rgba(24, 28, 40, 0.98) 0%, rgba(12, 14, 22, 0.99) 100%);
     border: 2px solid #5ef7a2; border-radius: 12px; padding: 8px 11px;
@@ -910,7 +909,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .btn-lecture-to-drill { background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); display: none; }
 .btn-lecture-exit { background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2); }
 
-/* ④ 🎯 検定解答カード（文字10.5px〜12px最適化） */
+/* ④ 🎯 検定解答カード */
 .drill-control-card {
     display: none; background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
     border: 2px solid #ffd700; border-radius: 12px; padding: 8px 11px;
@@ -1410,6 +1409,59 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415;
     border: 1px solid #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.6);
     flex-shrink: 0; margin-left: auto;
+}
+
+/* 👑 3段階ピラミッド教育体系 専用スタイル定義 */
+.pyramid-step-card {
+    border: 1.8px solid rgba(212, 167, 72, 0.55);
+    background: linear-gradient(145deg, rgba(32, 36, 48, 0.92) 0%, rgba(14, 16, 24, 0.98) 100%);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 11px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), inset 0 1px 2px rgba(255, 215, 0, 0.2);
+    display: flex; flex-direction: column; gap: 6px;
+}
+.pyramid-card-header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    border-bottom: 1px solid rgba(212, 167, 72, 0.35); padding-bottom: 5px;
+}
+.pyramid-step-tag {
+    font-family: 'Cinzel', serif; font-size: 10px; font-weight: 900;
+    padding: 2px 7px; border-radius: 4px; background: linear-gradient(135deg, #ffd700 0%, #a67314 100%);
+    color: #121008; border: 1px solid #ffffff; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    white-space: nowrap; flex-shrink: 0;
+}
+.pyramid-step-title {
+    font-size: 12.5px; font-weight: 900; color: #fff4bd; letter-spacing: 0.03em;
+}
+.pyramid-badges-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 1px;
+}
+.pyramid-rank-badge {
+    font-size: 9.5px; font-weight: 800; color: #ffd700; background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.5); padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+}
+.pyramid-enemy-badge {
+    font-size: 9.5px; font-weight: 800; color: #ffadad; background: rgba(230, 57, 70, 0.15);
+    border: 1px solid rgba(230, 57, 70, 0.5); padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+}
+.pyramid-summary-text {
+    font-size: 10.5px; color: #f2e9d2; line-height: 1.45; font-style: italic;
+    background: rgba(0, 0, 0, 0.35); padding: 5px 8px; border-radius: 6px;
+    border-left: 3px solid #ffd700;
+}
+.pyramid-rules-list {
+    display: flex; flex-direction: column; gap: 4px; margin-top: 2px;
+}
+.pyramid-rule-item {
+    font-size: 10.5px; line-height: 1.5; color: #ecd08c;
+    background: rgba(0, 0, 0, 0.25); padding: 5px 8px; border-radius: 5px;
+    border: 1px solid rgba(212, 167, 72, 0.2);
+}
+.pyramid-rule-item b { color: #ffffff; }
+.pyramid-effect-box {
+    background: linear-gradient(135deg, rgba(46, 38, 18, 0.8) 0%, rgba(20, 16, 8, 0.9) 100%);
+    border: 1px solid #ffd700; border-radius: 6px; padding: 6px 9px;
+    font-size: 10px; line-height: 1.45; color: #fff6d6;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); margin-top: 2px;
 }
 
 /* 思案所：上達ロードマップ */

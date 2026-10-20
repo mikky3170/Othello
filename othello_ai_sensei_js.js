@@ -2,15 +2,13 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.7 (2026/10/20)
+  バージョン: Ver 8.6.8 (2025/05/20)
   
-  [Ver 8.6.7] 2026/10/20 更新内容:
-  - 【全画面遷移マスター同期＆対局復帰エンジン完全確立エディション】
-  - 全21パターンのあらゆる画面遷移（検定・講義・検討・対局）の整合性を完全保証。
-  - 対局復帰専用の強制再同期エンジン（restoreMainGameState）を実装。
-  - 検定・講義から対局に戻った瞬間に、手番・ステータス・吹き出しセリフ・AI思考をゼロから完全再同期し、検定メッセージの残存余地を100%根絶。
-  - 講義⇔検定の相互遷移時に対局マスターバックアップ（mainGameSnapshot）が上書き破損するバグを完全防止。
-  - プレイヤー着手完全ゼロ遅延（0秒即時着手）、ヒントAI（深さ9手／終盤16手完全読み切り）を100%維持。
+  [Ver 8.6.8] 2025/05/20 更新内容:
+  - 【3段階ピラミッド教育体系＆撃破ターゲット完全連動エディション】
+  - 思案所ガイド描画エンジン（renderGuideModalContents）を新体系へ完全最適化。
+  - 「大枠 ➔ 中枠 ➔ 詳細」の各ステップに到達級位バッジと撃破可能豪傑（Lv.1〜Lv.10）を整列描画。
+  - 全21パターンの画面復帰エンジン、プレイヤー着手完全ゼロ遅延を100%維持。
 ========================================================================== */
 
 const boardSize = 8;
@@ -1664,7 +1662,7 @@ function restoreMainGameState() {
         gameOver = mainGameSnapshot.gameOver;
     }
 
-    // ⚡【核心】：ゲーム状態からステータスと相手セリフを強制再同期（検定メッセージの残存余地ゼロ化）
+    // ⚡ ゲーム状態からステータスと相手セリフを強制再同期
     if (gameOver) {
         if (mainGameSnapshot && mainGameSnapshot.statusText) {
             setStatus(mainGameSnapshot.statusType, mainGameSnapshot.statusText);
@@ -1680,9 +1678,9 @@ function restoreMainGameState() {
             if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
             else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
 
-            setOpponentQuote("thinking"); // 吹き出しを対戦相手の正規セリフへ強制上書き
+            setOpponentQuote("thinking");
             triggerTurnPulse();
-            prefetchPlayerEvaluationsAsync(); // ヒント計算再起動
+            prefetchPlayerEvaluationsAsync();
         } else {
             setStatus("cpu-turn", "相手が思考を巡らせています…");
             setOpponentQuote("thinking");
@@ -1690,7 +1688,7 @@ function restoreMainGameState() {
         }
     }
 
-    mainGameSnapshot = null; // 対局に復帰したのでバックアップを安全クリア
+    mainGameSnapshot = null;
 
     drawBoard();
     updateScore(board);
@@ -1743,7 +1741,6 @@ window.closeCharProfileModal = closeCharProfileModal;
 function startLectureMode(lectureId) {
     if (!LESSON_LECTURES[lectureId]) return;
 
-    // 通常対局からの初回突入時のみマスターバックアップを完全退避
     saveMainGameSnapshotIfNotSaved();
 
     isReviewMode = false;
@@ -2093,7 +2090,6 @@ function renderDrillCourseList() {
 }
 
 function startDrillQuestion(qIndex) {
-    // 通常対局からの初回突入時のみマスターバックアップを完全退避
     saveMainGameSnapshotIfNotSaved();
 
     isReviewMode = false;
@@ -2224,7 +2220,7 @@ async function handleDrillCellClick(r, c) {
 
         if (mistakeInfo && mistakeInfo.cpuResponse) {
             await sleep(750);
-            if (!isDrillMode) return; // 中断ガード
+            if (!isDrillMode) return;
             const [cpur, cpuc] = mistakeInfo.cpuResponse;
             if (canPlace(cpur, cpuc, opposite(qData.turn), board)) {
                 makeMove(board, cpur, cpuc, opposite(qData.turn));
@@ -2284,7 +2280,7 @@ function exitDrillMode() {
 window.exitDrillMode = exitDrillMode;
 
 /* ==========================================================================
-  【宮廷思案所：新体系コンテンツ動的レンダリング】
+  【宮廷思案所：新体系コンテンツ動的レンダリング（3段階ピラミッド完全対応）】
 ========================================================================== */
 function renderGuideModalContents() {
     if (DOM.opsGuideContainer && typeof OPERATION_GUIDE_DATA !== "undefined") {
@@ -2298,30 +2294,30 @@ function renderGuideModalContents() {
         `).join("");
     }
 
-    if (DOM.strategyPhasesContainer && typeof STRATEGY_GUIDE_DATA !== "undefined" && STRATEGY_GUIDE_DATA.phases) {
-        DOM.strategyPhasesContainer.innerHTML = STRATEGY_GUIDE_DATA.phases.map(item => `
-            <div class="manual-card">
-                <div class="manual-card-title" style="color:#ffd700;">
-                    <span>${item.phase}</span>
+    if (DOM.strategyPhasesContainer && typeof STRATEGY_GUIDE_DATA !== "undefined" && Array.isArray(STRATEGY_GUIDE_DATA.pyramidSteps)) {
+        DOM.strategyPhasesContainer.innerHTML = STRATEGY_GUIDE_DATA.pyramidSteps.map(step => `
+            <div class="manual-card pyramid-step-card">
+                <div class="pyramid-card-header">
+                    <span class="pyramid-step-tag">${step.stepBadge}</span>
+                    <span class="pyramid-step-title">${step.title}</span>
                 </div>
-                <div style="font-size:11px; font-weight:800; color:#fff4bd; margin-bottom:4px;">
-                    「${item.catchphrase}」
+                <div class="pyramid-badges-row">
+                    <span class="pyramid-rank-badge">${step.targetRank}</span>
+                    <span class="pyramid-enemy-badge">${step.targetEnemies}</span>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    ${item.rules.map(r => `<div>${r}</div>`).join("")}
+                <div class="pyramid-summary-text">${step.summary}</div>
+                <div class="pyramid-rules-list">
+                    ${step.rules.map(r => `<div class="pyramid-rule-item">${r}</div>`).join("")}
                 </div>
+                <div class="pyramid-effect-box">${step.effectDesc}</div>
             </div>
         `).join("");
     }
 
-    if (DOM.strategyRoadmapContainer && typeof STRATEGY_GUIDE_DATA !== "undefined" && STRATEGY_GUIDE_DATA.roadmap) {
-        DOM.strategyRoadmapContainer.innerHTML = STRATEGY_GUIDE_DATA.roadmap.map(item => `
-            <div class="roadmap-card">
-                <div class="roadmap-level-tag">${item.level}</div>
-                <div class="roadmap-target-text">${item.target}</div>
-                <div class="roadmap-desc-text">${item.desc}</div>
-            </div>
-        `).join("");
+    if (DOM.strategyRoadmapContainer) {
+        if (DOM.strategyRoadmapContainer.parentElement) {
+            DOM.strategyRoadmapContainer.parentElement.style.display = "none";
+        }
     }
 
     if (DOM.charGalleryList && typeof CHARACTERS !== "undefined") {
@@ -2975,7 +2971,6 @@ if (DOM.btnJumpBad) {
 
 if (DOM.btnReviewExit) {
     DOM.btnReviewExit.addEventListener("click", () => {
-        // 会見へ戻るボタン：検討を安全終了し、対局盤面同期した上で結果モーダルを表示
         exitReviewMode(true);
     });
 }
