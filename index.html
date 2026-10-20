@@ -2,12 +2,12 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.5 (2026/10/20)
+  バージョン: Ver 8.6.6 (2026/10/20)
   
-  [Ver 8.6.5] 2026/10/20 更新内容:
-  - 【全モード完全同一スロット・盤面＆説明枠絶対不動エディション】
-  - 講義カード（lectureControlCard）と検定カード（drillControlCard）を盤面ゾーンから下部操作ゾーンへ移設。
-  - 通常対局・検討・講義・検定の4大カードを下部固定スロットへ完全統合し、モード切り替え時の盤面上下動を100%根絶。
+  [Ver 8.6.6] 2026/10/20 更新内容:
+  - 【検討復帰ステータス完全復元・文字階層最適化＆操作ゾーン宮廷再編エディション】
+  - 操作ボタン群を【上段：対局3大操作】＋【下段：学習・指南2大ワイド】の2段構成へ再編。
+  - セレクトボックス1.5倍化に対応し、より直感的でミスタップのない美しい操作レイアウトを確立。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -150,7 +150,7 @@
         <!-- ゾーン③：操作・説明共通固定ゾーン（4大モード完全同一スロット・枠絶対不動） -->
         <div class="player-control-zone">
             
-            <!-- ① 通常対局操作カード -->
+            <!-- ① 通常対局操作カード（ボタン最適2段再編） -->
             <div class="royal-card slot-mode-card" id="normalControlCard">
                 <div class="player-status-banner">
                     <div id="status" class="status-human-turn">👑 あなたの番です（黒）最初の一手を置いてください</div>
@@ -170,6 +170,7 @@
                     </div>
                 </div>
 
+                <!-- 対戦相手・ヒントモード 選択ボックス（1.5倍ワイド＆堂々たる高さ） -->
                 <div class="action-grid-row1">
                     <select id="characterSelect" aria-label="対戦相手の選択">
                         <option value="1" selected>Lv.1 ピエロ 【入門・アマ12級】</option>
@@ -191,12 +192,17 @@
                     </select>
                 </div>
 
-                <div class="action-grid-row2">
-                    <button id="undoButton" class="btn-royal" type="button">⚜️ 待った</button>
-                    <button id="restartButton" class="btn-royal" type="button">👑 新対局</button>
-                    <button id="btnOpenDrillMain" class="btn-royal" type="button" onclick="openDrillCourseModal()">🎯 検定</button>
-                    <button id="guideButton" class="btn-royal" type="button">📜 思案所</button>
-                    <button id="hintButton" class="btn-royal" type="button">💡 ヒント</button>
+                <!-- ボタン上段：対局3大操作（均等3分割） -->
+                <div class="action-grid-row-core">
+                    <button id="undoButton" class="btn-royal btn-core" type="button">⚜️ 待った</button>
+                    <button id="restartButton" class="btn-royal btn-core" type="button">👑 新対局</button>
+                    <button id="hintButton" class="btn-royal btn-core" type="button">💡 ヒント</button>
+                </div>
+
+                <!-- ボタン下段：宮廷学習・特訓（ワイド2分割） -->
+                <div class="action-grid-row-study">
+                    <button id="btnOpenDrillMain" class="btn-royal btn-study-drill" type="button" onclick="openDrillCourseModal()">🎯 宮廷検定（全15問）</button>
+                    <button id="guideButton" class="btn-royal btn-study-guide" type="button">📜 宮廷思案所（奥義宝典）</button>
                 </div>
 
                 <div class="hint-fixed-display" id="hintFixedDisplay">
@@ -230,7 +236,7 @@
                 </div>
             </div>
 
-            <!-- ③ 📖 盤面動的ビジュアル講義コントロールカード（下部スロット移設） -->
+            <!-- ③ 📖 盤面動的ビジュアル講義コントロールカード -->
             <div class="lecture-control-card slot-mode-card" id="lectureControlCard">
                 <div class="lecture-header-nav">
                     <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
@@ -249,7 +255,7 @@
                 </div>
             </div>
 
-            <!-- ④ 🎯 宮廷次の一手検定：盤面解答カード（下部スロット移設） -->
+            <!-- ④ 🎯 宮廷次の一手検定：盤面解答カード -->
             <div class="drill-control-card slot-mode-card" id="drillControlCard">
                 <div class="drill-header-nav">
                     <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
@@ -734,7 +740,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.5</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.6</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -744,4 +750,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 

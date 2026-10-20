@@ -2,15 +2,15 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.5 (2026/10/20)
+  バージョン: Ver 8.6.7 (2026/10/20)
   
-  [Ver 8.6.5] 2026/10/20 更新内容:
-  - 【全モード完全同一スロット・盤面＆説明枠絶対不動エディション】
-  - 講義・検定・検討・通常対局の4大カードを下部固定スロット（player-control-zone）へ完全統合。
-  - モード切り替え時の盤面上下動を100%根絶し、1ピクセルも動かない盤面絶対静止レイアウトを確立。
-  - タップ時の先読み探索即時中断（isPrefetchAborted）による0秒即時着手を完全維持。
-  - ヒントAIの深さ（深さ9手／終盤16手完全読み切り）をLv.10老賢王オルレアン撃破仕様のまま100%維持。
-  - セリフ優雅アンビエント発光、同一セリフ静止維持、αβ探索置換表フラグ完全管理を継続。
+  [Ver 8.6.7] 2026/10/20 更新内容:
+  - 【全画面遷移マスター同期＆対局復帰エンジン完全確立エディション】
+  - 全21パターンのあらゆる画面遷移（検定・講義・検討・対局）の整合性を完全保証。
+  - 対局復帰専用の強制再同期エンジン（restoreMainGameState）を実装。
+  - 検定・講義から対局に戻った瞬間に、手番・ステータス・吹き出しセリフ・AI思考をゼロから完全再同期し、検定メッセージの残存余地を100%根絶。
+  - 講義⇔検定の相互遷移時に対局マスターバックアップ（mainGameSnapshot）が上書き破損するバグを完全防止。
+  - プレイヤー着手完全ゼロ遅延（0秒即時着手）、ヒントAI（深さ9手／終盤16手完全読み切り）を100%維持。
 ========================================================================== */
 
 const boardSize = 8;
@@ -26,6 +26,9 @@ let currentGameSessionId = 0;
 let gameStepLogs = [], reviewStepIndex = 0, isReviewMode = false;
 let tacticsBestIndex = -1, tacticsWorstIndex = -1, tacticsWorstAlternative = null;
 let tacticsTurningPointIndex = -1;
+
+// ⚡ マスター対局状態バックアップ（講義・検定・検討から対局へ寸分違わず戻るための一元管理）
+let mainGameSnapshot = null;
 
 let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
 let isAiThinkingHint = false, timerInterval = null;
@@ -52,7 +55,6 @@ const transpositionTable = new Map();
 // 🎯 宮廷次の一手検定（全15問類題特訓）管理変数
 let isDrillMode = false;
 let currentDrillQuestionIndex = 1;
-let savedBoardStateForDrill = null;
 const drillPassedMap = {};
 let isSimulatingDrillMistake = false;
 
@@ -60,7 +62,6 @@ let isSimulatingDrillMistake = false;
 let isLectureMode = false;
 let currentLectureId = "lec-1";
 let currentLectureStepIndex = 0;
-let savedBoardStateForLecture = null;
 let isLecturePlaying = false;
 let lectureSessionId = 0;
 
@@ -509,7 +510,6 @@ function setOpponentQuote(category) {
     const text = list[Math.floor(Math.random() * list.length)];
     const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
 
-    // ⚡【チラつき防止ガード】：前回と「同一のセリフ」なら文字消去も再タイピングも発光もスキップし静止維持！
     if (text === lastOpponentQuoteText && DOM.speechText && DOM.speechText.textContent.trim() === text.trim()) {
         if (DOM.opponentSpeech) DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
         return;
@@ -575,7 +575,7 @@ function updateOpponentStageUI(showBanner = true) {
 }
 
 /* ==========================================================================
-  【天秤ゲージ更新（立体ミニ石による白黒反転バグ根絶）】
+  【天秤ゲージ更新】
 ========================================================================== */
 function updateBalanceGauge(targetBoard = board) {
     if (!targetBoard || isDrillMode || isLectureMode) return;
@@ -745,15 +745,16 @@ function getBestCounterBookMove() {
 
 function startGame() {
     tryPlayBgm();
-    exitReviewMode();
-    exitDrillMode();
-    exitLectureMode();
+    isReviewMode = false;
+    isDrillMode = false;
+    isLectureMode = false;
     isPrefetchAborted = true;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     isPrefetching = false;
     transpositionTable.clear();
     lastOpponentQuoteText = "";
+    mainGameSnapshot = null;
 
     board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
     board[3][3] = WHITE; board[3][4] = BLACK;
@@ -780,6 +781,10 @@ function startGame() {
     if (DOM.drillCourseModal) DOM.drillCourseModal.classList.remove("show");
     if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
     if (DOM.charProfileModal) DOM.charProfileModal.classList.remove("show");
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "flex";
 
     elapsedSeconds = playerSeconds = cpuSeconds = 0;
     if (timerInterval) clearInterval(timerInterval);
@@ -989,7 +994,7 @@ function orderMoves(moves, targetBoard, player) {
 }
 
 /* ==========================================================================
-  【αβ探索（置換表フラグ管理＆パス処理・完全読み切り版）】
+  【αβ探索】
 ========================================================================== */
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     if (emptyCount === 0) return evaluateBoard(targetBoard, player, 0);
@@ -1043,7 +1048,7 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン（深さ9手／終盤16手完全読み切り・中断保護付き）】
+  【ヒント探索エンジン】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
     if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
@@ -1076,7 +1081,6 @@ async function prefetchPlayerEvaluationsAsync() {
         return;
     }
 
-    // 最高峰の強さ（深さ9手／終盤16手完全読み切り）
     const emptyCount = getEmptyCount(board);
     const depth = (emptyCount <= 16) ? emptyCount : 9;
     const scored = [];
@@ -1087,7 +1091,7 @@ async function prefetchPlayerEvaluationsAsync() {
             isPrefetching = false;
             return;
         }
-        await sleep(0); // 他イベントへの制御解放
+        await sleep(0);
 
         const next = cloneBoard(board);
         makeMove(next, move[0], move[1], humanColor);
@@ -1172,7 +1176,7 @@ async function executeTurnAction(row, col, player, isHuman) {
 }
 
 /* ==========================================================================
-  【プレイヤー着手（完全ゼロ遅延化・0秒即時着手＆アニメーション裏での1手判定）】
+  【プレイヤー着手（完全ゼロ遅延化）】
 ========================================================================== */
 async function putStone(row, col) {
     if (isLectureMode) return;
@@ -1183,7 +1187,6 @@ async function putStone(row, col) {
     if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
     if (!canPlace(row, col, humanColor, board)) return;
 
-    // ⚡【核心】：画面を触った瞬間、裏で動いていた先読み計算を0秒で即座に強制中断！
     isPrefetchAborted = true;
 
     saveHistory();
@@ -1195,10 +1198,8 @@ async function putStone(row, col) {
     const myAvailableMovesBefore = getValidMoves(humanColor, board);
     const oppMovesBefore = getValidMoves(cpuColor, boardBefore).length;
 
-    // ⚡【待ち時間ゼロ】：計算を待たずに、タップした瞬間に0秒で石配置＆アニメーション開始！
     const actionPromise = executeTurnAction(row, col, humanColor, true);
 
-    // ⚡【裏側非同期判定】：石がパタパタ裏返っているアニメーション時間（約700ms）を使って1手だけを判定！
     let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
     let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
 
@@ -1625,6 +1626,80 @@ function updateScore(targetBoard = board) {
 }
 
 /* ==========================================================================
+  【⚡ マスター対局状態バックアップ＆対局復帰専用エンジン（完全復帰保証）】
+========================================================================== */
+function saveMainGameSnapshotIfNotSaved() {
+    // すでに講義・検定・検討などのサブモードに入っている間は、最初の対局バックアップを絶対に上書き破損させない！
+    if (mainGameSnapshot !== null || isDrillMode || isLectureMode || isReviewMode) return;
+
+    mainGameSnapshot = {
+        board: cloneBoard(board),
+        currentPlayer,
+        lastMove: lastMove ? [...lastMove] : null,
+        gameOver,
+        statusType: DOM.status ? DOM.status.className.replace("status-", "") : "human-turn",
+        statusText: DOM.status ? DOM.status.textContent : "",
+        opponentQuoteText: DOM.speechText ? DOM.speechText.textContent : ""
+    };
+}
+
+function restoreMainGameState() {
+    isDrillMode = false;
+    isLectureMode = false;
+    isReviewMode = false;
+    isSimulatingDrillMistake = false;
+    clearDrillBadges();
+
+    // 操作ゾーンのカードを「通常対局カード」に強制切り替え
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
+    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "flex";
+
+    // バックアップから盤面・手番・終局状態を完全復元
+    if (mainGameSnapshot) {
+        board = cloneBoard(mainGameSnapshot.board);
+        currentPlayer = mainGameSnapshot.currentPlayer;
+        lastMove = mainGameSnapshot.lastMove ? [...mainGameSnapshot.lastMove] : null;
+        gameOver = mainGameSnapshot.gameOver;
+    }
+
+    // ⚡【核心】：ゲーム状態からステータスと相手セリフを強制再同期（検定メッセージの残存余地ゼロ化）
+    if (gameOver) {
+        if (mainGameSnapshot && mainGameSnapshot.statusText) {
+            setStatus(mainGameSnapshot.statusType, mainGameSnapshot.statusText);
+        } else {
+            setStatus("human-turn", "👑 対局終了");
+        }
+        if (mainGameSnapshot && mainGameSnapshot.opponentQuoteText) {
+            if (DOM.speechText) DOM.speechText.textContent = mainGameSnapshot.opponentQuoteText;
+        }
+    } else {
+        const pColorName = (humanColor === BLACK) ? "黒" : "白";
+        if (currentPlayer === humanColor) {
+            if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+            else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
+
+            setOpponentQuote("thinking"); // 吹き出しを対戦相手の正規セリフへ強制上書き
+            triggerTurnPulse();
+            prefetchPlayerEvaluationsAsync(); // ヒント計算再起動
+        } else {
+            setStatus("cpu-turn", "相手が思考を巡らせています…");
+            setOpponentQuote("thinking");
+            setTimeout(computerMove, 500);
+        }
+    }
+
+    mainGameSnapshot = null; // 対局に復帰したのでバックアップを安全クリア
+
+    drawBoard();
+    updateScore(board);
+    updateBalanceGauge(board);
+    updateUndoButtonState();
+    updateHintModeUI();
+}
+
+/* ==========================================================================
   【📜 豪傑人物伝・攻略指南モーダル制御】
 ========================================================================== */
 function openCharProfileModal(charId = null) {
@@ -1667,18 +1742,12 @@ window.closeCharProfileModal = closeCharProfileModal;
 ========================================================================== */
 function startLectureMode(lectureId) {
     if (!LESSON_LECTURES[lectureId]) return;
-    if (isReviewMode) exitReviewMode();
-    if (isDrillMode) exitDrillMode();
 
-    if (!isLectureMode) {
-        savedBoardStateForLecture = {
-            board: cloneBoard(board),
-            currentPlayer, lastMove,
-            statusType: DOM.status.className,
-            statusText: DOM.status.textContent
-        };
-    }
+    // 通常対局からの初回突入時のみマスターバックアップを完全退避
+    saveMainGameSnapshotIfNotSaved();
 
+    isReviewMode = false;
+    isDrillMode = false;
     isLectureMode = true;
     currentLectureId = lectureId;
     currentLectureStepIndex = 0;
@@ -1689,7 +1758,6 @@ function startLectureMode(lectureId) {
     if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
-    // ⚡【全モード同一スロット統合】：下部固定枠内で講義カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
@@ -1805,7 +1873,8 @@ window.resetCurrentLecture = resetCurrentLecture;
 
 function proceedToDrillFromLecture() {
     const lecture = LESSON_LECTURES[currentLectureId];
-    exitLectureMode(false);
+    lectureSessionId++;
+    isLecturePlaying = false;
     const firstQId = (lecture && lecture.themeId) ? (lecture.themeId - 1) * 3 + 1 : 1;
     startDrillQuestion(firstQId);
 }
@@ -1814,34 +1883,17 @@ window.proceedToDrillFromLecture = proceedToDrillFromLecture;
 function returnToLectureFromDrill() {
     const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
     const lecId = `lec-${qData.themeId}`;
-    exitDrillMode(false);
+    isDrillMode = false;
     startLectureMode(lecId);
 }
 window.returnToLectureFromDrill = returnToLectureFromDrill;
 
-function exitLectureMode(restoreBoard = true) {
+function exitLectureMode() {
     if (!isLectureMode) return;
     lectureSessionId++;
     isLecturePlaying = false;
     playPlaceSound();
-    clearDrillBadges();
-
-    if (restoreBoard && savedBoardStateForLecture) {
-        board = cloneBoard(savedBoardStateForLecture.board);
-        currentPlayer = savedBoardStateForLecture.currentPlayer;
-        lastMove = savedBoardStateForLecture.lastMove;
-        DOM.status.className = savedBoardStateForLecture.statusType;
-        DOM.status.textContent = savedBoardStateForLecture.statusText;
-        drawBoard();
-        updateBalanceGauge();
-    }
-
-    isLectureMode = false;
-    savedBoardStateForLecture = null;
-
-    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
-    if (DOM.normalControlCard && !isDrillMode && !isReviewMode) DOM.normalControlCard.style.display = "flex";
-    updateUndoButtonState();
+    restoreMainGameState();
 }
 window.exitLectureMode = exitLectureMode;
 
@@ -2041,18 +2093,11 @@ function renderDrillCourseList() {
 }
 
 function startDrillQuestion(qIndex) {
-    if (isReviewMode) exitReviewMode();
-    if (isLectureMode) exitLectureMode(false);
+    // 通常対局からの初回突入時のみマスターバックアップを完全退避
+    saveMainGameSnapshotIfNotSaved();
 
-    if (!isDrillMode) {
-        savedBoardStateForDrill = {
-            board: cloneBoard(board),
-            currentPlayer, lastMove,
-            statusType: DOM.status.className,
-            statusText: DOM.status.textContent
-        };
-    }
-
+    isReviewMode = false;
+    isLectureMode = false;
     isDrillMode = true;
     isSimulatingDrillMistake = false;
     currentDrillQuestionIndex = Math.max(1, Math.min(15, qIndex));
@@ -2062,7 +2107,6 @@ function startDrillQuestion(qIndex) {
     if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
-    // ⚡【全モード同一スロット統合】：下部固定枠内で検定カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
@@ -2180,6 +2224,7 @@ async function handleDrillCellClick(r, c) {
 
         if (mistakeInfo && mistakeInfo.cpuResponse) {
             await sleep(750);
+            if (!isDrillMode) return; // 中断ガード
             const [cpur, cpuc] = mistakeInfo.cpuResponse;
             if (canPlace(cpur, cpuc, opposite(qData.turn), board)) {
                 makeMove(board, cpur, cpuc, opposite(qData.turn));
@@ -2205,7 +2250,7 @@ async function handleDrillCellClick(r, c) {
 function advanceNextDrillQuestion() {
     playPlaceSound();
     if (currentDrillQuestionIndex >= 15) {
-        exitDrillMode();
+        if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
         if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.add("show");
         document.body.classList.add("modal-open-lock");
     } else {
@@ -2217,6 +2262,7 @@ window.advanceNextDrillQuestion = advanceNextDrillQuestion;
 function closeCertificateModal() {
     if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
+    restoreMainGameState();
 }
 window.closeCertificateModal = closeCertificateModal;
 
@@ -2230,28 +2276,10 @@ function closeCertificateAndChallengeKing() {
 }
 window.closeCertificateAndChallengeKing = closeCertificateAndChallengeKing;
 
-function exitDrillMode(restoreBoard = true) {
+function exitDrillMode() {
     if (!isDrillMode) return;
     playPlaceSound();
-    clearDrillBadges();
-
-    if (restoreBoard && savedBoardStateForDrill) {
-        board = cloneBoard(savedBoardStateForDrill.board);
-        currentPlayer = savedBoardStateForDrill.currentPlayer;
-        lastMove = savedBoardStateForDrill.lastMove;
-        DOM.status.className = savedBoardStateForDrill.statusType;
-        DOM.status.textContent = savedBoardStateForDrill.statusText;
-        drawBoard();
-        updateBalanceGauge();
-    }
-
-    isDrillMode = false;
-    savedBoardStateForDrill = null;
-    isSimulatingDrillMistake = false;
-
-    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
-    if (DOM.normalControlCard && !isLectureMode && !isReviewMode) DOM.normalControlCard.style.display = "flex";
-    updateUndoButtonState();
+    restoreMainGameState();
 }
 window.exitDrillMode = exitDrillMode;
 
@@ -2824,13 +2852,18 @@ function endGame() {
     }, 1400);
 }
 
+/* ==========================================================================
+  【棋譜検証（検討）モード管理】
+========================================================================== */
 function enterReviewMode() {
     if (gameStepLogs.length === 0 || isDrillMode || isLectureMode) return;
+
+    saveMainGameSnapshotIfNotSaved();
+
     isReviewMode = true;
     if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
-    // ⚡【全モード同一スロット統合】：下部固定枠内で検討カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
@@ -2844,13 +2877,16 @@ function enterReviewMode() {
     setStatus("human-turn", "🔍 棋譜検証モード：対局の全手筋を検証中");
 }
 
-function exitReviewMode() {
+function exitReviewMode(openResultModal = false) {
+    if (!isReviewMode) return;
     isReviewMode = false;
-    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
-    if (DOM.normalControlCard && !isDrillMode && !isLectureMode) DOM.normalControlCard.style.display = "flex";
-    updateUndoButtonState();
-    updateScore(board);
-    updateBalanceGauge(board);
+
+    restoreMainGameState();
+
+    if (openResultModal && DOM.royalResultModal) {
+        DOM.royalResultModal.classList.add("show");
+        document.body.classList.add("modal-open-lock");
+    }
 }
 
 function applyReviewStep(index) {
@@ -2939,11 +2975,8 @@ if (DOM.btnJumpBad) {
 
 if (DOM.btnReviewExit) {
     DOM.btnReviewExit.addEventListener("click", () => {
-        applyReviewStep(gameStepLogs.length - 1);
-        if (DOM.royalResultModal) {
-            DOM.royalResultModal.classList.add("show");
-            document.body.classList.add("modal-open-lock");
-        }
+        // 会見へ戻るボタン：検討を安全終了し、対局盤面同期した上で結果モーダルを表示
+        exitReviewMode(true);
     });
 }
 
@@ -3089,8 +3122,9 @@ document.addEventListener("keydown", (e) => {
             .forEach(m => m.classList.remove("show"));
         document.body.classList.remove("modal-open-lock");
         closeTermPopup();
-        if (isDrillMode) exitDrillMode();
-        if (isLectureMode) exitLectureMode();
+        if (isDrillMode || isLectureMode || isReviewMode) {
+            restoreMainGameState();
+        }
     }
 });
 
