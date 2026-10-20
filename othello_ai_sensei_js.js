@@ -2,14 +2,13 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.9 (2025/05/20)
+  バージョン: Ver 8.7.0 (2025/05/20)
   
-  [Ver 8.6.9] 2025/05/20 更新内容:
-  - 【思考エンジン適正化・戦績録UI洗練＆教育精度極限エディション】
-  - 真剣勝負（ヒントOFF）時の事前計算完全停止＆終盤読み切り13手適正化により、スマホ思案時間を1〜3秒に劇的短縮。
-  - 「中割り」厳密判定（isTrueNakawari）の実装により、真の内側石反転時のみ中割りと解説。
-  - 「開放度」誤用を着手可能手（選択肢）制限へ是正。定石表記を王道定石へ修正。
-  - 戦績録の称号カッコ改行処理を実装し、長文称号の見切れを完全根絶。
+  [Ver 8.7.0] 2025/05/20 更新内容:
+  - 【教育体系完全統合＆講義コマ送り操作エディション】
+  - 講義モードを完全コマ送り（◀ 前のステップ / 次のステップ ▶）化。
+  - 各ステップの盤面・数字マーカー（①〜⑨）・解説文を寸分違わず前後に巻き戻し・進行可能に。
+  - 「待った」実行時のガイドリング消滅バグおよびヒント停止バグ完全根絶。
 ========================================================================== */
 
 const boardSize = 8;
@@ -57,12 +56,10 @@ let currentDrillQuestionIndex = 1;
 const drillPassedMap = {};
 let isSimulatingDrillMistake = false;
 
-// 📖 盤面動的ビジュアル講義 管理変数
+// 📖 盤面動的ビジュアル講義 管理変数（コマ送り対応）
 let isLectureMode = false;
 let currentLectureId = "lec-1";
 let currentLectureStepIndex = 0;
-let isLecturePlaying = false;
-let lectureSessionId = 0;
 
 const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
 
@@ -156,7 +153,6 @@ const DOM = {
     archiveTableBody: document.getElementById("archiveTableBody"),
     versionBadge: document.getElementById("versionBadge"),
     chronicleTimeline: document.getElementById("chronicleTimeline"),
-    // ミニ解説ポップアップ
     termPopup: document.getElementById("termPopup"),
     termPopupTitle: document.getElementById("termPopupTitle"),
     termPopupClose: document.getElementById("termPopupClose"),
@@ -164,7 +160,6 @@ const DOM = {
     termPopupDrillBtn: document.getElementById("termPopupDrillBtn"),
     termPopupMore: document.getElementById("termPopupMore"),
     guideOverlay: document.getElementById("guideOverlay"),
-    // 🎯 宮廷次の一手検定用DOM
     drillControlCard: document.getElementById("drillControlCard"),
     drillTopicBadge: document.getElementById("drillTopicBadge"),
     drillDiffBadge: document.getElementById("drillDiffBadge"),
@@ -181,18 +176,18 @@ const DOM = {
     drillCourseModal: document.getElementById("drillCourseModal"),
     drillCourseList: document.getElementById("drillCourseList"),
     drillCertificateModal: document.getElementById("drillCertificateModal"),
-    // 📖 盤面動的ビジュアル講義用DOM
+    // 📖 講義用DOM（コマ送り対応）
     lectureControlCard: document.getElementById("lectureControlCard"),
     lectureTopicBadge: document.getElementById("lectureTopicBadge"),
     lectureStepIndicator: document.getElementById("lectureStepIndicator"),
     lectureTitleText: document.getElementById("lectureTitleText"),
     lectureDescText: document.getElementById("lectureDescText"),
     lectureExplainBox: document.getElementById("lectureExplainBox"),
-    btnLecturePlay: document.getElementById("btnLecturePlay"),
+    btnLecturePrev: document.getElementById("btnLecturePrev"),
+    btnLectureNext: document.getElementById("btnLectureNext"),
     btnLectureReset: document.getElementById("btnLectureReset"),
     btnLectureToDrill: document.getElementById("btnLectureToDrill"),
     btnLectureExit: document.getElementById("btnLectureExit"),
-    // 📜 豪傑人物伝モーダル用DOM
     charProfileModal: document.getElementById("charProfileModal"),
     profileCharNameHeader: document.getElementById("profileCharNameHeader"),
     profileAvatarBox: document.getElementById("profileAvatarBox"),
@@ -201,7 +196,6 @@ const DOM = {
     profileMaterialBadge: document.getElementById("profileMaterialBadge"),
     profileBioText: document.getElementById("profileBioText"),
     profileTacticsText: document.getElementById("profileTacticsText"),
-    // 📜 宮廷思案所 体系化コンテナDOM
     opsGuideContainer: document.getElementById("opsGuideContainer"),
     strategyPhasesContainer: document.getElementById("strategyPhasesContainer"),
     strategyRoadmapContainer: document.getElementById("strategyRoadmapContainer"),
@@ -464,7 +458,7 @@ function renderCharacterAvatar() {
 }
 
 /* ==========================================================================
-  【セリフ表示制御（同一セリフ静止 ＆ 枠内ぼわ〜っとアンビエント発光）】
+  【セリフ表示制御】
 ========================================================================== */
 function typeWriterSpeech(fullText) {
     if (typeWriterInterval) clearInterval(typeWriterInterval);
@@ -643,13 +637,15 @@ function updateUndoButtonState() {
     }
 }
 
+/* ==========================================================================
+  【時を戻す「待った」（ガイドリング消滅・ヒント停止バグ完全根絶）】
+========================================================================== */
 async function undoMove() {
     if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
     isPrefetchAborted = true;
     currentGameSessionId++;
     cachedMoveEvaluations = null;
     clearHint();
-    isBusy = true;
 
     let targetState = null;
     while (historyStack.length > 0) {
@@ -673,19 +669,31 @@ async function undoMove() {
         if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
         if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
 
+        // 🌟 isBusy を即座に false に戻し、描画時にガイドリングが確実に点灯するようにする
+        isBusy = false;
+
         const pColorName = (humanColor === BLACK) ? "黒" : "白";
         setStatus("human-turn", `👑 あなたの番です（${pColorName}）…（時を戻しました）`);
         triggerTurnPulse();
         setOpponentQuote("thinking");
         updateTimerDisplay();
+        
+        // 盤面再描画（打てるマスのガイドリングが100%確実に即座に再点灯）
         drawBoard();
         updateBalanceGauge();
+        updateUndoButtonState();
 
-        prefetchPlayerEvaluationsAsync();
+        // ヒントUIと事前計算を即時復帰
+        if (getHintMode() === "always") {
+            setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
+            prefetchPlayerEvaluationsAsync();
+        } else if (getHintMode() === "manual") {
+            prefetchPlayerEvaluationsAsync();
+        }
+    } else {
+        isBusy = false;
+        updateUndoButtonState();
     }
-
-    isBusy = false;
-    updateUndoButtonState();
 }
 
 function recordGameStep(move, playerColor, contextNote = "", alternativeBest = null, isPass = false) {
@@ -894,7 +902,6 @@ function isRealDanger(r, c, targetBoard) {
     return false;
 }
 
-// 🛡️ 【中割り厳密判定】：返した石がすべて空きマスに隣接していない（内部石のみ）かを判定
 function isTrueNakawari(r, c, player, targetBoard) {
     const flippable = getFlippableStones(r, c, player, targetBoard);
     if (flippable.length === 0) return false;
@@ -903,7 +910,7 @@ function isTrueNakawari(r, c, player, targetBoard) {
         for (const [dr, dc] of directions) {
             const nr = fr + dr, nc = fc + dc;
             if (isInside(nr, nc) && targetBoard[nr][nc] === 0) {
-                return false; // 外側の空きマスに隣接している石があるため中割りではない
+                return false;
             }
         }
     }
@@ -1008,9 +1015,6 @@ function orderMoves(moves, targetBoard, player) {
     });
 }
 
-/* ==========================================================================
-  【αβ探索】
-========================================================================== */
 function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
     if (emptyCount === 0) return evaluateBoard(targetBoard, player, 0);
 
@@ -1063,10 +1067,9 @@ function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
 }
 
 /* ==========================================================================
-  【ヒント探索エンジン（高速・高精度適正化エディション）】
+  【ヒント探索エンジン】
 ========================================================================== */
 async function prefetchPlayerEvaluationsAsync() {
-    // ⚔️ 完全OFF（真剣勝負）モード時は重い事前計算を即座にスキップ（0秒）
     if (getHintMode() === "off") {
         isPrefetching = false;
         return;
@@ -1103,7 +1106,6 @@ async function prefetchPlayerEvaluationsAsync() {
     }
 
     const emptyCount = getEmptyCount(board);
-    // ⚡ 探索深さ適正化：中盤は深さ8（有段者レベル最高峰）、終盤は13手以下から完全読み切り
     const depth = (emptyCount <= 13) ? emptyCount : 8;
     const scored = [];
     const sortedMoves = orderMoves(moves, board, humanColor);
@@ -1145,13 +1147,13 @@ function applyHintFromCache() {
     const reasons = [];
     if (cachedMoveEvaluations.isBook) {
         reasons.push(`📖 伝統のオセロ王道定石【<span class="term-link" data-term="${cachedMoveEvaluations.bookName.includes('馬')?'馬定石':(cachedMoveEvaluations.bookName.includes('牛')?'牛定石':'虎定石')}">${cachedMoveEvaluations.bookName}</span>】の推奨手筋です。`);
-        reasons.push("🎯 序盤の骨格を保ち、無理なく主導権を握る定石手順です。");
+        reasons.push("🎯 序盤の骨格を保ち、相手の逃げ道を増やさずに主導権を握る定石手順です。");
     } else {
         const [r, c] = chosenMove;
         if (isCorner(r, c)) {
             reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
         } else if (isTrueNakawari(r, c, humanColor, board)) {
-            reasons.push(`🛡️ 外側の石を出さず、内側の石だけを返す鋭い<span class="term-link" data-term="中割り">中割り</span>です。`);
+            reasons.push(`🛡️ 外側に石を出さず、内側だけを抜く至高の<span class="term-link" data-term="中割り">中割り</span>です。`);
         } else if (!isRealDanger(r, c, board)) {
             reasons.push("🛡️ 危険マスを避け、中央の勢力を手堅く保つ堅実な一手です。");
         }
@@ -1161,7 +1163,7 @@ function applyHintFromCache() {
         makeMove(nextB, r, c, humanColor);
         const oppAfter = getValidMoves(cpuColor, nextB).length;
         if (oppAfter < oppBefore) {
-            reasons.push(`📉 相手の着手可能手を制限し、選択肢を ${oppBefore} ➔ ${oppAfter} 箇所に抑え込みます。`);
+            reasons.push(`📉 相手の打てるマスを ${oppBefore}箇所 ➔ ${oppAfter}箇所 に削り、相手を自滅へ追い込みます。`);
         }
 
         if (reasons.length === 0) {
@@ -1207,7 +1209,7 @@ async function executeTurnAction(row, col, player, isHuman) {
 }
 
 /* ==========================================================================
-  【プレイヤー着手（完全ゼロ遅延化）】
+  【プレイヤー着手（完全ゼロ遅延）】
 ========================================================================== */
 async function putStone(row, col) {
     if (isLectureMode) return;
@@ -1289,13 +1291,13 @@ async function putStone(row, col) {
     if (moveRating === "BEST") {
         contextNote += cachedMoveEvaluations && cachedMoveEvaluations.isBook
             ? `【最善手】伝統の王道定石（${cachedMoveEvaluations.bookName}）通りの一着。`
-            : "【最善手】隙のない宮廷AI推奨の完璧な着手。";
+            : "【最善手】相手の選択肢を奪う宮廷AI推奨の完璧な着手。";
     } else if (moveRating === "GOOD") {
         contextNote += isCornerMove ? "【好手】四隅の要塞を確保。" : "【好手】要所を押さえる堅実な一打。";
     } else if (moveRating === "BAD") {
         const alt = objectiveBest ? `（推奨手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
         if (danger && isX) contextNote += `【悪手】空いた角の斜め前（Xマス）に打ち、角献上の足場を与えてしまいました${alt}。`;
-        else if (mobilityDelta >= 3) contextNote += `【悪手】石を${flipsCount}枚裏返したことで、相手の打てるマスが${oppMovesBefore}箇所➔${oppMovesAfter}箇所に急増してしまいました${alt}。`;
+        else if (mobilityDelta >= 3) contextNote += `【悪手】石を多く取ったことで、相手の打てるマスが${oppMovesBefore}箇所➔${oppMovesAfter}箇所に激増してしまいました${alt}。`;
         else contextNote += `【悪手】相手に好機を与える危険な打点でした${alt}。`;
     }
 
@@ -1398,7 +1400,7 @@ async function processTurn() {
 }
 
 /* ==========================================================================
-  【全10レベル思考エンジン】
+  【思考エンジン】
 ========================================================================== */
 function getComputerMove(targetBoard, player, charConfig) {
     const moves = getValidMoves(player, targetBoard);
@@ -1657,7 +1659,7 @@ function updateScore(targetBoard = board) {
 }
 
 /* ==========================================================================
-  【⚡ マスター対局状態バックアップ＆対局復帰専用エンジン（完全復帰保証）】
+  【マスター対局状態バックアップ＆対局復帰専用エンジン】
 ========================================================================== */
 function saveMainGameSnapshotIfNotSaved() {
     if (mainGameSnapshot !== null || isDrillMode || isLectureMode || isReviewMode) return;
@@ -1679,6 +1681,7 @@ function restoreMainGameState() {
     isReviewMode = false;
     isSimulatingDrillMistake = false;
     clearDrillBadges();
+    clearMobilityMarkers();
 
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
@@ -1727,7 +1730,7 @@ function restoreMainGameState() {
 }
 
 /* ==========================================================================
-  【📜 豪傑人物伝・攻略指南モーダル制御】
+  【豪傑人物伝・攻略指南モーダル制御】
 ========================================================================== */
 function openCharProfileModal(charId = null) {
     playPlaceSound();
@@ -1765,7 +1768,32 @@ function closeCharProfileModal() {
 window.closeCharProfileModal = closeCharProfileModal;
 
 /* ==========================================================================
-  【📖 盤面動的ビジュアル講義エンジン】
+  【🌟 数字マーカー（①〜⑨）動的描画エンジン】
+========================================================================== */
+function clearMobilityMarkers() {
+    if (!DOM.board) return;
+    DOM.board.querySelectorAll(".mobility-marker").forEach(el => el.remove());
+}
+
+function showMobilityMarkers(targetPlayer, markerType = "before") {
+    clearMobilityMarkers();
+    const validMoves = getValidMoves(targetPlayer, board);
+
+    validMoves.forEach(([r, c], idx) => {
+        const cell = getBoardCell(r, c);
+        if (!cell) return;
+        const marker = document.createElement("div");
+        marker.className = `mobility-marker marker-${markerType}`;
+        const numberSymbol = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'][idx] || `${idx+1}`;
+        marker.textContent = numberSymbol;
+        cell.appendChild(marker);
+    });
+
+    return validMoves.length;
+}
+
+/* ==========================================================================
+  【📖 盤面動的ビジュアル講義エンジン（完全コマ送り対応）】
 ========================================================================== */
 function startLectureMode(lectureId) {
     if (!LESSON_LECTURES[lectureId]) return;
@@ -1777,7 +1805,6 @@ function startLectureMode(lectureId) {
     isLectureMode = true;
     currentLectureId = lectureId;
     currentLectureStepIndex = 0;
-    lectureSessionId++;
 
     closeDrillCourseModal();
     closeTermPopup();
@@ -1801,106 +1828,112 @@ function loadLectureState() {
     if (DOM.lectureTopicBadge) DOM.lectureTopicBadge.textContent = `📖 【第 ${lecture.themeId} 奥義】盤面講義`;
     if (DOM.lectureTitleText) DOM.lectureTitleText.textContent = lecture.title;
     if (DOM.lectureDescText) DOM.lectureDescText.textContent = lecture.introText;
-    if (DOM.lectureStepIndicator) DOM.lectureStepIndicator.textContent = `ステップ 0 / ${lecture.steps.length}`;
 
-    if (DOM.lectureExplainBox) {
-        DOM.lectureExplainBox.style.display = "none";
-        DOM.lectureExplainBox.innerHTML = "";
-    }
-
-    if (DOM.btnLecturePlay) {
-        DOM.btnLecturePlay.style.display = "inline-block";
-        DOM.btnLecturePlay.disabled = false;
-        DOM.btnLecturePlay.textContent = "▶ 実演を再生する";
-    }
-
-    board = Array.from({ length: 8 }, () => Array(8).fill(0));
-    lecture.setup(board);
-    currentPlayer = lecture.turn;
-    currentLectureStepIndex = 0;
-
-    setStatus("hint-thinking", `📖 盤面講義：${lecture.title}`);
-    drawBoard();
-    clearDrillBadges();
+    applyLectureStep(0);
 }
 
-async function playCurrentLectureStep() {
+// 🌟 コマ送り専用：指定ステップへの盤面・マーカー・解説の完全同期描画
+function applyLectureStep(targetStepIdx) {
     const lecture = LESSON_LECTURES[currentLectureId];
-    if (!lecture || currentLectureStepIndex >= lecture.steps.length || isLecturePlaying) return;
+    if (!lecture) return;
 
-    isLecturePlaying = true;
-    const session = lectureSessionId;
-    if (DOM.btnLecturePlay) DOM.btnLecturePlay.disabled = true;
+    currentLectureStepIndex = Math.max(0, Math.min(lecture.steps.length, targetStepIdx));
+    if (DOM.lectureStepIndicator) {
+        DOM.lectureStepIndicator.textContent = `ステップ ${currentLectureStepIndex} / ${lecture.steps.length}`;
+    }
 
-    while (currentLectureStepIndex < lecture.steps.length) {
-        if (!isLectureMode || session !== lectureSessionId) {
-            isLecturePlaying = false;
-            return;
+    // 初期盤面の復元
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    lecture.setup(board);
+    clearDrillBadges();
+    clearMobilityMarkers();
+
+    let explainHtml = "";
+
+    // 0からcurrentLectureStepIndexまでを順次盤面に反映
+    for (let i = 0; i < currentLectureStepIndex; i++) {
+        const step = lecture.steps[i];
+        if (step.resetAndPlayNakawari) {
+            board = Array.from({ length: 8 }, () => Array(8).fill(0));
+            lecture.setup(board);
+            clearDrillBadges();
+            clearMobilityMarkers();
         }
-
-        const step = lecture.steps[currentLectureStepIndex];
-        currentLectureStepIndex++;
-
-        if (DOM.lectureStepIndicator) {
-            DOM.lectureStepIndicator.textContent = `ステップ ${currentLectureStepIndex} / ${lecture.steps.length}`;
-        }
-
-        const [r, c] = step.move;
-        makeMove(board, r, c, step.player);
-        playPlaceSound();
-        drawBoard();
-
-        const cell = getBoardCell(r, c);
-        if (cell) {
+        if (step.move) {
+            const [r, c] = step.move;
+            makeMove(board, r, c, step.player);
             const badgeType = (step.player === BLACK) ? "player" : "cpu";
-            const badgeText = (step.player === BLACK) ? "⚫ 着手" : "💀 相手の急所打ち！";
+            const badgeText = (step.resetAndPlayNakawari) ? "🌱 中割り" : ((step.player === BLACK) ? "⚫ 着手" : "💀 猛反撃！");
             addDrillBadge(r, c, badgeType, badgeText);
         }
 
-        if (DOM.lectureExplainBox) {
-            DOM.lectureExplainBox.style.display = "block";
-            DOM.lectureExplainBox.innerHTML += `
-                <div class="lecture-step-log">
-                    <b>${step.desc}</b><br>
-                    <span>${step.explain}</span>
-                </div>
-            `;
-            DOM.lectureExplainBox.scrollTop = DOM.lectureExplainBox.scrollHeight;
+        // 数字マーカー（①〜⑨）の連動表示
+        if (step.showBeforeMobility) {
+            showMobilityMarkers(WHITE, "before");
+        } else if (step.showAfterMobility) {
+            const markerType = (step.resetAndPlayNakawari) ? "good" : "bad";
+            showMobilityMarkers(WHITE, markerType);
+        } else {
+            clearMobilityMarkers();
         }
 
-        await sleep(1100);
+        explainHtml += `
+            <div class="lecture-step-log">
+                <b>${step.desc}</b><br>
+                <span>${step.explain}</span>
+            </div>
+        `;
     }
 
-    if (DOM.lectureExplainBox && lecture.solutionNote) {
-        DOM.lectureExplainBox.innerHTML += `
+    // 最終ステップに達したときのまとめ解説
+    if (currentLectureStepIndex === lecture.steps.length && lecture.solutionNote) {
+        explainHtml += `
             <div class="lecture-solution-card">
                 ${lecture.solutionNote}
             </div>
         `;
+    }
+
+    if (DOM.lectureExplainBox) {
+        DOM.lectureExplainBox.style.display = (explainHtml.trim() !== "") ? "block" : "none";
+        DOM.lectureExplainBox.innerHTML = explainHtml;
         DOM.lectureExplainBox.scrollTop = DOM.lectureExplainBox.scrollHeight;
     }
 
-    if (DOM.btnLecturePlay) DOM.btnLecturePlay.style.display = "none";
+    drawBoard();
+
+    // コマ送りボタンの活性・非活性制御
+    if (DOM.btnLecturePrev) DOM.btnLecturePrev.disabled = (currentLectureStepIndex === 0);
+    if (DOM.btnLectureNext) DOM.btnLectureNext.disabled = (currentLectureStepIndex === lecture.steps.length);
     if (DOM.btnLectureToDrill) {
-        DOM.btnLectureToDrill.style.display = "inline-block";
-        DOM.btnLectureToDrill.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        DOM.btnLectureToDrill.style.display = (currentLectureStepIndex === lecture.steps.length) ? "inline-block" : "none";
     }
-    isLecturePlaying = false;
 }
-window.playCurrentLectureStep = playCurrentLectureStep;
+
+function nextLectureStep() {
+    const lecture = LESSON_LECTURES[currentLectureId];
+    if (!lecture || currentLectureStepIndex >= lecture.steps.length) return;
+    playPlaceSound();
+    applyLectureStep(currentLectureStepIndex + 1);
+}
+window.nextLectureStep = nextLectureStep;
+
+function prevLectureStep() {
+    if (currentLectureStepIndex <= 0) return;
+    playPlaceSound();
+    applyLectureStep(currentLectureStepIndex - 1);
+}
+window.prevLectureStep = prevLectureStep;
 
 function resetCurrentLecture() {
-    lectureSessionId++;
-    isLecturePlaying = false;
     playPlaceSound();
-    loadLectureState();
+    applyLectureStep(0);
 }
 window.resetCurrentLecture = resetCurrentLecture;
 
 function proceedToDrillFromLecture() {
     const lecture = LESSON_LECTURES[currentLectureId];
-    lectureSessionId++;
-    isLecturePlaying = false;
+    clearMobilityMarkers();
     const firstQId = (lecture && lecture.themeId) ? (lecture.themeId - 1) * 3 + 1 : 1;
     startDrillQuestion(firstQId);
 }
@@ -1916,8 +1949,7 @@ window.returnToLectureFromDrill = returnToLectureFromDrill;
 
 function exitLectureMode() {
     if (!isLectureMode) return;
-    lectureSessionId++;
-    isLecturePlaying = false;
+    clearMobilityMarkers();
     playPlaceSound();
     restoreMainGameState();
 }
@@ -1944,14 +1976,14 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         tacticsWorstAlternative = openingBad.objectiveBest;
         
         openingHtml = `
-            <div>序盤、第${openingBad.stepIndex}手【${openingBad.coord}】で外側の石を取りすぎ、外壁を作って相手に打てるマスを急増させてしまう隙が生じました。</div>
+            <div>序盤、第${openingBad.stepIndex}手【${openingBad.coord}】で外側の石を取りすぎ、相手の打てる場所を増やしてしまう隙が生じました。</div>
             <div class="story-deep-link-wrap">
                 <span class="story-deep-btn" onclick="jumpToReviewStep(${openingBad.stepIndex})">🔍 なぜ危険だったのか？ 盤面で深掘り検証 ▶</span>
             </div>
         `;
     } else {
         openingHtml = `
-            <div>序盤は定石と<span class="term-link" data-term="中割り">中割り</span>を遵守し、相手に余計な足場を与えない落ち着いた堅実な立ち上がりでした。</div>
+            <div>序盤は定石と<span class="term-link" data-term="中割り">中割り</span>を遵守し、相手に余計な足場を与えない落ち着いた立ち上がりでした。</div>
         `;
     }
 
@@ -2030,7 +2062,7 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【🎯 宮廷次の一手検定（全15問）】
+  【宮廷次の一手検定】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
@@ -2064,14 +2096,6 @@ function closeDrillCourseModal() {
     document.body.classList.remove("modal-open-lock");
 }
 window.closeDrillCourseModal = closeDrillCourseModal;
-
-function openDrillFromTopicKey(topicKey) {
-    const idxMap = { "Xマス": 1, "壁": 4, "中割り": 7, "Cマス": 10, "パリティ": 13 };
-    const qIndex = idxMap[topicKey] || 1;
-    if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
-    startDrillQuestion(qIndex);
-}
-window.openDrillFromTopicKey = openDrillFromTopicKey;
 
 function renderDrillCourseList() {
     if (!DOM.drillCourseList) return;
@@ -2167,6 +2191,7 @@ function loadDrillQuestion() {
     currentPlayer = qData.turn;
     drawBoard();
     clearDrillBadges();
+    clearMobilityMarkers();
 }
 
 function resetCurrentDrill() {
@@ -2184,6 +2209,7 @@ async function handleDrillCellClick(r, c) {
     if (!canPlace(r, c, qData.turn, board)) return;
 
     clearDrillBadges();
+    clearMobilityMarkers();
 
     const [cr, cc] = qData.correctMove;
     const isCorrect = (r === cr && c === cc);
@@ -2309,7 +2335,7 @@ function exitDrillMode() {
 window.exitDrillMode = exitDrillMode;
 
 /* ==========================================================================
-  【宮廷思案所：新体系コンテンツ動的レンダリング（3段階ピラミッド完全対応）】
+  【宮廷思案所：新体系コンテンツ動的レンダリング】
 ========================================================================== */
 function renderGuideModalContents() {
     if (DOM.opsGuideContainer && typeof OPERATION_GUIDE_DATA !== "undefined") {
@@ -2648,7 +2674,6 @@ function renderArchiveView() {
     filtered.forEach(r => {
         const tr = document.createElement("tr");
 
-        // 🏷️ 称号のカッコ改行表示処理（見切れ完全解消）
         let formattedTitle = r.dramaTitle || "";
         if (formattedTitle.includes("（")) {
             const parts = formattedTitle.split("（");

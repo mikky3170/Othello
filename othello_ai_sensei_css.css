@@ -2,13 +2,12 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.6.9 (2025/05/20)
+  バージョン: Ver 8.7.0 (2025/05/20)
   
-  [Ver 8.6.9] 2025/05/20 更新内容:
-  - 【思考エンジン適正化・戦績録UI洗練＆教育精度極限エディション】
-  - ヒント固定表示枠（.hint-fixed-display）の高さを拡張し、本文2行が確実に収まる黄金比レイアウトを確立。
-  - 戦績録テーブルの形式セル（.col-mode）から不要な省略記号（点・ドット）を完全除去。
-  - 勝敗・称号バッジ（.badge-win-gold等）のカッコ改行表示に完全対応。
+  [Ver 8.7.0] 2025/05/20 更新内容:
+  - 【教育体系完全統合＆講義コマ送り操作エディション】
+  - 講義カード下部のコマ送りボタン群（◀ 前のステップ / 次のステップ ▶）の黄金比レイアウトを最適化。
+  - 講義用「相手の打てるマス（①〜⑨）」丸数字マーカー（.mobility-marker）の王朝スタイルを完全統合。
 ========================================================================== */
 
 * {
@@ -671,8 +670,50 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
+/* 🌟 講義用：数字マーカー（①〜⑨）スタイル */
+.mobility-marker {
+    position: absolute; width: clamp(16px, 3.8vw, 22px); height: clamp(16px, 3.8vw, 22px);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: 'Cinzel', serif; font-size: clamp(10px, 2.4vw, 13px); font-weight: 900;
+    z-index: 25; pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+    animation: marker-pop-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+}
+@keyframes marker-pop-in {
+    0% { transform: scale(0.2) translateY(-4px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.marker-before {
+    background: linear-gradient(135deg, #3a86ff 0%, #004e92 100%);
+    border: 1.5px solid #ffffff; color: #ffffff;
+    box-shadow: 0 0 10px rgba(58, 134, 255, 0.8);
+}
+
+.marker-bad {
+    background: linear-gradient(135deg, #ff4d4d 0%, #b30000 100%);
+    border: 1.5px solid #ffffff; color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 77, 77, 0.9);
+    animation: marker-bad-pulse 1.2s infinite alternate ease-in-out;
+}
+@keyframes marker-bad-pulse {
+    from { transform: scale(0.92); box-shadow: 0 0 6px #ff4d4d; }
+    to { transform: scale(1.08); box-shadow: 0 0 16px #ff0000; }
+}
+
+.marker-good {
+    background: linear-gradient(135deg, #2ecc71 0%, #157347 100%);
+    border: 1.5px solid #ffffff; color: #ffffff;
+    box-shadow: 0 0 14px rgba(46, 204, 113, 0.95);
+    animation: marker-good-glow 1.2s infinite alternate ease-in-out;
+}
+@keyframes marker-good-glow {
+    from { transform: scale(0.95); box-shadow: 0 0 8px #2ecc71; }
+    to { transform: scale(1.1); box-shadow: 0 0 18px #5ef7a2; }
+}
+
 /* ==========================================================================
-  【ゾーン③：操作・説明共通固定ゾーン（4大モード完全同一スロット・枠絶対不動）】
+  【ゾーン③：操作・説明共通固定ゾーン】
 ========================================================================== */
 .player-control-zone {
     width: min(98vw, 440px);
@@ -688,7 +729,6 @@ header {
     .player-control-zone { width: min(92vw, 680px); }
 }
 
-/* 4大モードカード共通基盤 */
 .slot-mode-card {
     width: 100%; height: 100%; max-height: 100%;
     position: absolute; inset: 0;
@@ -764,7 +804,6 @@ header {
     transform: translateY(-1px);
 }
 
-/* ⚡ セレクトボックス（高さ34px） */
 .action-grid-row1 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 5px; margin-bottom: 3px; flex-shrink: 0; }
 
 select {
@@ -776,7 +815,6 @@ select {
 }
 select:focus { border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
 
-/* ⚡ 操作ボタン最適2段グリッド構造 */
 .action-grid-row-core { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 3px; flex-shrink: 0; }
 .action-grid-row-study { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; flex-shrink: 0; margin-bottom: 2px; }
 
@@ -812,7 +850,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     color: #faebd0; border: 1.5px solid var(--gold-border);
 }
 
-/* 💡 ヒント枠（2行分を確実に表示できる黄金比高さを確保） */
 .hint-fixed-display {
     width: 100%; height: clamp(56px, 7.2dvh, 66px); min-height: 56px; max-height: 68px;
     margin-top: 2px; padding: 3px 8px;
@@ -875,10 +912,10 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .deep-metrics-row { font-size: 10px; color: #fff4bd; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; margin: 1px 0; }
 .deep-card-detail { font-size: 10px; color: #ecd08c; line-height: 1.4; }
 
-/* ③ 📖 講義コントロールカード */
+/* ③ 📖 講義コントロールカード（コマ送り対応スタイル） */
 .lecture-control-card {
     display: none; background: linear-gradient(145deg, rgba(24, 28, 40, 0.98) 0%, rgba(12, 14, 22, 0.99) 100%);
-    border: 2px solid #5ef7a2; border-radius: 12px; padding: 8px 11px;
+    border: 2px solid #5ef7a2; border-radius: 12px; padding: 7px 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(46, 204, 113, 0.4);
     flex-direction: column; justify-content: space-between; text-align: left;
     animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
@@ -889,33 +926,61 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .lecture-step-indicator { font-family: 'Cinzel', serif; font-size: 10px; font-weight: 900; color: #ffd700; }
 
 .lecture-body-box { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; margin: 2px 0; }
-.lecture-title-text { font-size: 12.5px; font-weight: 900; color: #ffffff; margin-top: 1px; flex-shrink: 0; }
-.lecture-desc-text { font-size: 11px; color: #ecd08c; line-height: 1.4; margin-top: 2px; flex-shrink: 0; }
+.lecture-title-text { font-size: 12px; font-weight: 900; color: #ffffff; margin-top: 1px; flex-shrink: 0; }
+.lecture-desc-text { font-size: 10.5px; color: #ecd08c; line-height: 1.35; margin-top: 1px; flex-shrink: 0; }
 
 .lecture-explain-box {
     background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(212, 167, 72, 0.3);
-    border-radius: 6px; padding: 5px 8px; font-size: 10.5px; line-height: 1.45; color: #fff4bd;
-    overflow-y: auto; margin-top: 3px; flex: 1; min-height: 0;
+    border-radius: 6px; padding: 4px 8px; font-size: 10.5px; line-height: 1.4; color: #fff4bd;
+    overflow-y: auto; margin-top: 2px; flex: 1; min-height: 0;
 }
 .lecture-step-log { margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
 .lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
-.lecture-step-log b { color: #5ef7a2; }
+.lecture-step-log b { color: #5ef7a2; font-size: 11px; }
 .lecture-solution-card {
     background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; border-radius: 6px;
-    padding: 4px 6px; color: #d4f8e2; font-size: 10.5px; font-weight: 800; margin-top: 2px;
+    padding: 3px 6px; color: #d4f8e2; font-size: 10px; font-weight: 800; margin-top: 2px;
 }
 
+/* 🌟 コマ送りボタングリッド */
 .lecture-actions-bar {
-    display: flex; justify-content: space-between; align-items: center; margin-top: 3px;
-    padding-top: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap; flex-shrink: 0;
+    display: flex; justify-content: space-between; align-items: center; margin-top: 2px;
+    padding-top: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 3.5px; flex-wrap: nowrap; flex-shrink: 0;
 }
 .lecture-btn-action {
-    font-size: 10px; font-weight: 900; padding: 5px 9px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+    font-size: 9.5px; font-weight: 900; padding: 4.5px 6px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+    white-space: nowrap; flex: 1; text-align: center;
 }
-.btn-lecture-play { background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415; border: 1px solid #fff; box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
-.btn-lecture-reset { background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4); }
-.btn-lecture-to-drill { background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); display: none; }
-.btn-lecture-exit { background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2); }
+.lecture-btn-action:disabled {
+    opacity: 0.35; cursor: not-allowed; filter: grayscale(0.8);
+}
+
+.btn-lecture-prev {
+    background: linear-gradient(180deg, #2a2e3d 0%, #151822 100%); color: #ecd08c;
+    border: 1px solid rgba(212, 167, 72, 0.4);
+}
+.btn-lecture-prev:not(:disabled):hover { border-color: #ffd700; color: #ffffff; }
+
+.btn-lecture-next {
+    background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415;
+    border: 1px solid #fff; box-shadow: 0 0 8px rgba(46, 204, 113, 0.6);
+}
+.btn-lecture-next:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 0 12px #5ef7a2; }
+
+.btn-lecture-reset {
+    background: rgba(255, 255, 255, 0.08); color: #d4c4a8; border: 1px solid rgba(212, 167, 72, 0.3);
+    flex: 0.8;
+}
+
+.btn-lecture-to-drill {
+    background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.8); display: none; flex: 1.2;
+}
+
+.btn-lecture-exit {
+    background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2);
+    flex: 0.7;
+}
 
 /* ④ 🎯 検定解答カード */
 .drill-control-card {
@@ -1002,7 +1067,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     border-radius: 8px; padding: 7px 10px; font-size: 10.5px; line-height: 1.5; color: #f2e9d2; text-align: left;
 }
 .profile-card-section.tactics-highlight {
-    border-color: #ffd700; background: linear-gradient(135deg, rgba(40, 32, 15, 0.7) 0%, rgba(20, 15, 8, 0.85) 100%);
+    border-color: #ffd700; background: linear-gradient(135deg, rgba(40, 32, 15, 0.7) 0%, rgba(20, 16, 8, 0.85) 100%);
     box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
 }
 .profile-section-title { font-size: 11px; font-weight: 900; color: #ffd700; margin-bottom: 2px; }
@@ -1260,7 +1325,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .col-acc    { width: 11.5%; text-align: center !important; }
 .col-time   { width: 11%; }
 
-/* 形式セルから不要な省略記号（点・ドット）を完全根絶 */
 .archive-table td:nth-child(6) {
     text-align: center !important;
     text-overflow: clip !important;
@@ -1274,7 +1338,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     text-align: center !important;
 }
 
-/* 勝敗・称号バッジ（カッコ改行に完全対応） */
 .badge-win-gold {
     font-family: inherit; font-size: 9.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
     background: linear-gradient(135deg, #d4a748 0%, #8c6218 100%); color: #ffffff;

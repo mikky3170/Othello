@@ -2,11 +2,11 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.9 (2025/05/20)
+  バージョン: Ver 8.7.0 (2025/05/20)
   
-  [Ver 8.6.9] 2025/05/20 更新内容:
-  - 【思考エンジン適正化・戦績録UI洗練＆教育精度極限エディション】
-  - 操作パネル下段の学習ボタン配置を最適化（左：宮廷思案所、右：宮廷検定）。
+  [Ver 8.7.0] 2025/05/20 更新内容:
+  - 【教育体系完全統合＆講義コマ送り操作エディション】
+  - 講義コントロールカードを自動再生から「◀ 前のステップ」「次のステップ ▶」のコマ送り方式へ刷新。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -101,7 +101,7 @@
             </div>
         </div>
 
-        <!-- ゾーン②：盤面ゾーン（天秤ゲージと盤面のみの純粋固定ゾーン化・上下動完全根絶） -->
+        <!-- ゾーン②：盤面ゾーン（天秤ゲージと盤面のみの純粋固定ゾーン化） -->
         <div class="board-zone">
             <!-- 天秤ゲージ -->
             <div class="battle-gauge-container gauge-player-black" id="battleGaugeContainer">
@@ -149,7 +149,7 @@
         <!-- ゾーン③：操作・説明共通固定ゾーン（4大モード完全同一スロット・枠絶対不動） -->
         <div class="player-control-zone">
             
-            <!-- ① 通常対局操作カード（ボタン最適2段再編） -->
+            <!-- ① 通常対局操作カード -->
             <div class="royal-card slot-mode-card" id="normalControlCard">
                 <div class="player-status-banner">
                     <div id="status" class="status-human-turn">👑 あなたの番です（黒）最初の一手を置いてください</div>
@@ -169,7 +169,7 @@
                     </div>
                 </div>
 
-                <!-- 対戦相手・ヒントモード 選択ボックス（1.5倍ワイド＆堂々たる高さ） -->
+                <!-- 対戦相手・ヒントモード 選択ボックス -->
                 <div class="action-grid-row1">
                     <select id="characterSelect" aria-label="対戦相手の選択">
                         <option value="1" selected>Lv.1 ピエロ 【入門・アマ12級】</option>
@@ -191,7 +191,7 @@
                     </select>
                 </div>
 
-                <!-- ボタン上段：対局3大操作（均等3分割） -->
+                <!-- ボタン上段：対局3大操作 -->
                 <div class="action-grid-row-core">
                     <button id="undoButton" class="btn-royal btn-core" type="button">⚜️ 待った</button>
                     <button id="restartButton" class="btn-royal btn-core" type="button">👑 新対局</button>
@@ -235,11 +235,11 @@
                 </div>
             </div>
 
-            <!-- ③ 📖 盤面動的ビジュアル講義コントロールカード -->
+            <!-- ③ 📖 盤面動的ビジュアル講義コントロールカード（コマ送り対応） -->
             <div class="lecture-control-card slot-mode-card" id="lectureControlCard">
                 <div class="lecture-header-nav">
                     <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
-                    <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 2</span>
+                    <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 3</span>
                 </div>
                 <div class="lecture-body-box">
                     <div class="lecture-title-text" id="lectureTitleText">⚠️ 講義：Xマスの罠と角防衛のメカニズム</div>
@@ -247,10 +247,11 @@
                     <div class="lecture-explain-box" id="lectureExplainBox" style="display:none;"></div>
                 </div>
                 <div class="lecture-actions-bar">
-                    <button type="button" class="lecture-btn-action btn-lecture-play" id="btnLecturePlay" onclick="playCurrentLectureStep()">▶ 実演を再生</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-prev" id="btnLecturePrev" onclick="prevLectureStep()">◀ 前のステップ</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-next" id="btnLectureNext" onclick="nextLectureStep()">次のステップ ▶</button>
                     <button type="button" class="lecture-btn-action btn-lecture-reset" id="btnLectureReset" onclick="resetCurrentLecture()">↺ 最初から</button>
-                    <button type="button" class="lecture-btn-action btn-lecture-to-drill" id="btnLectureToDrill" onclick="proceedToDrillFromLecture()">🎯 この奥義の検定を解く ▶</button>
-                    <button type="button" class="lecture-btn-action btn-lecture-exit" id="btnLectureExit" onclick="exitLectureMode()">✕ 講義を終了</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-to-drill" id="btnLectureToDrill" onclick="proceedToDrillFromLecture()">🎯 検定を解く ▶</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-exit" id="btnLectureExit" onclick="exitLectureMode()">✕ 終了</button>
                 </div>
             </div>
 
@@ -640,7 +641,7 @@
                         <span>🌱 第3奥義：至高の手筋「中割り」</span>
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">盤面講義を見る 📖</button>
                     </div>
-                    <div>内側の石だけを1枚めくり、相手の選択肢をゼロへと追い込むオセロ最強の基本手筋の神髄を盤面で学びます。</div>
+                    <div>相手の打てる場所（①〜⑨）を削り取り、安全な逃げ場をなくして危険マスへ自滅させるオセロ最強手筋を学びます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
@@ -658,7 +659,7 @@
                 </div>
             </div>
 
-            <!-- 第4タブ【👥 宮廷豪傑名鑑（全10豪傑 画像入り一覧ギャラリー）】 -->
+            <!-- 第4タブ【👥 宮廷豪傑名鑑】 -->
             <div id="tab-gallery" class="manual-tab-content">
                 <div style="font-size:11px; color:#ecd08c; margin-bottom:8px;">
                     王宮に集う全10大豪傑の肖像画名鑑です。「対戦する ⚔️」を押すと、その豪傑と即座に対局できます。
@@ -690,7 +691,7 @@
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">講義 📖</button>
                     </div>
                     <div style="margin-bottom:6px;">
-                        <b>🌱 中割り（なかわり）：</b>既に相手の石に囲まれている「内側の石」だけを返す着手。外側に自分の石が露出しないため、相手に打てるマスを与えません。
+                        <b>🌱 中割り（なかわり）：</b>外側に石を露出させず、内側の石だけを返す着手。相手の打てる場所を増やさず、安全な逃げ場を削り取って自滅へ追い込みます。
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🧱 壁（かべ）：</b>外側に自分の石がずらりと一直線に並んでしまうこと。相手に無数の足場を与えてしまうため、敗着の典型とされます。
@@ -737,7 +738,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.9</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.7.0</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
