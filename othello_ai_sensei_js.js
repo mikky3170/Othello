@@ -2,14 +2,15 @@
 /* ==========================================================================
   【オセロプログラム ロジック・AI思考エンジン】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.6.4 (2026/10/20)
+  バージョン: Ver 8.6.5 (2026/10/20)
   
-  [Ver 8.6.4] 2026/10/20 更新内容:
-  - 【プレイヤー着手完全ゼロ遅延＆深層探索割り込み即時中断エディション】
-  - タップ時の先読み探索即時中断フラグ（isPrefetchAborted）を実装し、プレイヤー着手時の待ち時間を完全根絶（0秒即時着手を完全復元）。
-  - ヒントAIの深さ（深さ9手／終盤16手完全読み切り）はLv.10老賢王オルレアンを確実に撃破できる最高峰の知謀のまま100%維持。
-  - 打った手の採点（BEST/GOOD/BAD）は石の反転アニメーション中の裏側で打たれた1箇所のみを高速判定するゼロ遅延アーキテクチャを確立。
-  - セリフ枠の優雅な内照アンビエント発光、同一セリフ静止維持、αβ探索置換表フラグ完全管理を継続。
+  [Ver 8.6.5] 2026/10/20 更新内容:
+  - 【全モード完全同一スロット・盤面＆説明枠絶対不動エディション】
+  - 講義・検定・検討・通常対局の4大カードを下部固定スロット（player-control-zone）へ完全統合。
+  - モード切り替え時の盤面上下動を100%根絶し、1ピクセルも動かない盤面絶対静止レイアウトを確立。
+  - タップ時の先読み探索即時中断（isPrefetchAborted）による0秒即時着手を完全維持。
+  - ヒントAIの深さ（深さ9手／終盤16手完全読み切り）をLv.10老賢王オルレアン撃破仕様のまま100%維持。
+  - セリフ優雅アンビエント発光、同一セリフ静止維持、αβ探索置換表フラグ完全管理を継続。
 ========================================================================== */
 
 const boardSize = 8;
@@ -1205,7 +1206,6 @@ async function putStone(row, col) {
         const bookEntry = getBestCounterBookMove();
         if (bookEntry) objectiveBest = bookEntry.move;
         else {
-            // キャッシュが未完了だった場合、角や中割り・静的重みから瞬時に最善手を導出
             const sorted = orderMoves(myAvailableMovesBefore, boardBefore, humanColor);
             objectiveBest = sorted[0];
         }
@@ -1284,7 +1284,6 @@ async function putStone(row, col) {
 
     cachedMoveEvaluations = null;
 
-    // アニメーション完了を待機
     const success = await actionPromise;
     if (!success) return;
 
@@ -1690,7 +1689,9 @@ function startLectureMode(lectureId) {
     if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
+    // ⚡【全モード同一スロット統合】：下部固定枠内で講義カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.add("show");
 
@@ -1839,7 +1840,7 @@ function exitLectureMode(restoreBoard = true) {
     savedBoardStateForLecture = null;
 
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
-    if (DOM.normalControlCard && !isDrillMode) DOM.normalControlCard.style.display = "";
+    if (DOM.normalControlCard && !isDrillMode && !isReviewMode) DOM.normalControlCard.style.display = "flex";
     updateUndoButtonState();
 }
 window.exitLectureMode = exitLectureMode;
@@ -2061,7 +2062,9 @@ function startDrillQuestion(qIndex) {
     if (DOM.guideOverlay) DOM.guideOverlay.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
 
+    // ⚡【全モード同一スロット統合】：下部固定枠内で検定カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.add("show");
 
@@ -2247,7 +2250,7 @@ function exitDrillMode(restoreBoard = true) {
     isSimulatingDrillMistake = false;
 
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
-    if (DOM.normalControlCard && !isLectureMode) DOM.normalControlCard.style.display = "";
+    if (DOM.normalControlCard && !isLectureMode && !isReviewMode) DOM.normalControlCard.style.display = "flex";
     updateUndoButtonState();
 }
 window.exitDrillMode = exitDrillMode;
@@ -2826,7 +2829,11 @@ function enterReviewMode() {
     isReviewMode = true;
     if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
     document.body.classList.remove("modal-open-lock");
+
+    // ⚡【全モード同一スロット統合】：下部固定枠内で検討カードだけを表示
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "none";
+    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
+    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.add("show");
 
     if (DOM.btnJumpGood) DOM.btnJumpGood.disabled = (tacticsTurningPointIndex < 0);
@@ -2840,7 +2847,7 @@ function enterReviewMode() {
 function exitReviewMode() {
     isReviewMode = false;
     if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
-    if (DOM.normalControlCard && !isDrillMode && !isLectureMode) DOM.normalControlCard.style.display = "";
+    if (DOM.normalControlCard && !isDrillMode && !isLectureMode) DOM.normalControlCard.style.display = "flex";
     updateUndoButtonState();
     updateScore(board);
     updateBalanceGauge(board);

@@ -2,12 +2,12 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.6.3 (2026/10/20)
+  バージョン: Ver 8.6.5 (2026/10/20)
   
-  [Ver 8.6.3] 2026/10/20 更新内容:
-  - 【セリフ優雅アンビエント発光・置換表完全正常化＆検定3問目はみ出し解消エディション】
-  - 思案所第5タブ「用語・定石宝典」に、リンク切れとなっていた「三大王道定石セクション（id='term-sec-openings'）」を正式新設。
-  - セリフ枠の優雅な内照アンビエント発光、検定一覧第3問枠はみ出し解消に対応。
+  [Ver 8.6.5] 2026/10/20 更新内容:
+  - 【全モード完全同一スロット・盤面＆説明枠絶対不動エディション】
+  - 講義カード（lectureControlCard）と検定カード（drillControlCard）を盤面ゾーンから下部操作ゾーンへ移設。
+  - 通常対局・検討・講義・検定の4大カードを下部固定スロットへ完全統合し、モード切り替え時の盤面上下動を100%根絶。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -102,9 +102,9 @@
             </div>
         </div>
 
-        <!-- ゾーン②：盤面ゾーン -->
+        <!-- ゾーン②：盤面ゾーン（天秤ゲージと盤面のみの純粋固定ゾーン化・上下動完全根絶） -->
         <div class="board-zone">
-            <!-- 天秤ゲージ（立体ミニ石コンポーネント化により白黒反転バグ根絶） -->
+            <!-- 天秤ゲージ -->
             <div class="battle-gauge-container gauge-player-black" id="battleGaugeContainer">
                 <div class="battle-gauge-header">
                     <span id="battleStatPlayer" class="battle-stat-tag">
@@ -145,56 +145,13 @@
                     <div class="board-star-dot star-f6"></div>
                 </div>
             </div>
-
-            <!-- 📖 盤面動的ビジュアル講義コントロールカード（盤面位置完全固定） -->
-            <div class="lecture-control-card" id="lectureControlCard">
-                <div class="lecture-header-nav">
-                    <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
-                    <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 2</span>
-                </div>
-                <div class="lecture-body-box">
-                    <div class="lecture-title-text" id="lectureTitleText">⚠️ 講義：Xマスの罠と角防衛のメカニズム</div>
-                    <div class="lecture-desc-text" id="lectureDescText">盤面上で角の斜め前（B2）に打ってしまうと何が起きるか、実演を見てみましょう。</div>
-                    <div class="lecture-explain-box" id="lectureExplainBox" style="display:none;"></div>
-                </div>
-                <div class="lecture-actions-bar">
-                    <button type="button" class="lecture-btn-action btn-lecture-play" id="btnLecturePlay" onclick="playCurrentLectureStep()">▶ 実演を再生</button>
-                    <button type="button" class="lecture-btn-action btn-lecture-reset" id="btnLectureReset" onclick="resetCurrentLecture()">↺ 最初から</button>
-                    <button type="button" class="lecture-btn-action btn-lecture-to-drill" id="btnLectureToDrill" onclick="proceedToDrillFromLecture()">🎯 この奥義の検定を解く ▶</button>
-                    <button type="button" class="lecture-btn-action btn-lecture-exit" id="btnLectureExit" onclick="exitLectureMode()">✕ 講義を終了</button>
-                </div>
-            </div>
-
-            <!-- 🎯 宮廷次の一手検定：盤面解答カード（縦突き抜け防止・定位置収容） -->
-            <div class="drill-control-card" id="drillControlCard">
-                <div class="drill-header-nav">
-                    <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
-                    <div class="drill-diff-badge" id="drillDiffBadge">初級・アマ10級</div>
-                </div>
-
-                <div class="drill-question-box">
-                    <div id="drillQuestionText">Q. 白に角（A1）を献上しない、安全な内側のマスを選んでください（盤面タップ）。</div>
-                    <div class="drill-question-sub" id="drillQuestionSub">手番：あなたの黒番（⚫）</div>
-                </div>
-
-                <div class="drill-feedback-box" id="drillFeedbackBox">
-                    <div id="drillFeedbackTitle" style="font-weight:900; margin-bottom:3px; color:#ffd700;">正解！🎉 完璧な着手理由です！</div>
-                    <div id="drillFeedbackReason">解説文が入ります</div>
-                </div>
-
-                <div class="drill-actions-bar">
-                    <button type="button" class="drill-btn-action drill-btn-retry" id="btnDrillRetry" onclick="resetCurrentDrill()">もう一度やり直す ↺</button>
-                    <button type="button" class="drill-btn-action drill-btn-lecture" id="btnDrillBackToLecture" onclick="returnToLectureFromDrill()">📖 盤面講義を見る</button>
-                    <button type="button" class="drill-btn-action drill-btn-next-question" id="btnDrillNextQuestion" onclick="advanceNextDrillQuestion()">次の問題へ進む ▶</button>
-                    <button type="button" class="drill-btn-action drill-btn-list" id="btnDrillList" onclick="openDrillCourseModal()">検定コース一覧 📋</button>
-                    <button type="button" class="drill-btn-action drill-btn-exit" id="btnDrillExit" onclick="exitDrillMode()">対局に戻る ✕</button>
-                </div>
-            </div>
         </div>
 
-        <!-- ゾーン③：操作ゾーン -->
+        <!-- ゾーン③：操作・説明共通固定ゾーン（4大モード完全同一スロット・枠絶対不動） -->
         <div class="player-control-zone">
-            <div class="royal-card" id="normalControlCard">
+            
+            <!-- ① 通常対局操作カード -->
+            <div class="royal-card slot-mode-card" id="normalControlCard">
                 <div class="player-status-banner">
                     <div id="status" class="status-human-turn">👑 あなたの番です（黒）最初の一手を置いてください</div>
                 </div>
@@ -253,8 +210,8 @@
                 </div>
             </div>
 
-            <!-- 棋譜検証パネル -->
-            <div class="review-mode-panel" id="reviewModePanel">
+            <!-- ② 棋譜検証（検討）モードパネル -->
+            <div class="review-mode-panel slot-mode-card" id="reviewModePanel">
                 <div class="review-header-row">
                     <div class="review-step-label">🔍【棋譜検証モード】</div>
                     <div class="review-turn-info" id="reviewTurnInfo">第 0 手 / 全 0 手</div>
@@ -272,6 +229,52 @@
                     <button type="button" class="btn-review-nav btn-review-exit" id="btnReviewExit">👑 会見へ戻る</button>
                 </div>
             </div>
+
+            <!-- ③ 📖 盤面動的ビジュアル講義コントロールカード（下部スロット移設） -->
+            <div class="lecture-control-card slot-mode-card" id="lectureControlCard">
+                <div class="lecture-header-nav">
+                    <div class="lecture-topic-badge" id="lectureTopicBadge">📖 【第1奥義：Xマスの罠と角防衛】盤面講義</div>
+                    <span class="lecture-step-indicator" id="lectureStepIndicator">ステップ 0 / 2</span>
+                </div>
+                <div class="lecture-body-box">
+                    <div class="lecture-title-text" id="lectureTitleText">⚠️ 講義：Xマスの罠と角防衛のメカニズム</div>
+                    <div class="lecture-desc-text" id="lectureDescText">盤面上で角の斜め前（B2）に打ってしまうと何が起きるか、実演を見てみましょう。</div>
+                    <div class="lecture-explain-box" id="lectureExplainBox" style="display:none;"></div>
+                </div>
+                <div class="lecture-actions-bar">
+                    <button type="button" class="lecture-btn-action btn-lecture-play" id="btnLecturePlay" onclick="playCurrentLectureStep()">▶ 実演を再生</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-reset" id="btnLectureReset" onclick="resetCurrentLecture()">↺ 最初から</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-to-drill" id="btnLectureToDrill" onclick="proceedToDrillFromLecture()">🎯 この奥義の検定を解く ▶</button>
+                    <button type="button" class="lecture-btn-action btn-lecture-exit" id="btnLectureExit" onclick="exitLectureMode()">✕ 講義を終了</button>
+                </div>
+            </div>
+
+            <!-- ④ 🎯 宮廷次の一手検定：盤面解答カード（下部スロット移設） -->
+            <div class="drill-control-card slot-mode-card" id="drillControlCard">
+                <div class="drill-header-nav">
+                    <div class="drill-topic-badge" id="drillTopicBadge">🎯 【Xマスの罠と角防衛】（第 1 問 / 全 15 問・基本形）</div>
+                    <div class="drill-diff-badge" id="drillDiffBadge">初級・アマ10級</div>
+                </div>
+
+                <div class="drill-question-box">
+                    <div id="drillQuestionText">Q. 白に角（A1）を献上しない、安全な内側のマスを選んでください（盤面タップ）。</div>
+                    <div class="drill-question-sub" id="drillQuestionSub">手番：あなたの黒番（⚫）</div>
+                </div>
+
+                <div class="drill-feedback-box" id="drillFeedbackBox">
+                    <div id="drillFeedbackTitle" style="font-weight:900; margin-bottom:3px; color:#ffd700;">正解！🎉 完璧な着手理由です！</div>
+                    <div id="drillFeedbackReason">解説文が入ります</div>
+                </div>
+
+                <div class="drill-actions-bar">
+                    <button type="button" class="drill-btn-action drill-btn-retry" id="btnDrillRetry" onclick="resetCurrentDrill()">もう一度やり直す ↺</button>
+                    <button type="button" class="drill-btn-action drill-btn-lecture" id="btnDrillBackToLecture" onclick="returnToLectureFromDrill()">📖 盤面講義を見る</button>
+                    <button type="button" class="drill-btn-action drill-btn-next-question" id="btnDrillNextQuestion" onclick="advanceNextDrillQuestion()">次の問題へ進む ▶</button>
+                    <button type="button" class="drill-btn-action drill-btn-list" id="btnDrillList" onclick="openDrillCourseModal()">検定コース一覧 📋</button>
+                    <button type="button" class="drill-btn-action drill-btn-exit" id="btnDrillExit" onclick="exitDrillMode()">対局に戻る ✕</button>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -574,7 +577,7 @@
         </div>
     </div>
 
-    <!-- 📜 宮廷思案所モーダル（王道定石宝典セクション完備） -->
+    <!-- 📜 宮廷思案所モーダル -->
     <div id="guideOverlay" class="dynasty-overlay">
         <div id="guideModal" class="dynasty-modal">
             <div class="guide-header">
@@ -660,7 +663,7 @@
                 <div id="charGalleryList" class="char-gallery-grid"></div>
             </div>
 
-            <!-- 第5タブ【📚 オセロ用語・定石の宝典（定石セクション正式新設）】 -->
+            <!-- 第5タブ【📚 オセロ用語・定石の宝典】 -->
             <div id="tab-terms" class="manual-tab-content">
                 <div class="manual-card" id="term-sec-board">
                     <div class="manual-card-title">
@@ -697,7 +700,7 @@
                     </div>
                 </div>
 
-                <!-- 📖 三大王道定石セクション（リンク切れ解消） -->
+                <!-- 📖 三大王道定石セクション -->
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
                         <span>📖 三大王道定石の系譜（虎・牛・馬）</span>
@@ -731,15 +734,14 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.3</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.6.5</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
 
-    <!-- 外部スクリプト読み込み（データモジュール ➔ ロジック本体） -->
+    <!-- 外部スクリプト読み込み -->
     <script src="othello_data.js"></script>
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
-
 

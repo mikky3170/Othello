@@ -2,15 +2,14 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.6.3 (2026/10/20)
+  バージョン: Ver 8.6.5 (2026/10/20)
   
-  [Ver 8.6.3] 2026/10/20 更新内容:
-  - 【セリフ優雅アンビエント発光・同一セリフ静止＆検定3問目はみ出し完全解消エディション】
-  - 文字や枠線のチカチカ点滅を完全撤廃し、セリフ発話時に枠内全体が優雅に「ぼわ〜っ」と明るくなる内照アンビエント発光（bubble-glow-ambient）を新設。
-  - 検定一覧の第3問枠はみ出しを完全解消（流動フィット・縦積みレイアウト化）。
-  - 検定解答カードの縦突き抜けを防止し、解説文展開時もカード内で美しくスクロール収容。
-  - 用語ポップアップの「✕」ボタンを指で押しやすい適正サイズ（26px×26px）に拡大。
-  - 戦績録モーダルの10大豪傑名札の文字詰め・フォント最適化。
+  [Ver 8.6.5] 2026/10/20 更新内容:
+  - 【全モード完全同一スロット・盤面＆説明枠絶対不動エディション】
+  - 通常対局・検討・講義・検定の4大カードを下部固定スロット（.player-control-zone / .slot-mode-card）へ完全統合。
+  - 盤面ゾーン（.board-zone）から変動要素を一掃し、天秤ゲージと盤面の位置を絶対固定。
+  - 下部説明枠の高さスロットを完全統一（218px）し、モード切り替え時の盤面上下動を100%根絶。
+  - セリフ優雅アンビエント発光、同一セリフ静止維持、検定一覧第3問枠はみ出し解消を継続。
 ========================================================================== */
 
 * {
@@ -34,6 +33,9 @@
     --char-accent: #e63946;
     --char-glow: rgba(230, 57, 70, 0.65);
     --dynasty-bg: radial-gradient(circle at 50% 15%, #181c26 0%, #0c0e14 50%, #050508 100%);
+
+    /* 下部モード共通固定スロット高さ（全モード完全同一化） */
+    --slot-fixed-height: clamp(208px, 25dvh, 222px);
 
     /* ステージ動的バインド変数（Lv.1 デフォルト） */
     --st-bg-pattern: linear-gradient(rgba(255, 180, 100, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 180, 100, 0.05) 1px, transparent 1px);
@@ -380,7 +382,6 @@ header {
     border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-right: 5px solid rgba(212, 167, 72, 0.6);
 }
 
-/* 👑 新しくセリフを喋った瞬間だけ、枠内全体が「ぼわ〜っ」と優雅に明るくなる内照演出 */
 .opponent-speech-bubble.is-speaking {
     animation: bubble-glow-ambient 1.8s ease-in-out forwards;
 }
@@ -402,7 +403,6 @@ header {
     }
 }
 
-/* 文字は明滅・伸縮させず、品格ある静的な読みやすいフォント色に完全固定 */
 #speechText {
     color: #f7eed8;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
@@ -416,7 +416,7 @@ header {
     filter: drop-shadow(0 0 4px var(--char-glow));
 }
 
-/* ゾーン②：盤面ゾーン */
+/* ゾーン②：盤面ゾーン（天秤ゲージと盤面のみの純粋固定エリア・上下動完全根絶） */
 .board-zone {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     flex-shrink: 0; position: relative; margin: 0; width: 100%; gap: clamp(2px, 0.5dvh, 5px);
@@ -672,145 +672,47 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
-/* 📖 盤面動的ビジュアル講義コントロールカード */
-.lecture-control-card {
-    display: none; width: min(calc(100vw - 8px), 480px);
-    background: linear-gradient(145deg, rgba(24, 28, 40, 0.98) 0%, rgba(12, 14, 22, 0.99) 100%);
-    border: 2px solid #5ef7a2; border-radius: 12px; padding: 9px 12px; margin-top: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(46, 204, 113, 0.4);
-    flex-direction: column; gap: 4px; text-align: left;
-    z-index: 500 !important; position: relative; pointer-events: auto !important;
-    animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
-    height: 185px; max-height: 185px; flex-shrink: 0; box-sizing: border-box; overflow: hidden;
-}
-.lecture-control-card.show { display: flex; }
-.lecture-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(46, 204, 113, 0.3); padding-bottom: 3px; flex-shrink: 0; }
-.lecture-topic-badge { font-size: 11px; font-weight: 900; color: #5ef7a2; display: inline-flex; align-items: center; gap: 4px; }
-.lecture-step-indicator { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; color: #ffd700; }
-
-.lecture-body-box { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
-.lecture-title-text { font-size: 11.5px; font-weight: 900; color: #ffffff; margin-top: 2px; flex-shrink: 0; }
-.lecture-desc-text { font-size: 9.5px; color: #ecd08c; line-height: 1.35; margin-top: 1px; flex-shrink: 0; }
-
-.lecture-explain-box {
-    background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(212, 167, 72, 0.3);
-    border-radius: 6px; padding: 5px 7px; font-size: 9.5px; line-height: 1.4; color: #fff4bd;
-    overflow-y: auto; margin-top: 3px; flex: 1; min-height: 0;
-}
-.lecture-step-log { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
-.lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
-.lecture-step-log b { color: #5ef7a2; }
-.lecture-solution-card {
-    background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; border-radius: 6px;
-    padding: 4px 6px; color: #d4f8e2; font-weight: 800; margin-top: 3px;
-}
-
-.lecture-actions-bar {
-    display: flex; justify-content: space-between; align-items: center; margin-top: 3px;
-    padding-top: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap; flex-shrink: 0;
-}
-.lecture-btn-action {
-    font-size: 10px; font-weight: 900; padding: 4.5px 9px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
-}
-.btn-lecture-play { background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415; border: 1px solid #fff; box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
-.btn-lecture-reset { background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4); }
-.btn-lecture-to-drill { background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); display: none; }
-.btn-lecture-exit { background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2); }
-
-/* 🎯 宮廷次の一手検定：盤面解答カード（縦突き抜け防止・完全収容設計） */
-.drill-control-card {
-    display: none; width: min(calc(100vw - 8px), 480px);
-    background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
-    border: 2px solid #ffd700; border-radius: 12px; padding: 8px 10px; margin-top: 4px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.45);
-    flex-direction: column; gap: 4px; text-align: left;
-    z-index: 500 !important; position: relative; pointer-events: auto !important;
-    animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
-    max-height: 220px; box-sizing: border-box; overflow: hidden;
-}
-.drill-control-card.show { display: flex; }
-
-.drill-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px; flex-shrink: 0; }
-.drill-topic-badge { font-size: 11px; font-weight: 900; color: #ffd700; display: inline-flex; align-items: center; gap: 4px; }
-.drill-diff-badge { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 900; padding: 1.5px 6px; border-radius: 4px; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; }
-
-.drill-question-box { font-size: 10.5px; font-weight: 800; color: #ffffff; line-height: 1.35; margin-top: 2px; flex-shrink: 0; }
-.drill-question-sub { font-size: 9px; color: #ecd08c; margin-top: 1px; }
-
-.drill-feedback-box {
-    display: none; border-radius: 8px; padding: 6px 8px; font-size: 10px; line-height: 1.4;
-    margin-top: 3px; animation: popup-fade-in 0.25s ease forwards;
-    flex: 1; min-height: 0; max-height: 95px; overflow-y: auto; box-sizing: border-box;
-}
-.drill-feedback-box.correct {
-    display: block; background: rgba(14, 46, 26, 0.92); border: 1.5px solid #2ecc71; color: #d4f8e2;
-    box-shadow: 0 0 14px rgba(46, 204, 113, 0.45);
-}
-.drill-feedback-box.wrong {
-    display: block; background: rgba(48, 14, 14, 0.92); border: 1.5px solid #ff4d4d; color: #ffd8d8;
-    box-shadow: 0 0 14px rgba(255, 77, 77, 0.45);
-}
-
-.drill-reason-act {
-    margin-bottom: 3px; padding-bottom: 2.5px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
-}
-.drill-reason-act:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-.drill-reason-act b { color: #ffd700; font-size: 10px; }
-
-.drill-actions-bar {
-    display: flex; justify-content: space-between; align-items: center; margin-top: 3px;
-    padding-top: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap; flex-shrink: 0;
-}
-.drill-btn-action {
-    font-size: 9.5px; font-weight: 900; padding: 4.5px 8px; border-radius: 6px;
-    cursor: pointer; transition: all 0.2s ease;
-}
-.drill-btn-retry {
-    background: linear-gradient(180deg, #442a1a 0%, #201209 100%); color: #ecd08c;
-    border: 1.5px solid rgba(212, 167, 72, 0.6); display: none;
-}
-.drill-btn-retry:hover { border-color: #ffd700; color: #fff; transform: translateY(-1px); }
-.drill-btn-lecture {
-    background: rgba(46, 204, 113, 0.15); color: #bbf7d0; border: 1px solid #2ecc71;
-}
-.drill-btn-next-question {
-    background: linear-gradient(180deg, #235835 0%, #102e1b 100%); color: #bbf7d0;
-    border: 1.5px solid #2ecc71; display: none; box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
-}
-.drill-btn-next-question:hover { border-color: #fff; color: #fff; transform: translateY(-1px); }
-.drill-btn-list {
-    background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4);
-}
-.drill-btn-exit {
-    background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.8);
-}
-
-/* ゾーン③：操作ゾーン */
+/* ==========================================================================
+  【ゾーン③：操作・説明共通固定ゾーン（4大モード完全同一スロット・枠絶対不動）】
+========================================================================== */
 .player-control-zone {
-    width: min(98vw, 440px); display: flex; flex-direction: column; gap: 3px;
-    flex-shrink: 0; position: relative; transition: all 0.4s ease;
+    width: min(98vw, 440px);
+    height: var(--slot-fixed-height);
+    min-height: var(--slot-fixed-height);
+    max-height: var(--slot-fixed-height);
+    display: flex; flex-direction: column;
+    flex-shrink: 0; position: relative;
+    box-sizing: border-box; overflow: hidden;
 }
 
 @media (min-width: 600px) and (max-aspect-ratio: 1/1) {
     .player-control-zone { width: min(92vw, 680px); }
 }
 
+/* 4大モードカード共通基盤（枠サイズ完全一致） */
+.slot-mode-card {
+    width: 100%; height: 100%; max-height: 100%;
+    position: absolute; inset: 0;
+    box-sizing: border-box; overflow: hidden;
+}
+
+/* ① 通常対局操作カード */
 .royal-card {
     background: var(--panel-bg);
     border: 2.5px solid var(--char-accent); border-radius: 12px;
     padding: clamp(3px, 0.7dvh, 6px) 8px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75), 0 0 12px var(--char-glow);
     backdrop-filter: blur(10px); position: relative; transition: border-color 0.5s ease, box-shadow 0.5s ease;
+    display: flex; flex-direction: column; justify-content: space-between;
 }
 .royal-card::before { content: ""; position: absolute; inset: 2px; border: 1px solid rgba(212, 167, 72, 0.15); border-radius: 10px; pointer-events: none; }
 .royal-card.turn-notify-pulse { box-shadow: 0 0 24px var(--char-glow), 0 8px 24px rgba(0, 0, 0, 0.7) !important; border-color: #ffd700 !important; }
 
 .player-status-banner {
     width: 100%; display: flex; align-items: center; justify-content: center;
-    padding: 2.5px 6px; margin-bottom: 3px;
+    padding: 2.5px 6px; margin-bottom: 2px;
     background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(212, 167, 72, 0.14) 50%, rgba(0,0,0,0) 100%);
-    border-bottom: 1px solid rgba(212, 167, 72, 0.25);
+    border-bottom: 1px solid rgba(212, 167, 72, 0.25); flex-shrink: 0;
 }
 
 #status {
@@ -837,7 +739,7 @@ header {
 
 .player-sub-row {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 6px; margin-bottom: 3px; padding: 0 2px;
+    gap: 6px; margin-bottom: 2px; padding: 0 2px; flex-shrink: 0;
 }
 
 .player-stats-group { display: flex; align-items: center; gap: 6px; }
@@ -863,8 +765,8 @@ header {
     transform: translateY(-1px);
 }
 
-.action-grid-row1 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 4px; margin-bottom: 3px; }
-.action-grid-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 3.5px; }
+.action-grid-row1 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 4px; margin-bottom: 2px; flex-shrink: 0; }
+.action-grid-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 3.5px; flex-shrink: 0; }
 
 select {
     font-family: inherit; font-size: 10px; font-weight: 700; padding: 2px 4px; border-radius: 6px;
@@ -905,11 +807,11 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 }
 
 .hint-fixed-display {
-    width: 100%; height: clamp(46px, 6.2dvh, 56px); margin-top: 3px; padding: clamp(2px, 0.4dvh, 4px) 8px;
+    width: 100%; height: clamp(44px, 5.8dvh, 52px); margin-top: 2px; padding: clamp(2px, 0.4dvh, 4px) 8px;
     border: 1px solid rgba(212, 167, 72, 0.45); border-radius: 8px; background: rgba(14, 15, 20, 0.95);
     box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.5);
     display: flex; flex-direction: column; justify-content: center; overflow: hidden; position: relative;
-    transition: all 0.3s ease;
+    transition: all 0.3s ease; flex-shrink: 0;
 }
 
 .hint-fixed-display.hint-mode-sealed {
@@ -924,25 +826,25 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .hint-elegant-gold-text { font-size: 9.5px; line-height: 1.35; color: #ecd08c; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); overflow-y: auto; flex: 1; }
 .hint-placeholder-text { font-size: 9.5px; color: #8e8474; font-style: italic; text-align: center; line-height: 18px; }
 
-/* 棋譜検証パネル */
+/* ② 棋譜検証（検討）モードパネル（完全同高スロット収容） */
 .review-mode-panel {
-    display: none; width: 100%; background: linear-gradient(165deg, #1e1e28 0%, #101017 100%);
+    display: none; background: linear-gradient(165deg, #1e1e28 0%, #101017 100%);
     border: 1.5px solid var(--amber-accent); border-radius: 12px; padding: 6px 9px;
-    box-shadow: 0 0 20px rgba(229, 184, 66, 0.3); flex-direction: column; gap: 5px;
+    box-shadow: 0 0 20px rgba(229, 184, 66, 0.3); flex-direction: column; justify-content: space-between;
 }
 .review-mode-panel.show { display: flex; }
-.review-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 3px; }
+.review-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 2px; flex-shrink: 0; }
 .review-step-label { font-size: 11px; font-weight: 800; color: #fae6b2; }
 .review-turn-info { font-family: 'Cinzel', serif; font-size: 10.5px; font-weight: 700; color: #fff2cc; }
 .review-context-box {
     background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(212, 167, 72, 0.3);
-    border-radius: 6px; padding: 5px 8px; font-size: 10px; line-height: 1.45; color: #ecd08c;
-    min-height: 52px; display: flex; align-items: center;
+    border-radius: 6px; padding: 4px 8px; font-size: 9.5px; line-height: 1.4; color: #ecd08c;
+    flex: 1; overflow-y: auto; display: flex; align-items: center; margin: 3px 0; min-height: 0;
 }
-.review-controls-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-.review-controls-row2 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 4px; }
+.review-controls-row1 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; flex-shrink: 0; }
+.review-controls-row2 { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 4px; flex-shrink: 0; margin-top: 3px; }
 .btn-review-nav {
-    padding: 4.5px 3px; font-size: 10px; font-weight: 800; border-radius: 6px; border: 1px solid var(--gold-border);
+    padding: 4px 3px; font-size: 10px; font-weight: 800; border-radius: 6px; border: 1px solid var(--gold-border);
     background: linear-gradient(180deg, #2a2c3a 0%, #151620 100%); color: #ffffff; transition: all 0.2s ease;
 }
 .btn-review-nav:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.8); }
@@ -950,14 +852,122 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .btn-jump-bad { background: linear-gradient(180deg, #441f1f 0%, #200d0d 100%); border: 1px solid #ff6b6b; color: #ffd8d8; font-weight: 800; }
 .btn-review-exit { background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff; font-weight: 900; box-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
 
-.review-deep-card { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; }
+.review-deep-card { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; }
 .review-deep-card.bad-highlight { border-left: 3px solid #ff4d4d; padding-left: 6px; }
 .review-deep-card.turn-highlight { border-left: 3px solid #ffd700; padding-left: 6px; }
-.deep-card-title { font-size: 11px; font-weight: 900; margin-bottom: 1px; }
+.deep-card-title { font-size: 10.5px; font-weight: 900; margin-bottom: 1px; }
 .bad-highlight .deep-card-title { color: #ff6b6b; }
 .turn-highlight .deep-card-title { color: #ffd700; }
-.deep-metrics-row { font-size: 10px; color: #fff4bd; background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 4px; margin: 2px 0; }
-.deep-card-detail { font-size: 9.5px; color: #ecd08c; line-height: 1.4; }
+.deep-metrics-row { font-size: 9.5px; color: #fff4bd; background: rgba(0,0,0,0.4); padding: 1.5px 5px; border-radius: 4px; margin: 1px 0; }
+.deep-card-detail { font-size: 9px; color: #ecd08c; line-height: 1.35; }
+
+/* ③ 📖 講義コントロールカード（完全同高スロット収容） */
+.lecture-control-card {
+    display: none; background: linear-gradient(145deg, rgba(24, 28, 40, 0.98) 0%, rgba(12, 14, 22, 0.99) 100%);
+    border: 2px solid #5ef7a2; border-radius: 12px; padding: 7px 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(46, 204, 113, 0.4);
+    flex-direction: column; justify-content: space-between; text-align: left;
+    animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+}
+.lecture-control-card.show { display: flex; }
+.lecture-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(46, 204, 113, 0.3); padding-bottom: 2px; flex-shrink: 0; }
+.lecture-topic-badge { font-size: 11px; font-weight: 900; color: #5ef7a2; display: inline-flex; align-items: center; gap: 4px; }
+.lecture-step-indicator { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; color: #ffd700; }
+
+.lecture-body-box { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; margin: 2px 0; }
+.lecture-title-text { font-size: 11px; font-weight: 900; color: #ffffff; margin-top: 1px; flex-shrink: 0; }
+.lecture-desc-text { font-size: 9.5px; color: #ecd08c; line-height: 1.35; margin-top: 1px; flex-shrink: 0; }
+
+.lecture-explain-box {
+    background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(212, 167, 72, 0.3);
+    border-radius: 6px; padding: 4px 6px; font-size: 9px; line-height: 1.35; color: #fff4bd;
+    overflow-y: auto; margin-top: 2px; flex: 1; min-height: 0;
+}
+.lecture-step-log { margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
+.lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
+.lecture-step-log b { color: #5ef7a2; }
+.lecture-solution-card {
+    background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; border-radius: 6px;
+    padding: 3px 5px; color: #d4f8e2; font-weight: 800; margin-top: 2px;
+}
+
+.lecture-actions-bar {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 2px;
+    padding-top: 2px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap; flex-shrink: 0;
+}
+.lecture-btn-action {
+    font-size: 9.5px; font-weight: 900; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
+}
+.btn-lecture-play { background: linear-gradient(180deg, #5ef7a2 0%, #2ecc71 100%); color: #042415; border: 1px solid #fff; box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
+.btn-lecture-reset { background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4); }
+.btn-lecture-to-drill { background: var(--pure-gold-btn); color: #121008; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255, 215, 0, 0.7); display: none; }
+.btn-lecture-exit { background: rgba(255, 255, 255, 0.06); color: #c9ba9f; border: 1px solid rgba(255, 255, 255, 0.2); }
+
+/* ④ 🎯 検定解答カード（完全同高スロット収容） */
+.drill-control-card {
+    display: none; background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
+    border: 2px solid #ffd700; border-radius: 12px; padding: 7px 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.45);
+    flex-direction: column; justify-content: space-between; text-align: left;
+    animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+}
+.drill-control-card.show { display: flex; }
+
+.drill-header-nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212, 167, 72, 0.3); padding-bottom: 2px; flex-shrink: 0; }
+.drill-topic-badge { font-size: 11px; font-weight: 900; color: #ffd700; display: inline-flex; align-items: center; gap: 4px; }
+.drill-diff-badge { font-family: 'Cinzel', serif; font-size: 9px; font-weight: 900; padding: 1px 5px; border-radius: 4px; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; }
+
+.drill-question-box { font-size: 10px; font-weight: 800; color: #ffffff; line-height: 1.35; margin-top: 1px; flex-shrink: 0; }
+.drill-question-sub { font-size: 8.5px; color: #ecd08c; margin-top: 1px; }
+
+.drill-feedback-box {
+    display: none; border-radius: 6px; padding: 4px 6px; font-size: 9.5px; line-height: 1.35;
+    margin-top: 2px; animation: popup-fade-in 0.25s ease forwards;
+    flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box;
+}
+.drill-feedback-box.correct {
+    display: block; background: rgba(14, 46, 26, 0.92); border: 1.5px solid #2ecc71; color: #d4f8e2;
+    box-shadow: 0 0 14px rgba(46, 204, 113, 0.45);
+}
+.drill-feedback-box.wrong {
+    display: block; background: rgba(48, 14, 14, 0.92); border: 1.5px solid #ff4d4d; color: #ffd8d8;
+    box-shadow: 0 0 14px rgba(255, 77, 77, 0.45);
+}
+
+.drill-reason-act {
+    margin-bottom: 2.5px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+.drill-reason-act:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.drill-reason-act b { color: #ffd700; font-size: 9.5px; }
+
+.drill-actions-bar {
+    display: flex; justify-content: space-between; align-items: center; margin-top: 2px;
+    padding-top: 2px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 4px; flex-wrap: wrap; flex-shrink: 0;
+}
+.drill-btn-action {
+    font-size: 9px; font-weight: 900; padding: 4px 7px; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s ease;
+}
+.drill-btn-retry {
+    background: linear-gradient(180deg, #442a1a 0%, #201209 100%); color: #ecd08c;
+    border: 1.5px solid rgba(212, 167, 72, 0.6); display: none;
+}
+.drill-btn-retry:hover { border-color: #ffd700; color: #fff; transform: translateY(-1px); }
+.drill-btn-lecture {
+    background: rgba(46, 204, 113, 0.15); color: #bbf7d0; border: 1px solid #2ecc71;
+}
+.drill-btn-next-question {
+    background: linear-gradient(180deg, #235835 0%, #102e1b 100%); color: #bbf7d0;
+    border: 1.5px solid #2ecc71; display: none; box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+}
+.drill-btn-next-question:hover { border-color: #fff; color: #fff; transform: translateY(-1px); }
+.drill-btn-list {
+    background: rgba(255, 255, 255, 0.08); color: #ecd08c; border: 1px solid rgba(212, 167, 72, 0.4);
+}
+.drill-btn-exit {
+    background: var(--pure-gold-btn); color: #121008; border: 1px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
 
 /* 📜 豪傑人物伝・攻略指南モーダル */
 .profile-modal-body { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
@@ -983,7 +993,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 }
 .profile-section-title { font-size: 11px; font-weight: 900; color: #ffd700; margin-bottom: 2px; }
 
-/* 📋 検定コース一覧モーダル（第3問の右枠突き抜け完全防止・流動フィット） */
+/* 📋 検定コース一覧モーダル */
 #drillCourseModal .dynasty-modal { max-width: 580px; }
 .drill-course-list { display: flex; flex-direction: column; gap: 9px; margin: 10px 0; max-height: 65dvh; overflow-y: auto; }
 .drill-theme-category-card {
@@ -1007,7 +1017,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 
 .drill-theme-summary { font-size: 9.5px; color: #ecd08c; line-height: 1.35; }
 
-/* 🎯 第3問が絶対に枠からはみ出さない縦積み／流動グリッド構造 */
 .drill-theme-questions-list {
     display: flex; flex-direction: column; gap: 4.5px; width: 100%; box-sizing: border-box;
 }
@@ -1160,7 +1169,6 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .archive-stat-lbl { font-size: 9px; color: #d4c09b; font-weight: 700; }
 .archive-stat-val { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 900; color: #ffd700; }
 
-/* 豪傑肖像画 1.2倍拡大（名前フォント最適化） */
 .archive-crown-grid {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
     padding: 8px 6px 6px 6px; background: rgba(0,0,0,0.45); border-radius: 10px;
@@ -1495,12 +1503,11 @@ footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-conte
 /* 横画面配置（PC・タブレット対応） */
 @media (min-aspect-ratio: 1.05/1) and (min-width: 768px) {
     .app-container { flex-direction: row; justify-content: center; align-items: center; gap: clamp(8px, 1.8vw, 24px); padding: 0 8px; }
-    .player-control-zone { order: 1; width: clamp(290px, 25vw, 370px); }
+    .player-control-zone { order: 1; width: clamp(290px, 25vw, 370px); height: min(72dvh, 45vw); min-height: min(72dvh, 45vw); max-height: min(72dvh, 45vw); }
     .board-zone { order: 2; margin: 0; width: auto; }
     #board { width: min(72dvh, 45vw); height: min(72dvh, 45vw); }
     .battle-gauge-container { width: min(72dvh, 45vw); margin-top: 0; }
     .opponent-zone { order: 3; width: clamp(280px, 24vw, 360px); height: auto; max-height: none; }
     .opponent-avatar-frame { width: clamp(84px, 8.5vw, 98px); height: clamp(110px, 11vw, 128px); }
 }
-
 
