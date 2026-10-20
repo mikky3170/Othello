@@ -1,118 +1,124 @@
 
 /* ==========================================================================
-  【オセロプログラム ロジック・AI思考エンジン】
+  【オセロプログラム メインロジックモジュール】
   ファイル名: othello_ai_sensei_js.js
-  バージョン: Ver 8.7.0 (2025/05/20)
+  バージョン: Ver 8.7.1 (2025/05/20)
   
-  [Ver 8.7.0] 2025/05/20 更新内容:
-  - 【教育体系完全統合＆講義コマ送り操作エディション】
-  - 講義モードを完全コマ送り（◀ 前のステップ / 次のステップ ▶）化。
-  - 各ステップの盤面・数字マーカー（①〜⑨）・解説文を寸分違わず前後に巻き戻し・進行可能に。
-  - 「待った」実行時のガイドリング消滅バグおよびヒント停止バグ完全根絶。
+  [Ver 8.7.1] 2025/05/20 更新内容:
+  - 【最善手vs悪手 本質教育＆極端コントラスト局面完全同期エディション】
+  - 講義「lec-3」の新局面（悪手F5で相手7箇所へ爆発 / 最善手C5で相手1箇所へ封殺）に完全同期。
+  - 講義コマ送り時の解説自動スムーズスクロール処理を実装し、視線移動の迷いをゼロ化。
+  - 検定不正解時に「もう一度やり直す ↺」ボタンをパルス強調し、学習意欲を途切れさせない導線を確立。
 ========================================================================== */
 
-const boardSize = 8;
+/* ==========================================================================
+  【定数およびグローバル状態変数】
+========================================================================== */
+const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v2";
 
-let humanColor = BLACK, cpuColor = WHITE;
-let board, currentPlayer, gameOver, isBusy = false, isMuted = false;
-let pendingAnimation = null, hintMove = null;
-let historyStack = [];
+let board = [];
+let currentPlayer = BLACK;
+let humanColor = BLACK;
+let cpuColor = WHITE;
+let gameOver = false;
+let isBusy = false;
 
-let lastMove = null, usedHintInGame = false;
-let currentGameSessionId = 0;
-
-let gameStepLogs = [], reviewStepIndex = 0, isReviewMode = false;
-let tacticsBestIndex = -1, tacticsWorstIndex = -1, tacticsWorstAlternative = null;
-let tacticsTurningPointIndex = -1;
-
-// ⚡ マスター対局状態バックアップ（講義・検定・検討から対局へ寸分違わず戻るための一元管理）
+let moveHistory = [];
+let gameStepLogs = [];
+let playerMoveLogs = [];
 let mainGameSnapshot = null;
 
-let elapsedSeconds = 0, playerSeconds = 0, cpuSeconds = 0;
-let isAiThinkingHint = false, timerInterval = null;
-let talkingTimeout = null, toastTimeout = null, curtainTimeout = null, pulseTimeout = null;
-let typeWriterInterval = null, speakingGlowTimeout = null;
+let playerSeconds = 0;
+let cpuSeconds = 0;
+let timerInterval = null;
 
-let playerMoveLogs = [];
-let minPlayerWinrateInGame = 50;
-
-// 直前のセリフテキスト保持（同一セリフのリセット・チラつき防止用）
-let lastOpponentQuoteText = "";
-
-// 事前計算（プリフェッチ）キャッシュ ＆ 即時中断フラグ
+let currentHintCoord = null;
+let currentHintExplanation = "";
 let cachedMoveEvaluations = null;
 let isPrefetching = false;
 let isPrefetchAborted = false;
+let usedHintInGame = false;
+let minPlayerWinrateInGame = 50;
 
-// 探索高速化用トランスポジションテーブル（置換表）フラグ定数
-const TT_EXACT = 0;
-const TT_LOWERBOUND = 1; // αカット
-const TT_UPPERBOUND = 2; // βカット
-const transpositionTable = new Map();
+let tacticsWorstIndex = -1;
+let tacticsWorstAlternative = null;
+let tacticsTurningPointIndex = -1;
+let reviewStepIndex = 0;
 
-// 🎯 宮廷次の一手検定（全15問類題特訓）管理変数
+let isReviewMode = false;
 let isDrillMode = false;
-let currentDrillQuestionIndex = 1;
-const drillPassedMap = {};
+let isLectureMode = false;
 let isSimulatingDrillMistake = false;
 
-// 📖 盤面動的ビジュアル講義 管理変数（コマ送り対応）
-let isLectureMode = false;
-let currentLectureId = "lec-1";
+let currentLectureId = null;
 let currentLectureStepIndex = 0;
+let currentDrillQuestionIndex = 1;
+const drillPassedMap = {};
 
-const STORAGE_KEY_ARCHIVES = "othello_dynasty_archives_v1";
+let isMuted = false;
+let audioCtx = null;
+let bgm = null;
+let typeWriterInterval = null;
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
+/* ==========================================================================
+  【DOM要素参照マップ】
+========================================================================== */
 const DOM = {
     board: document.getElementById("board"),
     boardChassis: document.getElementById("boardChassis"),
+    status: document.getElementById("status"),
+    speechText: document.getElementById("speechText"),
+    opponentSpeech: document.getElementById("opponentSpeech"),
+    opponentAvatarFrame: document.getElementById("opponentAvatarFrame"),
+    opponentAvatarWrap: document.getElementById("opponentAvatarWrap"),
+    avatarImgBox: document.getElementById("avatarImgBox"),
+    opponentName: document.getElementById("opponentName"),
+    opponentTitle: document.getElementById("opponentTitle"),
+    opponentRankBadge: document.getElementById("opponentRankBadge"),
+    opponentThinkingBadge: document.getElementById("opponentThinkingBadge"),
+    badgeSalonName: document.getElementById("badgeSalonName"),
+    badgeMaterial: document.getElementById("badgeMaterial"),
+    playerScore: document.getElementById("playerScore"),
+    opponentScore: document.getElementById("opponentScore"),
+    playerTime: document.getElementById("playerTime"),
+    opponentTime: document.getElementById("opponentTime"),
+    playerPieceIcon: document.getElementById("playerPieceIcon"),
+    opponentPieceIcon: document.getElementById("opponentPieceIcon"),
+    characterSelect: document.getElementById("characterSelect"),
+    hintMode: document.getElementById("hintMode"),
+    btnPlayerBlack: document.getElementById("btnPlayerBlack"),
+    btnPlayerWhite: document.getElementById("btnPlayerWhite"),
+    undoButton: document.getElementById("undoButton"),
+    restartButton: document.getElementById("restartButton"),
+    hintButton: document.getElementById("hintButton"),
+    guideButton: document.getElementById("guideButton"),
+    btnOpenDrillMain: document.getElementById("btnOpenDrillMain"),
+    hintFixedDisplay: document.getElementById("hintFixedDisplay"),
+    hintBadgeTag: document.getElementById("hintBadgeTag"),
+    hintCoordText: document.getElementById("hintCoordText"),
+    hintBodyText: document.getElementById("hintBodyText"),
+    battleGaugeContainer: document.getElementById("battleGaugeContainer"),
+    battleStatPlayerText: document.getElementById("battleStatPlayerText"),
+    battleStatOpponentText: document.getElementById("battleStatOpponentText"),
+    battleSituationBadge: document.getElementById("battleSituationBadge"),
+    battlePowerPlayer: document.getElementById("battlePowerPlayer"),
+    battlePowerOpponent: document.getElementById("battlePowerOpponent"),
+    battleClashSpark: document.getElementById("battleClashSpark"),
+    battlePiecePlayer: document.getElementById("battlePiecePlayer"),
+    battlePieceOpponent: document.getElementById("battlePieceOpponent"),
+    moveToast: document.getElementById("moveToast"),
     stageCurtainBanner: document.getElementById("stageCurtainBanner"),
     curtainStageLabel: document.getElementById("curtainStageLabel"),
     curtainSalonTitle: document.getElementById("curtainSalonTitle"),
     curtainRelicSub: document.getElementById("curtainRelicSub"),
-    status: document.getElementById("status"),
-    playerTime: document.getElementById("playerTime"),
-    opponentTime: document.getElementById("opponentTime"),
-    playerScore: document.getElementById("playerScore"),
-    opponentScore: document.getElementById("opponentScore"),
-    playerPieceIcon: document.getElementById("playerPieceIcon"),
-    opponentPieceIcon: document.getElementById("opponentPieceIcon"),
-    opponentAvatarWrap: document.getElementById("opponentAvatarWrap"),
-    opponentAvatarFrame: document.getElementById("opponentAvatarFrame"),
-    avatarImgBox: document.getElementById("avatarImgBox"),
-    opponentRankBadge: document.getElementById("opponentRankBadge"),
-    opponentThinkingBadge: document.getElementById("opponentThinkingBadge"),
-    opponentName: document.getElementById("opponentName"),
-    opponentTitle: document.getElementById("opponentTitle"),
-    badgeSalonName: document.getElementById("badgeSalonName"),
-    badgeMaterial: document.getElementById("badgeMaterial"),
-    opponentSpeech: document.getElementById("opponentSpeech"),
-    speechText: document.getElementById("speechText"),
-    characterSelect: document.getElementById("characterSelect"),
-    hintMode: document.getElementById("hintMode"),
-    hintButton: document.getElementById("hintButton"),
-    hintBadgeTag: document.getElementById("hintBadgeTag"),
-    hintFixedDisplay: document.getElementById("hintFixedDisplay"),
-    hintCoordText: document.getElementById("hintCoordText"),
-    hintBodyText: document.getElementById("hintBodyText"),
-    undoButton: document.getElementById("undoButton"),
-    moveToast: document.getElementById("moveToast"),
-    battleGaugeContainer: document.getElementById("battleGaugeContainer"),
-    battlePowerPlayer: document.getElementById("battlePowerPlayer"),
-    battlePowerOpponent: document.getElementById("battlePowerOpponent"),
-    battleClashSpark: document.getElementById("battleClashSpark"),
-    battleStatPlayerText: document.getElementById("battleStatPlayerText"),
-    battleStatOpponentText: document.getElementById("battleStatOpponentText"),
-    battlePiecePlayer: document.getElementById("battlePiecePlayer"),
-    battlePieceOpponent: document.getElementById("battlePieceOpponent"),
-    battleSituationBadge: document.getElementById("battleSituationBadge"),
-    btnPlayerBlack: document.getElementById("btnPlayerBlack"),
-    btnPlayerWhite: document.getElementById("btnPlayerWhite"),
+
+    /* モード共通固定カード群 */
     normalControlCard: document.getElementById("normalControlCard"),
-    btnOpenDrillMain: document.getElementById("btnOpenDrillMain"),
     reviewModePanel: document.getElementById("reviewModePanel"),
+    lectureControlCard: document.getElementById("lectureControlCard"),
+    drillControlCard: document.getElementById("drillControlCard"),
+
+    /* 検討モード用 */
     reviewTurnInfo: document.getElementById("reviewTurnInfo"),
     reviewContextBox: document.getElementById("reviewContextBox"),
     btnReviewPrev: document.getElementById("btnReviewPrev"),
@@ -121,46 +127,22 @@ const DOM = {
     btnJumpBad: document.getElementById("btnJumpBad"),
     btnReviewExit: document.getElementById("btnReviewExit"),
     btnStartReview: document.getElementById("btnStartReview"),
-    btnResultArchive: document.getElementById("btnResultArchive"),
-    royalResultModal: document.getElementById("royalResultModal"),
-    resultMainTitle: document.getElementById("resultMainTitle"),
-    opponentStatusTag: document.getElementById("opponentStatusTag"),
-    resultAvatarFrame: document.getElementById("resultAvatarFrame"),
-    resultCharNameBadge: document.getElementById("resultCharNameBadge"),
-    resultQuoteBox: document.getElementById("resultQuoteBox"),
-    resultStonesDetail: document.getElementById("resultStonesDetail"),
-    resultTimesDetail: document.getElementById("resultTimesDetail"),
-    carteHintAdvice: document.getElementById("carteHintAdvice"),
-    carteStoryTimeline: document.getElementById("carteStoryTimeline"),
-    btnResultAdvance: document.getElementById("btnResultAdvance"),
-    btnAdvanceIcon: document.getElementById("btnAdvanceIcon"),
-    btnAdvanceText: document.getElementById("btnAdvanceText"),
-    endingModal: document.getElementById("endingModal"),
-    btnRestartFromBeginning: document.getElementById("btnRestartFromBeginning"),
-    archiveOpenBtn: document.getElementById("archiveOpenBtn"),
-    archiveOverlay: document.getElementById("archiveOverlay"),
-    archiveCloseButton: document.getElementById("archiveCloseButton"),
-    archStatWinrate: document.getElementById("archStatWinrate"),
-    archStatWld: document.getElementById("archStatWld"),
-    archStatStreak: document.getElementById("archStatStreak"),
-    archStatBestRate: document.getElementById("archStatBestRate"),
-    archiveCrownGrid: document.getElementById("archiveCrownGrid"),
-    archFilterOpponent: document.getElementById("archFilterOpponent"),
-    archFilterMode: document.getElementById("archFilterMode"),
-    archFilterResult: document.getElementById("archFilterResult"),
-    archSortOrder: document.getElementById("archSortOrder"),
-    btnArchiveClear: document.getElementById("btnArchiveClear"),
-    archiveTableBody: document.getElementById("archiveTableBody"),
-    versionBadge: document.getElementById("versionBadge"),
-    chronicleTimeline: document.getElementById("chronicleTimeline"),
-    termPopup: document.getElementById("termPopup"),
-    termPopupTitle: document.getElementById("termPopupTitle"),
-    termPopupClose: document.getElementById("termPopupClose"),
-    termPopupBody: document.getElementById("termPopupBody"),
-    termPopupDrillBtn: document.getElementById("termPopupDrillBtn"),
-    termPopupMore: document.getElementById("termPopupMore"),
-    guideOverlay: document.getElementById("guideOverlay"),
-    drillControlCard: document.getElementById("drillControlCard"),
+
+    /* 講義モード用 */
+    lectureTopicBadge: document.getElementById("lectureTopicBadge"),
+    lectureStepIndicator: document.getElementById("lectureStepIndicator"),
+    lectureTitleText: document.getElementById("lectureTitleText"),
+    lectureDescText: document.getElementById("lectureDescText"),
+    lectureExplainBox: document.getElementById("lectureExplainBox"),
+    btnLecturePrev: document.getElementById("btnLecturePrev"),
+    btnLectureNext: document.getElementById("btnLectureNext"),
+    btnLectureReset: document.getElementById("btnLectureReset"),
+    btnLectureToDrill: document.getElementById("btnLectureToDrill"),
+    btnLectureExit: document.getElementById("btnLectureExit"),
+
+    /* 検定モード用 */
+    drillCourseModal: document.getElementById("drillCourseModal"),
+    drillCourseList: document.getElementById("drillCourseList"),
     drillTopicBadge: document.getElementById("drillTopicBadge"),
     drillDiffBadge: document.getElementById("drillDiffBadge"),
     drillQuestionText: document.getElementById("drillQuestionText"),
@@ -173,21 +155,25 @@ const DOM = {
     btnDrillNextQuestion: document.getElementById("btnDrillNextQuestion"),
     btnDrillList: document.getElementById("btnDrillList"),
     btnDrillExit: document.getElementById("btnDrillExit"),
-    drillCourseModal: document.getElementById("drillCourseModal"),
-    drillCourseList: document.getElementById("drillCourseList"),
     drillCertificateModal: document.getElementById("drillCertificateModal"),
-    // 📖 講義用DOM（コマ送り対応）
-    lectureControlCard: document.getElementById("lectureControlCard"),
-    lectureTopicBadge: document.getElementById("lectureTopicBadge"),
-    lectureStepIndicator: document.getElementById("lectureStepIndicator"),
-    lectureTitleText: document.getElementById("lectureTitleText"),
-    lectureDescText: document.getElementById("lectureDescText"),
-    lectureExplainBox: document.getElementById("lectureExplainBox"),
-    btnLecturePrev: document.getElementById("btnLecturePrev"),
-    btnLectureNext: document.getElementById("btnLectureNext"),
-    btnLectureReset: document.getElementById("btnLectureReset"),
-    btnLectureToDrill: document.getElementById("btnLectureToDrill"),
-    btnLectureExit: document.getElementById("btnLectureExit"),
+
+    /* 会見モーダル */
+    royalResultModal: document.getElementById("royalResultModal"),
+    resultMainTitle: document.getElementById("resultMainTitle"),
+    resultAvatarFrame: document.getElementById("resultAvatarFrame"),
+    resultCharNameBadge: document.getElementById("resultCharNameBadge"),
+    opponentStatusTag: document.getElementById("opponentStatusTag"),
+    resultQuoteBox: document.getElementById("resultQuoteBox"),
+    resultStonesDetail: document.getElementById("resultStonesDetail"),
+    resultTimesDetail: document.getElementById("resultTimesDetail"),
+    carteStoryTimeline: document.getElementById("carteStoryTimeline"),
+    carteHintAdvice: document.getElementById("carteHintAdvice"),
+    btnResultAdvance: document.getElementById("btnResultAdvance"),
+    btnAdvanceIcon: document.getElementById("btnAdvanceIcon"),
+    btnAdvanceText: document.getElementById("btnAdvanceText"),
+    btnResultArchive: document.getElementById("btnResultArchive"),
+
+    /* 豪傑人物伝 */
     charProfileModal: document.getElementById("charProfileModal"),
     profileCharNameHeader: document.getElementById("profileCharNameHeader"),
     profileAvatarBox: document.getElementById("profileAvatarBox"),
@@ -196,720 +182,279 @@ const DOM = {
     profileMaterialBadge: document.getElementById("profileMaterialBadge"),
     profileBioText: document.getElementById("profileBioText"),
     profileTacticsText: document.getElementById("profileTacticsText"),
+
+    /* 思案所モーダル */
+    guideOverlay: document.getElementById("guideOverlay"),
     opsGuideContainer: document.getElementById("opsGuideContainer"),
     strategyPhasesContainer: document.getElementById("strategyPhasesContainer"),
     strategyRoadmapContainer: document.getElementById("strategyRoadmapContainer"),
-    charGalleryList: document.getElementById("charGalleryList")
+    charGalleryList: document.getElementById("charGalleryList"),
+
+    /* 用語ポップアップ */
+    termPopup: document.getElementById("termPopup"),
+    termPopupTitle: document.getElementById("termPopupTitle"),
+    termPopupBody: document.getElementById("termPopupBody"),
+    termPopupClose: document.getElementById("termPopupClose"),
+    termPopupDrillBtn: document.getElementById("termPopupDrillBtn"),
+    termPopupMore: document.getElementById("termPopupMore"),
+
+    /* 戦績録 */
+    archiveOverlay: document.getElementById("archiveOverlay"),
+    archiveCloseButton: document.getElementById("archiveCloseButton"),
+    archiveOpenBtn: document.getElementById("archiveOpenBtn"),
+    archiveTableBody: document.getElementById("archiveTableBody"),
+    archStatWinrate: document.getElementById("archStatWinrate"),
+    archStatWld: document.getElementById("archStatWld"),
+    archStatStreak: document.getElementById("archStatStreak"),
+    archStatBestRate: document.getElementById("archStatBestRate"),
+    archiveCrownGrid: document.getElementById("archiveCrownGrid"),
+    archFilterOpponent: document.getElementById("archFilterOpponent"),
+    archFilterMode: document.getElementById("archFilterMode"),
+    archFilterResult: document.getElementById("archFilterResult"),
+    archSortOrder: document.getElementById("archSortOrder"),
+    btnArchiveClear: document.getElementById("btnArchiveClear"),
+
+    /* 戴冠式 */
+    endingModal: document.getElementById("endingModal"),
+    btnRestartFromBeginning: document.getElementById("btnRestartFromBeginning"),
+
+    /* 年代記 */
+    chronicleTimeline: document.getElementById("chronicleTimeline"),
+    versionBadge: document.getElementById("versionBadge")
 };
 
-const cornerSquares = [[0, 0], [0, 7], [7, 0], [7, 7]];
-const directions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-
-const FLIP_INTERVAL_MS = 115;
-const FLIP_ANIMATION_DURATION_MS = 680;
-
-/* WebAudio 音響合成 */
-const bgm = document.getElementById("bgmAudio");
-if (bgm) bgm.volume = 0.32;
-let audioCtx = null;
-
-function getAudioContext() {
-    try {
-        const AudioClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioClass) return null;
-        if (!audioCtx || audioCtx.state === "closed") audioCtx = new AudioClass();
-        if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-        return audioCtx;
-    } catch (e) { return null; }
+/* ==========================================================================
+  【音響エンジン】
+========================================================================== */
+function initAudio() {
+    if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+    }
+    if (!bgm) {
+        bgm = document.getElementById("bgmAudio");
+        if (bgm) bgm.volume = 0.22;
+    }
+    if (bgm && !isMuted && bgm.paused) {
+        bgm.play().catch(() => {});
+    }
 }
 
-function tryPlayBgm() { if (!isMuted && bgm && bgm.paused && !document.hidden) bgm.play().catch(() => {}); }
-const unlockAudio = () => { tryPlayBgm(); getAudioContext(); };
-document.addEventListener("click", unlockAudio, { once: true });
-document.addEventListener("touchstart", unlockAudio, { once: true });
-
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-        try { if (bgm && !bgm.paused) bgm.pause(); if (audioCtx && audioCtx.state === "running") audioCtx.suspend().catch(() => {}); } catch(e){}
-    } else if (!isMuted) {
-        tryPlayBgm();
-        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
-    }
-});
-
-function createSynthesizedHit(duration, decay, filterFreq, filterQ, oscStartFreq, oscEndFreq, vol) {
-    if (isMuted || document.hidden) return;
+function playTone(freq, type, duration, gainLevel = 0.1) {
+    if (isMuted) return;
+    initAudio();
+    if (!audioCtx) return;
     try {
-        const ctx = getAudioContext();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        const len = Math.floor(ctx.sampleRate * duration);
-        if (len > 0) {
-            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * decay));
-            const noise = ctx.createBufferSource();
-            noise.buffer = buf;
-            const filter = ctx.createBiquadFilter();
-            filter.type = "bandpass"; filter.frequency.setValueAtTime(filterFreq, now); filter.Q.setValueAtTime(filterQ, now);
-            const nGain = ctx.createGain();
-            nGain.gain.setValueAtTime(vol, now); nGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-            noise.connect(filter).connect(nGain).connect(ctx.destination);
-            noise.start(now);
-        }
-        const osc = ctx.createOscillator();
-        osc.frequency.setValueAtTime(oscStartFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(oscEndFreq, now + duration * 1.3);
-        const tGain = ctx.createGain();
-        tGain.gain.setValueAtTime(vol * 1.1, now);
-        tGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.3);
-        osc.connect(tGain).connect(ctx.destination);
-        osc.start(now); osc.stop(now + duration * 1.3);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainLevel, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
     } catch (e) {}
 }
 
-function playPlaceSound() { createSynthesizedHit(0.045, 0.16, 1400, 1.8, 220, 45, 0.95); }
-function playFlipSingleSound(pitch = 1.0, isLast = false) {
-    createSynthesizedHit(0.042, 0.28, (isLast ? 2400 : 1800) * pitch, 2.0, 260 * pitch, 90 * pitch, isLast ? 0.68 : 0.52);
-}
-
-function playFlipSequence(count) {
-    if (isMuted || document.hidden) return;
-    for (let i = 0; i < count; i++) {
-        setTimeout(() => playFlipSingleSound(0.92 + i * 0.05, i === count - 1), i * FLIP_INTERVAL_MS + 80);
-    }
-}
-
+function playPlaceSound() { playTone(440, "sine", 0.08, 0.15); }
 function playFanfareSound() {
-    if (isMuted || document.hidden) return;
-    try {
-        const ctx = getAudioContext();
-        if (!ctx) return;
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            const startTime = ctx.currentTime + (idx * 0.08);
-            osc.type = "triangle";
-            osc.frequency.setValueAtTime(freq, startTime);
-            gain.gain.setValueAtTime(0.4, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.45);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start(startTime);
-            osc.stop(startTime + 0.45);
-        });
-    } catch (e) {}
+    playTone(523.25, "triangle", 0.15, 0.2);
+    setTimeout(() => playTone(659.25, "triangle", 0.18, 0.2), 120);
+    setTimeout(() => playTone(783.99, "triangle", 0.35, 0.25), 260);
 }
-
 function playBuzzerSound() {
-    if (isMuted || document.hidden) return;
-    try {
-        const ctx = getAudioContext();
-        if (!ctx) return;
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.setValueAtTime(110, now + 0.12);
-        gain.gain.setValueAtTime(0.35, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.32);
-    } catch (e) {}
+    playTone(180, "sawtooth", 0.2, 0.18);
+    setTimeout(() => playTone(140, "sawtooth", 0.28, 0.2), 160);
 }
 
-function getBoardStats(targetBoard = board) {
-    let black = 0, white = 0, empty = 0;
-    if (!targetBoard) return { black: 0, white: 0, empty: 64 };
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const val = targetBoard[r][c];
-            if (val === BLACK) black++; else if (val === WHITE) white++; else empty++;
-        }
-    }
-    return { black, white, empty };
+/* ==========================================================================
+  【ユーティリティ関数】
+========================================================================== */
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const opposite = color => (color === BLACK ? WHITE : BLACK);
+const cloneBoard = b => b.map(row => row.slice());
+
+function toNotation(r, c) {
+    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    return `${cols[c]}${r + 1}`;
 }
-const getEmptyCount = (target = board) => getBoardStats(target).empty;
-const isInside = (r, c) => r >= 0 && r < boardSize && c >= 0 && c < boardSize;
-const opposite = (p) => (p === BLACK ? WHITE : BLACK);
-const cloneBoard = (src) => src.map(r => r.slice());
-const toNotation = (r, c) => String.fromCharCode(65 + c) + (r + 1);
+
+function formatMinSec(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function getCurrentCharacter() {
+    const charId = DOM.characterSelect ? Number(DOM.characterSelect.value) : 1;
+    return (typeof CHARACTERS !== "undefined" && CHARACTERS[charId]) ? CHARACTERS[charId] : {
+        id: 1, name: "ピエロ", rankLabel: "入門", salonName: "酒場",
+        materialDesc: "木目", boardDesc: "木製", themeColor: "#e63946", themeGlow: "rgba(230,57,70,0.6)"
+    };
+}
 
 function getBoardCell(r, c) {
-    if (!DOM.board) return null;
-    return DOM.board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    return DOM.board ? DOM.board.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`) : null;
 }
 
+/* ==========================================================================
+  【盤面座標ラベル & バージョン年代記初期化】
+========================================================================== */
 function initCoordLabels() {
-    const chassis = DOM.boardChassis;
-    if (!chassis) return;
-    chassis.querySelectorAll(".coord-label").forEach(l => l.remove());
+    if (!DOM.boardChassis) return;
+    DOM.boardChassis.querySelectorAll(".coord-label").forEach(el => el.remove());
 
-    ['A','B','C','D','E','F','G','H'].forEach((col, i) => {
-        const pos = `calc(var(--frame-pad) + (100% - var(--frame-pad) * 2) * (${i} + 0.5) / 8)`;
-        const topL = document.createElement("div"), botL = document.createElement("div");
-        topL.className = botL.className = "coord-label";
-        topL.textContent = botL.textContent = col;
-        topL.style.cssText = `left: ${pos}; top: calc(var(--frame-pad) / 2); transform: translate(-50%, -50%);`;
-        botL.style.cssText = `left: ${pos}; bottom: calc(var(--frame-pad) / 2); transform: translate(-50%, 50%);`;
-        chassis.append(topL, botL);
-    });
-    ['1','2','3','4','5','6','7','8'].forEach((row, i) => {
-        const pos = `calc(var(--frame-pad) + (100% - var(--frame-pad) * 2) * (${i} + 0.5) / 8)`;
-        const leftL = document.createElement("div"), rightL = document.createElement("div");
-        leftL.className = rightL.className = "coord-label";
-        leftL.textContent = rightL.textContent = row;
-        leftL.style.cssText = `top: ${pos}; left: calc(var(--frame-pad) / 2); transform: translate(-50%, -50%);`;
-        rightL.style.cssText = `top: ${pos}; right: calc(var(--frame-pad) / 2); transform: translate(50%, -50%);`;
-        chassis.append(leftL, rightL);
-    });
+    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    for (let c = 0; c < 8; c++) {
+        const topLbl = document.createElement("div");
+        topLbl.className = "coord-label";
+        topLbl.textContent = cols[c];
+        topLbl.style.top = "2px";
+        topLbl.style.left = `calc(var(--frame-pad) + (${c} + 0.5) * (100% - var(--frame-pad)*2) / 8)`;
+        topLbl.style.transform = "translateX(-50%)";
+        DOM.boardChassis.appendChild(topLbl);
+    }
+    for (let r = 0; r < 8; r++) {
+        const leftLbl = document.createElement("div");
+        leftLbl.className = "coord-label";
+        leftLbl.textContent = `${r + 1}`;
+        leftLbl.style.left = "2px";
+        leftLbl.style.top = `calc(var(--frame-pad) + (${r} + 0.5) * (100% - var(--frame-pad)*2) / 8)`;
+        leftLbl.style.transform = "translateY(-50%)";
+        DOM.boardChassis.appendChild(leftLbl);
+    }
 }
 
 function renderSystemVersionInfo() {
-    if (DOM.versionBadge && typeof SYSTEM_VERSION_INFO !== "undefined") DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
-    if (DOM.chronicleTimeline && typeof SYSTEM_VERSION_INFO !== "undefined" && Array.isArray(SYSTEM_VERSION_INFO.history)) {
+    if (typeof SYSTEM_VERSION_INFO === "undefined") return;
+    if (DOM.versionBadge) DOM.versionBadge.textContent = SYSTEM_VERSION_INFO.version;
+    if (DOM.chronicleTimeline) {
         DOM.chronicleTimeline.innerHTML = SYSTEM_VERSION_INFO.history.map(item => `
             <div class="chronicle-item">
-                <span class="chronicle-version">${item.ver}</span><span class="chronicle-date">${item.date}</span>
+                <div><span class="chronicle-version">${item.ver}</span><span class="chronicle-date">（${item.date}）</span></div>
                 <div class="chronicle-desc">${item.desc}</div>
             </div>
         `).join("");
     }
 }
 
-function setStatus(type, text) {
-    if (!DOM.status) return;
-    DOM.status.className = `status-${type}`;
-    DOM.status.textContent = text;
-}
-
-function triggerTurnPulse() {
-    if (!DOM.normalControlCard) return;
-    DOM.normalControlCard.classList.remove("turn-notify-pulse");
-    DOM.normalControlCard.offsetHeight;
-    DOM.normalControlCard.classList.add("turn-notify-pulse");
-    if (pulseTimeout) clearTimeout(pulseTimeout);
-    pulseTimeout = setTimeout(() => DOM.normalControlCard.classList.remove("turn-notify-pulse"), 800);
-}
-
-const baseStaticWeights = [
-    [ 1200, -2500,   80,   20,   20,   80, -2500, 1200],
-    [-2500, -3000,  -30,  -30,  -30,  -30, -3000, -2500],
-    [   80,   -30,   30,   10,   10,   30,   -30,   80],
-    [   20,   -30,   10,    2,    2,   10,   -30,   20],
-    [   20,   -30,   10,    2,    2,   10,   -30,   20],
-    [   80,   -30,   30,   10,   10,   30,   -30,   80],
-    [-2500, -3000,  -30,  -30,  -30,  -30, -3000, -2500],
-    [ 1200, -2500,   80,   20,   20,   80, -2500, 1200]
+/* ==========================================================================
+  【オセロ基本ルール判定エンジン】
+========================================================================== */
+const DIRECTIONS = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],           [0, 1],
+    [1, -1],  [1, 0],  [1, 1]
 ];
 
-const cornerDangerDefinitions = [
-    { corner: [0, 0], x: [1, 1], c: [[0, 1], [1, 0]] },
-    { corner: [0, 7], x: [1, 6], c: [[0, 6], [1, 7]] },
-    { corner: [7, 0], x: [6, 1], c: [[6, 0], [7, 1]] },
-    { corner: [7, 7], x: [6, 6], c: [[6, 7], [7, 6]] }
-];
+function canPlace(r, c, color, targetBoard = board) {
+    if (targetBoard[r][c] !== 0) return false;
+    const opp = opposite(color);
 
-function isXSquare(r, c) {
-    return (r === 1 && c === 1) || (r === 1 && c === 6) || (r === 6 && c === 1) || (r === 6 && c === 6);
-}
+    for (const [dr, dc] of DIRECTIONS) {
+        let nr = r + dr;
+        let nc = c + dc;
+        let foundOpp = false;
 
-function isCSquare(r, c) {
-    const cSquares = [[0,1],[1,0],[0,6],[1,7],[6,0],[7,1],[6,7],[7,6]];
-    return cSquares.some(([cr, cc]) => cr === r && cc === c);
-}
-
-function getDynamicCellWeights(targetBoard, perspectivePlayer) {
-    const weights = baseStaticWeights.map(row => row.slice());
-    const opp = opposite(perspectivePlayer);
-
-    for (const def of cornerDangerDefinitions) {
-        const [cr, cc] = def.corner;
-        const cornerOwner = targetBoard[cr][cc];
-
-        if (cornerOwner === 0) {
-            weights[def.x[0]][def.x[1]] = -2500;
-            for (const [crPos, ccPos] of def.c) weights[crPos][ccPos] = -800;
-        } else if (cornerOwner === perspectivePlayer) {
-            weights[def.x[0]][def.x[1]] = 120;
-            for (const [crPos, ccPos] of def.c) weights[crPos][ccPos] = 100;
-        } else if (cornerOwner === opp) {
-            weights[def.x[0]][def.x[1]] = -40;
-            for (const [crPos, ccPos] of def.c) weights[crPos][ccPos] = -50;
+        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === opp) {
+            foundOpp = true;
+            nr += dr;
+            nc += dc;
         }
-    }
-    return weights;
-}
 
-const getCurrentCharacter = () => CHARACTERS[Number(DOM.characterSelect.value) || 1] || CHARACTERS[1];
-
-function renderCharacterAvatar() {
-    const char = getCurrentCharacter();
-    if (!DOM.avatarImgBox) return;
-    DOM.avatarImgBox.innerHTML = "";
-    const img = new Image();
-    img.src = char.image;
-    img.alt = char.name;
-    img.style.objectPosition = char.imgFocus || "center 20%";
-    img.onload = () => { DOM.avatarImgBox.innerHTML = ""; DOM.avatarImgBox.appendChild(img); };
-    img.onerror = () => { DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`; };
-}
-
-/* ==========================================================================
-  【セリフ表示制御】
-========================================================================== */
-function typeWriterSpeech(fullText) {
-    if (typeWriterInterval) clearInterval(typeWriterInterval);
-    if (!DOM.speechText || !DOM.opponentSpeech) return;
-
-    DOM.opponentSpeech.classList.remove("is-speaking");
-    DOM.opponentSpeech.offsetHeight;
-    DOM.opponentSpeech.classList.add("is-speaking");
-
-    if (speakingGlowTimeout) clearTimeout(speakingGlowTimeout);
-    speakingGlowTimeout = setTimeout(() => {
-        if (DOM.opponentSpeech) DOM.opponentSpeech.classList.remove("is-speaking");
-    }, 1800);
-
-    DOM.speechText.textContent = "";
-    let index = 0;
-    const total = fullText.length;
-    typeWriterInterval = setInterval(() => {
-        if (index < total) {
-            DOM.speechText.textContent += fullText.charAt(index);
-            index++;
-        } else {
-            clearInterval(typeWriterInterval);
-            typeWriterInterval = null;
+        if (foundOpp && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === color) {
+            return true;
         }
-    }, 22);
-}
-
-function setOpponentQuote(category) {
-    if (isReviewMode || isDrillMode || isLectureMode) return;
-    const char = getCurrentCharacter();
-    let targetCategory = category;
-    const emptyCount = getEmptyCount(board);
-    if (targetCategory === "thinking" && board) {
-        const pStones = (humanColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
-        const cStones = (cpuColor === BLACK) ? getBoardStats(board).black : getBoardStats(board).white;
-        if (pStones >= cStones + 10 && char.quotes.losing && Math.random() < 0.45) targetCategory = "losing";
-    }
-
-    let list = char.quotes[targetCategory] || char.quotes.thinking;
-    if (!Array.isArray(list)) list = [list];
-    const text = list[Math.floor(Math.random() * list.length)];
-    const isClimax = (emptyCount <= 12) || targetCategory === "climax" || targetCategory === "win" || targetCategory === "lose";
-
-    if (text === lastOpponentQuoteText && DOM.speechText && DOM.speechText.textContent.trim() === text.trim()) {
-        if (DOM.opponentSpeech) DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
-        return;
-    }
-
-    lastOpponentQuoteText = text;
-
-    if (DOM.opponentSpeech) {
-        DOM.opponentSpeech.classList.toggle("is-climax", isClimax);
-    }
-
-    typeWriterSpeech(text);
-
-    const motionClass = `motion-char-${char.id}`;
-    if (DOM.opponentAvatarFrame) {
-        DOM.opponentAvatarFrame.classList.remove(motionClass);
-        DOM.opponentAvatarFrame.offsetHeight;
-        DOM.opponentAvatarFrame.classList.add(motionClass);
-    }
-
-    if (DOM.opponentAvatarWrap) {
-        DOM.opponentAvatarWrap.classList.remove("is-talking");
-        DOM.opponentAvatarWrap.offsetHeight;
-        DOM.opponentAvatarWrap.classList.add("is-talking");
-    }
-
-    if (talkingTimeout) clearTimeout(talkingTimeout);
-    talkingTimeout = setTimeout(() => {
-        if (DOM.opponentAvatarWrap) DOM.opponentAvatarWrap.classList.remove("is-talking");
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove(motionClass);
-    }, 850);
-}
-
-function updateOpponentStageUI(showBanner = true) {
-    const char = getCurrentCharacter();
-    document.documentElement.style.setProperty('--char-accent', char.themeColor);
-    document.documentElement.style.setProperty('--char-glow', char.themeGlow);
-    document.body.className = `stage-theme-${char.id}`;
-
-    if (DOM.opponentRankBadge) DOM.opponentRankBadge.textContent = `Lv.${char.id}`;
-    if (DOM.opponentName) DOM.opponentName.textContent = char.name;
-    if (DOM.opponentTitle) DOM.opponentTitle.textContent = `${char.rankLabel} ${char.title}`;
-
-    if (DOM.opponentPieceIcon) DOM.opponentPieceIcon.className = `mini-piece-stone ${cpuColor === BLACK ? "piece-black" : "piece-white"}`;
-    if (DOM.playerPieceIcon) DOM.playerPieceIcon.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
-
-    if (DOM.badgeSalonName) DOM.badgeSalonName.textContent = char.salonName;
-    if (DOM.badgeMaterial) DOM.badgeMaterial.textContent = char.materialDesc;
-
-    renderCharacterAvatar();
-    setOpponentQuote("start");
-
-    if (showBanner && !isReviewMode && !isDrillMode && !isLectureMode) {
-        if (curtainTimeout) clearTimeout(curtainTimeout);
-        if (DOM.curtainStageLabel) DOM.curtainStageLabel.textContent = `STAGE ${char.id}`;
-        if (DOM.curtainSalonTitle) DOM.curtainSalonTitle.textContent = char.salonName;
-        if (DOM.curtainRelicSub) DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
-        if (DOM.stageCurtainBanner) {
-            DOM.stageCurtainBanner.classList.add("show");
-            curtainTimeout = setTimeout(() => DOM.stageCurtainBanner.classList.remove("show"), 1300);
-        }
-    }
-}
-
-/* ==========================================================================
-  【天秤ゲージ更新】
-========================================================================== */
-function updateBalanceGauge(targetBoard = board) {
-    if (!targetBoard || isDrillMode || isLectureMode) return;
-    const emptyCount = getEmptyCount(targetBoard);
-    const evalScore = evaluateBoard(targetBoard, humanColor, emptyCount);
-    const winratePlayer = Math.max(5, Math.min(95, Math.round((1 / (1 + Math.exp(-evalScore / 600))) * 100)));
-    const winrateOpponent = 100 - winratePlayer;
-
-    if (!gameOver && !isReviewMode && winratePlayer < minPlayerWinrateInGame) {
-        minPlayerWinrateInGame = winratePlayer;
-    }
-
-    if (DOM.battleGaugeContainer) {
-        DOM.battleGaugeContainer.className = `battle-gauge-container ${humanColor === BLACK ? "gauge-player-black" : "gauge-player-white"}`;
-    }
-
-    if (DOM.battlePowerPlayer) DOM.battlePowerPlayer.style.width = `${winratePlayer}%`;
-    if (DOM.battleClashSpark) DOM.battleClashSpark.style.left = `${winratePlayer}%`;
-
-    const char = getCurrentCharacter();
-    
-    if (DOM.battlePiecePlayer) {
-        DOM.battlePiecePlayer.className = `mini-piece-stone ${humanColor === BLACK ? "piece-black" : "piece-white"}`;
-    }
-    if (DOM.battlePieceOpponent) {
-        DOM.battlePieceOpponent.className = `mini-piece-stone ${cpuColor === BLACK ? "piece-black" : "piece-white"}`;
-    }
-
-    if (DOM.battleStatPlayerText) DOM.battleStatPlayerText.textContent = `あなた ${winratePlayer}%`;
-    if (DOM.battleStatOpponentText) DOM.battleStatOpponentText.textContent = `${winrateOpponent}% ${char.name.split(" ")[0]}`;
-
-    if (DOM.battleSituationBadge) {
-        if (winratePlayer >= 75) DOM.battleSituationBadge.textContent = "⚖️ あなた 圧倒的優勢";
-        else if (winratePlayer >= 58) DOM.battleSituationBadge.textContent = "⚖️ あなた 優勢";
-        else if (winrateOpponent >= 75) DOM.battleSituationBadge.textContent = "⚖️ 相手 圧倒的優勢";
-        else if (winrateOpponent >= 58) DOM.battleSituationBadge.textContent = "⚖️ 相手 優勢";
-        else DOM.battleSituationBadge.textContent = "⚖️ 運命の天秤：互角";
-    }
-}
-
-function showMoveToast(type, text) {
-    if (!DOM.moveToast) return;
-    if (toastTimeout) clearTimeout(toastTimeout);
-    DOM.moveToast.className = `move-toast toast-${type} show`;
-    DOM.moveToast.textContent = text;
-    const delay = (type === "finish") ? 1800 : (type === "pass" ? 1300 : 1200);
-    toastTimeout = setTimeout(() => DOM.moveToast.classList.remove("show"), delay);
-}
-const hideMoveToast = () => { if (toastTimeout) clearTimeout(toastTimeout); if (DOM.moveToast) DOM.moveToast.classList.remove("show"); };
-
-function saveHistory() {
-    historyStack.push({
-        board: cloneBoard(board), currentPlayer,
-        lastMove: lastMove ? [...lastMove] : null,
-        elapsedSeconds, playerSeconds, cpuSeconds, usedHintInGame,
-        minPlayerWinrateInGame,
-        playerMoveLogs: JSON.parse(JSON.stringify(playerMoveLogs)),
-        gameStepLogsLength: gameStepLogs.length
-    });
-    updateUndoButtonState();
-}
-
-function updateUndoButtonState() {
-    if (DOM.undoButton) {
-        DOM.undoButton.disabled = (historyStack.length === 0) || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode;
-    }
-}
-
-/* ==========================================================================
-  【時を戻す「待った」（ガイドリング消滅・ヒント停止バグ完全根絶）】
-========================================================================== */
-async function undoMove() {
-    if (historyStack.length === 0 || isBusy || isAiThinkingHint || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
-    isPrefetchAborted = true;
-    currentGameSessionId++;
-    cachedMoveEvaluations = null;
-    clearHint();
-
-    let targetState = null;
-    while (historyStack.length > 0) {
-        const state = historyStack.pop();
-        if (state.currentPlayer === humanColor) { targetState = state; break; }
-    }
-
-    if (targetState) {
-        board = cloneBoard(targetState.board);
-        currentPlayer = targetState.currentPlayer;
-        lastMove = targetState.lastMove;
-        elapsedSeconds = targetState.elapsedSeconds;
-        playerSeconds = targetState.playerSeconds;
-        cpuSeconds = targetState.cpuSeconds;
-        usedHintInGame = targetState.usedHintInGame || false;
-        minPlayerWinrateInGame = targetState.minPlayerWinrateInGame || 50;
-        playerMoveLogs = targetState.playerMoveLogs || [];
-        gameStepLogs = gameStepLogs.slice(0, targetState.gameStepLogsLength || 0);
-        pendingAnimation = null;
-
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
-
-        // 🌟 isBusy を即座に false に戻し、描画時にガイドリングが確実に点灯するようにする
-        isBusy = false;
-
-        const pColorName = (humanColor === BLACK) ? "黒" : "白";
-        setStatus("human-turn", `👑 あなたの番です（${pColorName}）…（時を戻しました）`);
-        triggerTurnPulse();
-        setOpponentQuote("thinking");
-        updateTimerDisplay();
-        
-        // 盤面再描画（打てるマスのガイドリングが100%確実に即座に再点灯）
-        drawBoard();
-        updateBalanceGauge();
-        updateUndoButtonState();
-
-        // ヒントUIと事前計算を即時復帰
-        if (getHintMode() === "always") {
-            setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-            prefetchPlayerEvaluationsAsync();
-        } else if (getHintMode() === "manual") {
-            prefetchPlayerEvaluationsAsync();
-        }
-    } else {
-        isBusy = false;
-        updateUndoButtonState();
-    }
-}
-
-function recordGameStep(move, playerColor, contextNote = "", alternativeBest = null, isPass = false) {
-    gameStepLogs.push({
-        move: move ? [...move] : null,
-        playerColor,
-        board: cloneBoard(board),
-        turnIndex: gameStepLogs.length + 1,
-        contextNote,
-        alternativeBest: alternativeBest ? [...alternativeBest] : null,
-        isPass,
-        statsSnapshot: { ...getBoardStats(board) }
-    });
-}
-
-function getCurrentMoveSequence() {
-    const seq = [];
-    for (let i = 1; i < gameStepLogs.length; i++) {
-        const step = gameStepLogs[i];
-        if (step && step.move && !step.isPass) seq.push(toNotation(step.move[0], step.move[1]));
-    }
-    return seq.join("-");
-}
-
-function getBookMove(maxPly = 16) {
-    const seq = getCurrentMoveSequence();
-    const currentPly = seq === "" ? 0 : seq.split("-").length;
-    if (currentPly >= maxPly) return null;
-
-    const candidates = OPENING_BOOK[seq];
-    if (!candidates || candidates.length === 0) return null;
-
-    let totalW = candidates.reduce((sum, c) => sum + c.weight, 0);
-    let rand = Math.random() * totalW;
-    for (const c of candidates) {
-        rand -= c.weight;
-        if (rand <= 0) return c;
-    }
-    return candidates[0];
-}
-
-function getBestCounterBookMove() {
-    const seq = getCurrentMoveSequence();
-    const candidates = OPENING_BOOK[seq];
-    if (!candidates || candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0];
-
-    let totalW = candidates.reduce((sum, c) => sum + c.weight, 0);
-    let rand = Math.random() * totalW;
-    for (const c of candidates) {
-        rand -= c.weight;
-        if (rand <= 0) return c;
-    }
-    return candidates[0];
-}
-
-function startGame() {
-    tryPlayBgm();
-    isReviewMode = false;
-    isDrillMode = false;
-    isLectureMode = false;
-    isPrefetchAborted = true;
-    currentGameSessionId++;
-    cachedMoveEvaluations = null;
-    isPrefetching = false;
-    transpositionTable.clear();
-    lastOpponentQuoteText = "";
-    mainGameSnapshot = null;
-
-    board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
-    board[3][3] = WHITE; board[3][4] = BLACK;
-    board[4][3] = BLACK; board[4][4] = WHITE;
-
-    cpuColor = (humanColor === BLACK) ? WHITE : BLACK;
-    currentPlayer = BLACK;
-    gameOver = false;
-    isBusy = false;
-    isAiThinkingHint = false;
-    lastMove = null;
-    usedHintInGame = (getHintMode() === "always");
-    minPlayerWinrateInGame = 50;
-    pendingAnimation = null;
-    historyStack = [];
-    playerMoveLogs = [];
-    gameStepLogs = [];
-    tacticsTurningPointIndex = -1;
-    clearHint();
-
-    recordGameStep(null, null, "対局開始時の初期配置です。右上(E4)と左下(D5)が黒、左上(D4)と右下(E5)が白です。");
-    if (DOM.royalResultModal) DOM.royalResultModal.classList.remove("show");
-    if (DOM.endingModal) DOM.endingModal.classList.remove("show");
-    if (DOM.drillCourseModal) DOM.drillCourseModal.classList.remove("show");
-    if (DOM.drillCertificateModal) DOM.drillCertificateModal.classList.remove("show");
-    if (DOM.charProfileModal) DOM.charProfileModal.classList.remove("show");
-    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
-    if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
-    if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
-    if (DOM.normalControlCard) DOM.normalControlCard.style.display = "flex";
-
-    elapsedSeconds = playerSeconds = cpuSeconds = 0;
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        if (!gameOver && !isReviewMode && !isAiThinkingHint && !isDrillMode && !isLectureMode) {
-            elapsedSeconds++;
-            if (currentPlayer === humanColor && !isBusy) playerSeconds++;
-            else if (currentPlayer === cpuColor || isBusy) cpuSeconds++;
-            updateTimerDisplay();
-        }
-    }, 1000);
-
-    updateTimerDisplay();
-    updateUndoButtonState();
-    updateOpponentStageUI(true);
-    updateHintModeUI();
-    drawBoard();
-    updateBalanceGauge();
-
-    if (humanColor === BLACK) {
-        setStatus("human-turn", "👑 あなたの番です（黒）最初の一手を置いてください");
-        triggerTurnPulse();
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
-        prefetchPlayerEvaluationsAsync();
-    } else {
-        setStatus("cpu-turn", "相手（黒）が先手です。思案中...");
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
-        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
-        setTimeout(computerMove, 600);
-    }
-}
-
-const formatMinSec = (sec) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
-function updateTimerDisplay() {
-    if (DOM.playerTime) DOM.playerTime.textContent = `⏱️ ${formatMinSec(playerSeconds)}`;
-    if (DOM.opponentTime) DOM.opponentTime.textContent = `⏱️ ${formatMinSec(cpuSeconds)}`;
-}
-
-function getFlippableStones(row, col, player = currentPlayer, targetBoard = board) {
-    if (!targetBoard || targetBoard[row][col] !== 0) return [];
-    const opponent = opposite(player);
-    const flippable = [];
-
-    for (const [dr, dc] of directions) {
-        let r = row + dr, c = col + dc;
-        const line = [];
-        while (isInside(r, c) && targetBoard[r][c] === opponent) {
-            line.push([r, c]);
-            r += dr; c += dc;
-        }
-        if (line.length > 0 && isInside(r, c) && targetBoard[r][c] === player) {
-            flippable.push(...line);
-        }
-    }
-    return flippable;
-}
-
-function canPlace(row, col, player = currentPlayer, targetBoard = board) {
-    if (!targetBoard || targetBoard[row][col] !== 0) return false;
-    const opponent = opposite(player);
-    for (const [dr, dc] of directions) {
-        let r = row + dr, c = col + dc;
-        let count = 0;
-        while (isInside(r, c) && targetBoard[r][c] === opponent) {
-            count++;
-            r += dr; c += dc;
-        }
-        if (count > 0 && isInside(r, c) && targetBoard[r][c] === player) return true;
     }
     return false;
 }
 
-function sortFlippedByDistance(placedRow, placedCol, flipped) {
-    return flipped.slice().sort((a, b) => {
-        const distA = Math.max(Math.abs(a[0] - placedRow), Math.abs(a[1] - placedCol));
-        const distB = Math.max(Math.abs(b[0] - placedRow), Math.abs(b[1] - placedCol));
-        return distA - distB;
-    });
-}
-
-function getValidMoves(player, targetBoard) {
+function getValidMoves(color, targetBoard = board) {
     const moves = [];
-    for (let r = 0; r < boardSize; r++) {
-        for (let c = 0; c < boardSize; c++) {
-            if (canPlace(r, c, player, targetBoard)) moves.push([r, c]);
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (canPlace(r, c, color, targetBoard)) moves.push([r, c]);
         }
     }
     return moves;
 }
 
-function makeMove(targetBoard, row, col, player) {
-    const flippable = getFlippableStones(row, col, player, targetBoard);
-    if (flippable.length === 0) return false;
-    targetBoard[row][col] = player;
-    for (const [r, c] of flippable) targetBoard[r][c] = player;
-    return true;
-}
+function getFlipsForMove(r, c, color, targetBoard = board) {
+    const flips = [];
+    if (targetBoard[r][c] !== 0) return flips;
+    const opp = opposite(color);
 
-const isCorner = (r, c) => cornerSquares.some(([cr, cc]) => cr === r && cc === c);
+    for (const [dr, dc] of DIRECTIONS) {
+        let nr = r + dr;
+        let nc = c + dc;
+        const potential = [];
 
-function isRealDanger(r, c, targetBoard) {
-    for (const item of cornerDangerDefinitions) {
-        if ((item.x[0] === r && item.x[1] === c) || item.c.some(([dr, dc]) => dr === r && dc === c)) {
-            return (targetBoard[item.corner[0]][item.corner[1]] === 0);
+        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === opp) {
+            potential.push([nr, nc]);
+            nr += dr;
+            nc += dc;
+        }
+
+        if (potential.length > 0 && nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === color) {
+            flips.push(...potential);
         }
     }
-    return false;
+    return flips;
 }
 
-function isTrueNakawari(r, c, player, targetBoard) {
-    const flippable = getFlippableStones(r, c, player, targetBoard);
-    if (flippable.length === 0) return false;
+function makeMove(targetBoard, r, c, color) {
+    const flips = getFlipsForMove(r, c, color, targetBoard);
+    if (flips.length === 0) return [];
+    targetBoard[r][c] = color;
+    for (const [fr, fc] of flips) {
+        targetBoard[fr][fc] = color;
+    }
+    return flips;
+}
 
-    for (const [fr, fc] of flippable) {
-        for (const [dr, dc] of directions) {
+function getBoardStats(targetBoard = board) {
+    let black = 0, white = 0, empty = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (targetBoard[r][c] === BLACK) black++;
+            else if (targetBoard[r][c] === WHITE) white++;
+            else empty++;
+        }
+    }
+    return { black, white, empty };
+}
+
+/* 開放度（返した石の周囲の空きマス数）の計算 */
+function countFrontierOpenness(flips, targetBoard) {
+    let openness = 0;
+    const visited = new Set();
+    for (const [r, c] of flips) {
+        for (const [dr, dc] of DIRECTIONS) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === 0) {
+                const k = `${nr},${nc}`;
+                if (!visited.has(k)) {
+                    visited.add(k);
+                    openness++;
+                }
+            }
+        }
+    }
+    return openness;
+}
+
+/* 厳密な中割り判定（めくった石がすべて既存石に囲まれているか） */
+function isStrictNakawari(flips, targetBoard) {
+    if (!flips || flips.length === 0) return false;
+    for (const [fr, fc] of flips) {
+        for (const [dr, dc] of DIRECTIONS) {
             const nr = fr + dr, nc = fc + dc;
-            if (isInside(nr, nc) && targetBoard[nr][nc] === 0) {
+            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && targetBoard[nr][nc] === 0) {
                 return false;
             }
         }
@@ -917,841 +462,836 @@ function isTrueNakawari(r, c, player, targetBoard) {
     return true;
 }
 
-function countStableStones(targetBoard, player) {
-    const stable = new Set();
-    for (const [cr, cc] of cornerSquares) {
-        if (targetBoard[cr][cc] !== player) continue;
-        stable.add(`${cr},${cc}`);
-        for (const [dr, dc] of [[cr === 0 ? 1 : -1, 0], [0, cc === 0 ? 1 : -1]]) {
-            let r = cr + dr, c = cc + dc;
-            while (isInside(r, c) && targetBoard[r][c] === player) {
-                stable.add(`${r},${c}`);
-                r += dr; c += dc;
-            }
-        }
-    }
-
-    const edges = [
-        [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7]],
-        [[7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]],
-        [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0]],
-        [[0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7]]
-    ];
-    for (const edge of edges) {
-        const isFull = edge.every(([er, ec]) => targetBoard[er][ec] !== 0);
-        if (isFull) {
-            for (const [er, ec] of edge) {
-                if (targetBoard[er][ec] === player) stable.add(`${er},${ec}`);
-            }
-        }
-    }
-    return stable.size;
-}
-
-function countFrontierStones(targetBoard, player) {
-    let frontier = 0;
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            if (targetBoard[r][c] !== player) continue;
-            for (const [dr, dc] of directions) {
-                const nr = r + dr, nc = c + dc;
-                if (isInside(nr, nc) && targetBoard[nr][nc] === 0) { frontier++; break; }
-            }
-        }
-    }
-    return frontier;
-}
-
-function evaluateBoard(targetBoard, player, emptyCount) {
-    const opponent = opposite(player);
-    let myStones = 0, oppStones = 0;
-    let myPosScore = 0, oppPosScore = 0;
-
-    const dynamicWeights = getDynamicCellWeights(targetBoard, player);
-
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const piece = targetBoard[r][c];
-            if (piece === player) {
-                myStones++;
-                myPosScore += dynamicWeights[r][c];
-            } else if (piece === opponent) {
-                oppStones++;
-                oppPosScore += dynamicWeights[r][c];
-            }
-        }
-    }
-
-    if (emptyCount === 0) return (myStones - oppStones) * 10000;
-
-    const myMoves = getValidMoves(player, targetBoard).length;
-    const oppMoves = getValidMoves(opponent, targetBoard).length;
-    const mobilityDiff = (myMoves - oppMoves) * 45;
-
-    const myFrontier = countFrontierStones(targetBoard, player);
-    const oppFrontier = countFrontierStones(targetBoard, opponent);
-    const frontierDiff = -(myFrontier - oppFrontier) * 15;
-
-    const stableDiff = (countStableStones(targetBoard, player) - countStableStones(targetBoard, opponent)) * 250;
-
-    let score = 0;
-    if (emptyCount > 30) {
-        score = (myPosScore - oppPosScore) + mobilityDiff + frontierDiff;
-    } else if (emptyCount > 12) {
-        score = (myPosScore - oppPosScore) * 1.1 + stableDiff + mobilityDiff * 0.8 + frontierDiff;
-    } else {
-        score = (myStones - oppStones) * 80 + stableDiff + (myPosScore - oppPosScore) * 0.5;
-        if (emptyCount % 2 !== 0) score += 60;
-    }
-    return score;
-}
-
-function orderMoves(moves, targetBoard, player) {
-    const dynamicWeights = getDynamicCellWeights(targetBoard, player);
-    return moves.slice().sort((a, b) => {
-        const aCorner = isCorner(a[0], a[1]) ? 1 : 0, bCorner = isCorner(b[0], b[1]) ? 1 : 0;
-        if (aCorner !== bCorner) return bCorner - aCorner;
-        return dynamicWeights[b[0]][b[1]] - dynamicWeights[a[0]][a[1]];
-    });
-}
-
-function negamax(targetBoard, player, depth, alpha, beta, emptyCount) {
-    if (emptyCount === 0) return evaluateBoard(targetBoard, player, 0);
-
-    const originalAlpha = alpha;
-    let boardKey = null;
-
-    if (depth >= 4) {
-        boardKey = `${player}:${targetBoard.map(r => r.join("")).join("")}`;
-        if (transpositionTable.has(boardKey)) {
-            const entry = transpositionTable.get(boardKey);
-            if (entry.depth >= depth) {
-                if (entry.flag === TT_EXACT) return entry.score;
-                else if (entry.flag === TT_LOWERBOUND && entry.score > alpha) alpha = entry.score;
-                else if (entry.flag === TT_UPPERBOUND && entry.score < beta) beta = entry.score;
-                if (alpha >= beta) return entry.score;
-            }
-        }
-    }
-
-    if (depth <= 0) return evaluateBoard(targetBoard, player, emptyCount);
-
-    const moves = getValidMoves(player, targetBoard);
-    if (moves.length === 0) {
-        const opp = opposite(player);
-        const oppMoves = getValidMoves(opp, targetBoard);
-        if (oppMoves.length === 0) return evaluateBoard(targetBoard, player, 0);
-        return -negamax(targetBoard, opp, depth, -beta, -alpha, emptyCount);
-    }
-
-    let maxScore = -Infinity;
-    const sortedMoves = orderMoves(moves, targetBoard, player);
-
-    for (const move of sortedMoves) {
-        const next = cloneBoard(targetBoard);
-        makeMove(next, move[0], move[1], player);
-        const score = -negamax(next, opposite(player), depth - 1, -beta, -alpha, emptyCount - 1);
-        if (score > maxScore) maxScore = score;
-        if (score > alpha) alpha = score;
-        if (alpha >= beta) break;
-    }
-
-    if (boardKey && transpositionTable.size < 60000) {
-        let flag = TT_EXACT;
-        if (maxScore <= originalAlpha) flag = TT_UPPERBOUND;
-        else if (maxScore >= beta) flag = TT_LOWERBOUND;
-        transpositionTable.set(boardKey, { score: maxScore, depth, flag });
-    }
-
-    return maxScore;
-}
-
 /* ==========================================================================
-  【ヒント探索エンジン】
+  【盤面描画・立体反転アニメーションエンジン】
 ========================================================================== */
-async function prefetchPlayerEvaluationsAsync() {
-    if (getHintMode() === "off") {
-        isPrefetching = false;
-        return;
-    }
-
-    if (gameOver || isReviewMode || isDrillMode || isLectureMode || currentPlayer !== humanColor || isPrefetching) return;
-    const session = currentGameSessionId;
-    isPrefetching = true;
-    isPrefetchAborted = false;
-
-    const moves = getValidMoves(humanColor, board);
-    if (moves.length === 0) {
-        cachedMoveEvaluations = { moves: [], best: null, scoredMoves: [] };
-        isPrefetching = false;
-        return;
-    }
-
-    const bookEntry = getBestCounterBookMove();
-    if (bookEntry && moves.some(([r, c]) => r === bookEntry.move[0] && c === bookEntry.move[1])) {
-        const bestMove = bookEntry.move;
-        const scored = moves.map(m => ({
-            move: m,
-            coord: toNotation(m[0], m[1]),
-            score: (m[0] === bestMove[0] && m[1] === bestMove[1]) ? 99999 : 0,
-            isBook: (m[0] === bestMove[0] && m[1] === bestMove[1]),
-            bookName: bookEntry.name
-        }));
-        scored.sort((a, b) => b.score - a.score);
-        cachedMoveEvaluations = { moves, best: bestMove, scoredMoves: scored, isBook: true, bookName: bookEntry.name };
-        isPrefetching = false;
-
-        if (getHintMode() === "always" && currentPlayer === humanColor) applyHintFromCache();
-        return;
-    }
-
-    const emptyCount = getEmptyCount(board);
-    const depth = (emptyCount <= 13) ? emptyCount : 8;
-    const scored = [];
-    const sortedMoves = orderMoves(moves, board, humanColor);
-
-    for (const move of sortedMoves) {
-        if (isPrefetchAborted || session !== currentGameSessionId || currentPlayer !== humanColor) {
-            isPrefetching = false;
-            return;
-        }
-        await sleep(0);
-
-        const next = cloneBoard(board);
-        makeMove(next, move[0], move[1], humanColor);
-        const score = -negamax(next, cpuColor, depth - 1, -Infinity, Infinity, emptyCount - 1);
-        scored.push({ move, coord: toNotation(move[0], move[1]), score, isBook: false });
-    }
-
-    if (isPrefetchAborted || session !== currentGameSessionId || currentPlayer !== humanColor) {
-        isPrefetching = false;
-        return;
-    }
-
-    scored.sort((a, b) => b.score - a.score);
-    const chosen = scored[0];
-
-    cachedMoveEvaluations = { moves, best: chosen.move, scoredMoves: scored, isBook: false };
-    isPrefetching = false;
-
-    if (getHintMode() === "always" && currentPlayer === humanColor) applyHintFromCache();
-}
-
-function applyHintFromCache() {
-    if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) return;
-    const chosenMove = cachedMoveEvaluations.best;
-    hintMove = chosenMove;
-    const coordStr = toNotation(chosenMove[0], chosenMove[1]);
-    if (DOM.hintCoordText) DOM.hintCoordText.textContent = coordStr;
-
-    const reasons = [];
-    if (cachedMoveEvaluations.isBook) {
-        reasons.push(`📖 伝統のオセロ王道定石【<span class="term-link" data-term="${cachedMoveEvaluations.bookName.includes('馬')?'馬定石':(cachedMoveEvaluations.bookName.includes('牛')?'牛定石':'虎定石')}">${cachedMoveEvaluations.bookName}</span>】の推奨手筋です。`);
-        reasons.push("🎯 序盤の骨格を保ち、相手の逃げ道を増やさずに主導権を握る定石手順です。");
-    } else {
-        const [r, c] = chosenMove;
-        if (isCorner(r, c)) {
-            reasons.push("👑 角（四隅）を確保する安全確実な一手です。");
-        } else if (isTrueNakawari(r, c, humanColor, board)) {
-            reasons.push(`🛡️ 外側に石を出さず、内側だけを抜く至高の<span class="term-link" data-term="中割り">中割り</span>です。`);
-        } else if (!isRealDanger(r, c, board)) {
-            reasons.push("🛡️ 危険マスを避け、中央の勢力を手堅く保つ堅実な一手です。");
-        }
-
-        const oppBefore = getValidMoves(cpuColor, board).length;
-        const nextB = cloneBoard(board);
-        makeMove(nextB, r, c, humanColor);
-        const oppAfter = getValidMoves(cpuColor, nextB).length;
-        if (oppAfter < oppBefore) {
-            reasons.push(`📉 相手の打てるマスを ${oppBefore}箇所 ➔ ${oppAfter}箇所 に削り、相手を自滅へ追い込みます。`);
-        }
-
-        if (reasons.length === 0) {
-            reasons.push("🎯 宮廷AIの深層読みが導き出した至高の最善手です。");
-        }
-    }
-
-    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = reasons.map(r => `<div>${r}</div>`).join("");
-    drawBoard();
-
-    const pColorName = (humanColor === BLACK) ? "黒" : "白";
-    setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-}
-
-async function executeTurnAction(row, col, player, isHuman) {
-    const session = currentGameSessionId;
-    const opponent = opposite(player);
-    const flippable = getFlippableStones(row, col, player, board);
-    const flipped = sortFlippedByDistance(row, col, flippable);
-
-    makeMove(board, row, col, player);
-    lastMove = [row, col];
-
-    pendingAnimation = {
-        placedRow: row, placedCol: col, flipped,
-        newColor: player, oldColor: opponent, isHuman
-    };
-
-    playPlaceSound();
-    if (flipped.length > 0) playFlipSequence(flipped.length);
-
-    drawBoard();
-    updateBalanceGauge();
-
-    const totalWaitMs = (flipped.length * FLIP_INTERVAL_MS) + FLIP_ANIMATION_DURATION_MS;
-    await sleep(totalWaitMs);
-    if (session !== currentGameSessionId) return false;
-
-    hideMoveToast();
-    clearHintForOpponentTurn();
-    drawBoard();
-    return true;
-}
-
-/* ==========================================================================
-  【プレイヤー着手（完全ゼロ遅延）】
-========================================================================== */
-async function putStone(row, col) {
-    if (isLectureMode) return;
-    if (isDrillMode) {
-        handleDrillCellClick(row, col);
-        return;
-    }
-    if (gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode) return;
-    if (!canPlace(row, col, humanColor, board)) return;
-
-    isPrefetchAborted = true;
-
-    saveHistory();
-    isBusy = true;
-    if (getHintMode() === "always") usedHintInGame = true;
-
-    const boardBefore = cloneBoard(board);
-    const emptyCount = getEmptyCount(board);
-    const myAvailableMovesBefore = getValidMoves(humanColor, board);
-    const oppMovesBefore = getValidMoves(cpuColor, boardBefore).length;
-
-    const actionPromise = executeTurnAction(row, col, humanColor, true);
-
-    let objectiveBest = cachedMoveEvaluations ? cachedMoveEvaluations.best : null;
-    let scoredList = cachedMoveEvaluations ? cachedMoveEvaluations.scoredMoves : [];
-
-    if (!objectiveBest) {
-        const bookEntry = getBestCounterBookMove();
-        if (bookEntry) objectiveBest = bookEntry.move;
-        else {
-            const sorted = orderMoves(myAvailableMovesBefore, boardBefore, humanColor);
-            objectiveBest = sorted[0];
-        }
-    }
-
-    const chosenScoreObj = scoredList.find(s => s.move[0] === row && s.move[1] === col);
-    const chosenScore = chosenScoreObj ? chosenScoreObj.score : 0;
-    const topScore = scoredList[0] ? scoredList[0].score : 0;
-
-    const flippable = getFlippableStones(row, col, humanColor, boardBefore);
-    const flipsCount = flippable.length;
-
-    const oppMovesAfter = getValidMoves(cpuColor, board).length;
-    const mobilityDelta = oppMovesAfter - oppMovesBefore;
-
-    const isMatchedWithObjectiveBest = (objectiveBest && objectiveBest[0] === row && objectiveBest[1] === col);
-    const isCornerMove = isCorner(row, col);
-    const isX = isXSquare(row, col);
-    const isC = isCSquare(row, col);
-    const danger = isRealDanger(row, col, boardBefore);
-
-    let moveRating = "NORMAL";
-    const scoreDiffFromBest = topScore - chosenScore;
-
-    if (flipsCount >= 5 && Math.random() < 0.7) {
-        setOpponentQuote("bigReversal");
-    } else if (isMatchedWithObjectiveBest) {
-        moveRating = "BEST";
-        if (getHintMode() !== "off") showMoveToast("best", "🎯 最善手 (BEST)");
-        setOpponentQuote("playerGood");
-    } else if (isCornerMove) {
-        moveRating = "GOOD";
-        if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
-        setOpponentQuote("playerCorner");
-    } else if (myAvailableMovesBefore.length > 1 && (danger || scoreDiffFromBest >= 500 || mobilityDelta >= 3)) {
-        moveRating = "BAD";
-        if (getHintMode() !== "off") showMoveToast("bad", "⚠️ 悪手 (BAD)");
-        setOpponentQuote("playerBad");
-    } else if (scoreDiffFromBest <= 80) {
-        moveRating = "GOOD";
-        if (getHintMode() !== "off") showMoveToast("good", "⚜️ 好手 (GOOD)");
-        setOpponentQuote("playerGood");
-    } else if (emptyCount <= 12) {
-        setOpponentQuote("climax");
-    }
-
-    const coord = toNotation(row, col);
-    let contextNote = `あなたの着手（${coord}）。`;
-    if (moveRating === "BEST") {
-        contextNote += cachedMoveEvaluations && cachedMoveEvaluations.isBook
-            ? `【最善手】伝統の王道定石（${cachedMoveEvaluations.bookName}）通りの一着。`
-            : "【最善手】相手の選択肢を奪う宮廷AI推奨の完璧な着手。";
-    } else if (moveRating === "GOOD") {
-        contextNote += isCornerMove ? "【好手】四隅の要塞を確保。" : "【好手】要所を押さえる堅実な一打。";
-    } else if (moveRating === "BAD") {
-        const alt = objectiveBest ? `（推奨手は【${toNotation(objectiveBest[0], objectiveBest[1])}】）` : "";
-        if (danger && isX) contextNote += `【悪手】空いた角の斜め前（Xマス）に打ち、角献上の足場を与えてしまいました${alt}。`;
-        else if (mobilityDelta >= 3) contextNote += `【悪手】石を多く取ったことで、相手の打てるマスが${oppMovesBefore}箇所➔${oppMovesAfter}箇所に激増してしまいました${alt}。`;
-        else contextNote += `【悪手】相手に好機を与える危険な打点でした${alt}。`;
-    }
-
-    recordGameStep([row, col], humanColor, contextNote, objectiveBest, false);
-
-    playerMoveLogs.push({
-        row, col, coord,
-        isCornerMove, isX, isC, danger,
-        flips: flipsCount,
-        rating: moveRating,
-        isObjectiveBest: isMatchedWithObjectiveBest,
-        scoreDiff: -scoreDiffFromBest,
-        emptyCount,
-        objectiveBest,
-        oppMovesBefore, oppMovesAfter, mobilityDelta,
-        stepIndex: gameStepLogs.length - 1
-    });
-
-    cachedMoveEvaluations = null;
-
-    const success = await actionPromise;
-    if (!success) return;
-
-    currentPlayer = cpuColor;
-    isBusy = false;
-    processTurn();
-}
-
-function clearHintForOpponentTurn() {
-    hintMove = null;
-    if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
-    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">相手の手番です（思案中…）</div>';
-}
-
-async function processTurn() {
-    if (gameOver || isReviewMode || isDrillMode || isLectureMode) return;
-    const currentMoves = getValidMoves(currentPlayer, board);
-
-    if (currentMoves.length === 0) {
-        const opp = opposite(currentPlayer);
-        if (getValidMoves(opp, board).length === 0) { endGame(); return; }
-
-        const passName = (currentPlayer === humanColor) ? "あなた" : getCurrentCharacter().name;
-        recordGameStep(null, currentPlayer, `${passName}が置ける場所がないため【パス】しました。`, null, true);
-
-        showMoveToast("pass", `⚜️ ${passName} はパス（PASS）です`);
-
-        if (currentPlayer === humanColor) {
-            setOpponentQuote("playerPass");
-            setStatus("cpu-turn", "置けるマスがないためパスしました…");
-        } else {
-            setOpponentQuote("cpuPass");
-            setStatus("human-turn", "相手がパスしました。あなたの番です！");
-        }
-
-        await sleep(950);
-        currentPlayer = opp;
-        drawBoard();
-        updateBalanceGauge();
-
-        const pColorName = (humanColor === BLACK) ? "黒" : "白";
-        if (currentPlayer === humanColor) {
-            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
-
-            if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-            else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-
-            triggerTurnPulse();
-            prefetchPlayerEvaluationsAsync();
-        } else {
-            setStatus("cpu-turn", "相手が思考を巡らせています…");
-            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
-            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
-            setTimeout(computerMove, 500);
-        }
-        updateUndoButtonState();
-        return;
-    }
-
-    const pColorName = (humanColor === BLACK) ? "黒" : "白";
-    if (currentPlayer === humanColor) {
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
-
-        if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-        else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-
-        triggerTurnPulse();
-        drawBoard();
-        updateBalanceGauge();
-        prefetchPlayerEvaluationsAsync();
-        updateUndoButtonState();
-    } else {
-        setStatus("cpu-turn", "相手が思考を巡らせています…");
-        if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
-        if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
-        computerMove();
-    }
-}
-
-/* ==========================================================================
-  【思考エンジン】
-========================================================================== */
-function getComputerMove(targetBoard, player, charConfig) {
-    const moves = getValidMoves(player, targetBoard);
-    if (moves.length === 0) return null;
-    if (moves.length === 1) return moves[0];
-
-    if (charConfig.id === 1) {
-        const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
-        if (dangerMoves.length > 0 && Math.random() < 0.40) {
-            return dangerMoves[Math.floor(Math.random() * dangerMoves.length)];
-        }
-        return moves[Math.floor(Math.random() * moves.length)];
-    }
-
-    if (charConfig.id === 2) {
-        const corners = moves.filter(([r, c]) => isCorner(r, c));
-        if (corners.length > 0) return corners[0];
-
-        const scored = moves.map(m => ({ move: m, flips: getFlippableStones(m[0], m[1], player, targetBoard).length }));
-        scored.sort((a, b) => b.flips - a.flips);
-        const topFlips = scored[0].flips;
-        const candidates = scored.filter(s => s.flips === topFlips);
-        return candidates[Math.floor(Math.random() * candidates.length)].move;
-    }
-
-    if (charConfig.id === 3) {
-        const dangerMoves = moves.filter(([r, c]) => isRealDanger(r, c, targetBoard));
-        if (dangerMoves.length > 0 && Math.random() < 0.20) {
-            return dangerMoves[Math.floor(Math.random() * dangerMoves.length)];
-        }
-    }
-
-    if (charConfig.bookMaxPly > 0) {
-        const bookMoveObj = getBookMove(charConfig.bookMaxPly);
-        if (bookMoveObj && moves.some(([r, c]) => r === bookMoveObj.move[0] && c === bookMoveObj.move[1])) {
-            return bookMoveObj.move;
-        }
-    }
-
-    const emptyCount = getEmptyCount(targetBoard);
-    const depth = (charConfig.exact > 0 && emptyCount <= charConfig.exact) ? emptyCount : charConfig.depth;
-    const scores = [];
-
-    const sortedMoves = orderMoves(moves, targetBoard, player);
-    for (const move of sortedMoves) {
-        const next = cloneBoard(targetBoard);
-        makeMove(next, move[0], move[1], player);
-        const score = -negamax(next, opposite(player), depth - 1, -Infinity, Infinity, emptyCount - 1);
-        scores.push({ move, score });
-    }
-
-    scores.sort((a, b) => b.score - a.score);
-    const bestScore = scores[0].score;
-
-    if (charConfig.id === 10 || (charConfig.exact > 0 && emptyCount <= charConfig.exact)) {
-        const topMoves = scores.filter(s => s.score === bestScore);
-        return topMoves[Math.floor(Math.random() * topMoves.length)].move;
-    }
-
-    let margin = 0;
-    if (charConfig.id === 3) margin = 85;
-    else if (charConfig.id === 4) margin = 60;
-    else if (charConfig.id === 5) margin = 40;
-    else if (charConfig.id === 6) margin = 25;
-    else if (charConfig.id === 7) margin = 18;
-    else if (charConfig.id === 8) margin = 10;
-    else if (charConfig.id === 9) margin = 5;
-
-    const eligible = scores.filter(s => (bestScore - s.score) <= margin);
-    return eligible[Math.floor(Math.random() * eligible.length)].move;
-}
-
-async function computerMove() {
-    if (gameOver || isReviewMode || isDrillMode || isLectureMode) return;
-    const session = currentGameSessionId;
-
-    clearHintForOpponentTurn();
-    isBusy = true;
-    updateUndoButtonState();
-    setStatus("cpu-turn", "相手が思考を巡らせています…");
-    if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
-    if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
-
-    const char = getCurrentCharacter();
-    const jitter = Math.floor((Math.random() * 200) - 100);
-    const thinkingWaitMs = Math.max(400, (char.thinkingBaseMs || 850) + jitter);
-
-    await sleep(thinkingWaitMs);
-    if (session !== currentGameSessionId || gameOver || isReviewMode || isDrillMode || isLectureMode) return;
-
-    const move = getComputerMove(board, cpuColor, char);
-    if (move) {
-        let contextNote = `${char.name}の応手（${toNotation(move[0], move[1])}）。`;
-        if (isCorner(move[0], move[1])) {
-            contextNote += "要塞となる角を奪取されました。";
-            setOpponentQuote("cpuCorner");
-        } else if (getEmptyCount(board) <= 12) {
-            contextNote += "終盤の詰めに入っています。";
-            setOpponentQuote("climax");
-        } else {
-            setOpponentQuote("thinking");
-        }
-        recordGameStep(move, cpuColor, contextNote, null, false);
-
-        const success = await executeTurnAction(move[0], move[1], cpuColor, false);
-        if (!success) return;
-    }
-
-    if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
-    if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
-
-    isBusy = false;
-    currentPlayer = humanColor;
-    processTurn();
-}
-
-function clearHint() {
-    hintMove = null;
-    if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
-    if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>';
-}
-
-const getHintMode = () => DOM.hintMode ? DOM.hintMode.value : "manual";
-
-function updateHintModeUI() {
-    const mode = getHintMode();
-    if (DOM.hintButton) DOM.hintButton.style.display = (mode === "manual") ? "" : "none";
-
-    if (mode === "off") {
-        if (DOM.hintFixedDisplay) DOM.hintFixedDisplay.classList.add("hint-mode-sealed");
-        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "⚔️【真剣勝負モード】";
-        if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
-        if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = '<div class="hint-placeholder-text" style="color:#d4a748; font-weight:700;">己の知謀のみで挑む格式高き真剣勝負（指南封印中）</div>';
-    } else {
-        if (DOM.hintFixedDisplay) DOM.hintFixedDisplay.classList.remove("hint-mode-sealed");
-        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
-        if (mode === "always") {
-            usedHintInGame = true;
-            if (cachedMoveEvaluations && cachedMoveEvaluations.best) applyHintFromCache();
-            else prefetchPlayerEvaluationsAsync();
-        } else {
-            clearHint();
-        }
-    }
-    drawBoard();
-}
-
-async function computeHint() {
-    if (gameOver || isBusy || currentPlayer !== humanColor || isReviewMode || isDrillMode || isLectureMode) return;
-    usedHintInGame = true;
-
-    if (!cachedMoveEvaluations || !cachedMoveEvaluations.best) {
-        setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-        await prefetchPlayerEvaluationsAsync();
-    }
-    applyHintFromCache();
-}
-
 function drawBoard() {
     if (!DOM.board) return;
-    DOM.board.querySelectorAll(".cell").forEach(cell => cell.remove());
-    const previewClass = (humanColor === BLACK) ? "preview-black" : "preview-white";
-    const isHintOff = (getHintMode() === "off");
+    DOM.board.querySelectorAll(".cell").forEach(c => c.remove());
 
-    for (let r = 0; r < boardSize; r++) {
-        for (let c = 0; c < boardSize; c++) {
+    const isHumanTurn = (currentPlayer === humanColor && !gameOver && !isBusy && !isDrillMode && !isLectureMode && !isReviewMode);
+    const validMoves = (isDrillMode || isLectureMode || isReviewMode) ? [] : getValidMoves(currentPlayer, board);
+    const lastMove = (moveHistory.length > 0) ? moveHistory[moveHistory.length - 1] : null;
+
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
             const cell = document.createElement("div");
             cell.className = "cell";
-            cell.dataset.r = r;
-            cell.dataset.c = c;
+            cell.dataset.row = r;
+            cell.dataset.col = c;
 
-            if (isLectureMode) {
-                // 講義モード中はタップ無効
-            } else if (isDrillMode) {
-                const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
-                if (!isSimulatingDrillMistake && canPlace(r, c, qData.turn, board)) {
-                    cell.classList.add("can-place", qData.turn === BLACK ? "preview-black" : "preview-white");
-                }
-            } else {
-                if (!isHintOff && !isReviewMode && !gameOver && !isBusy && !isAiThinkingHint && currentPlayer === humanColor && canPlace(r, c, humanColor, board)) {
-                    cell.classList.add("can-place", previewClass);
-                }
-                if (!isReviewMode && lastMove && lastMove[0] === r && lastMove[1] === c) {
-                    cell.classList.add("last-move-cell");
-                }
-                if (!isReviewMode && !isHintOff && hintMove && hintMove[0] === r && hintMove[1] === c) {
-                    cell.classList.add("hint-cell");
-                }
-
-                if (isReviewMode && reviewStepIndex > 0) {
-                    const step = gameStepLogs[reviewStepIndex];
-                    if (step && step.move && step.move[0] === r && step.move[1] === c) {
-                        cell.classList.add(reviewStepIndex === tacticsWorstIndex ? "review-bad-cell" : "review-focus-cell");
-                    }
-                    if (reviewStepIndex === tacticsWorstIndex && tacticsWorstAlternative && tacticsWorstAlternative[0] === r && tacticsWorstAlternative[1] === c) {
-                        cell.classList.add("review-correct-cell");
-                    }
-                }
+            const isCanPlace = validMoves.some(([vr, vc]) => vr === r && vc === c);
+            if (isCanPlace && isHumanTurn) {
+                cell.classList.add("can-place");
+                cell.classList.add(humanColor === BLACK ? "preview-black" : "preview-white");
             }
 
-            if (board[r][c] !== 0) {
-                const wrapper = document.createElement("div");
-                wrapper.className = "stone-wrapper";
-
-                const isFlipping = !isDrillMode && !isReviewMode && !isLectureMode && pendingAnimation && pendingAnimation.flipped.some(([fr, fc]) => fr === r && fc === c);
-                if (isFlipping) {
-                    const flipWrap = document.createElement("div");
-                    flipWrap.className = "stone-flip-wrapper";
-
-                    const cylinder = document.createElement("div");
-                    cylinder.className = `stone-flip-cylinder ${pendingAnimation.isHuman ? "flip-player" : "flip-cpu"}`;
-
-                    const fIdx = pendingAnimation.flipped.findIndex(([fr, fc]) => fr === r && fc === c);
-                    if (fIdx >= 0) {
-                        const delayStr = `${fIdx * FLIP_INTERVAL_MS}ms`;
-                        flipWrap.style.animationDelay = delayStr;
-                        cylinder.style.animationDelay = delayStr;
-                    }
-
-                    cylinder.innerHTML = `
-                        <div class="stone-face stone-face-front ${pendingAnimation.oldColor === BLACK ? "black-stone" : "white-stone"}"></div>
-                        <div class="stone-edge-rim"></div>
-                        <div class="stone-face stone-face-back ${pendingAnimation.newColor === BLACK ? "black-stone" : "white-stone"}"></div>
-                    `;
-                    flipWrap.appendChild(cylinder);
-                    wrapper.appendChild(flipWrap);
-                } else {
-                    const stone = document.createElement("div");
-                    stone.className = `stone ${board[r][c] === BLACK ? "black-stone" : "white-stone"}`;
-                    if (!isDrillMode && !isReviewMode && !isLectureMode && pendingAnimation && pendingAnimation.placedRow === r && pendingAnimation.placedCol === c) {
-                        stone.classList.add("stone-new");
-                    }
-                    wrapper.appendChild(stone);
-                }
-                cell.appendChild(wrapper);
+            if (lastMove && lastMove.r === r && lastMove.c === c) {
+                cell.classList.add("last-move-cell");
             }
 
-            if (!isReviewMode && !isLectureMode) {
-                cell.addEventListener("click", () => putStone(r, c));
+            if (currentHintCoord && currentHintCoord[0] === r && currentHintCoord[1] === c && isHumanTurn) {
+                cell.classList.add("hint-cell");
             }
+
+            const val = board[r][c];
+            if (val !== 0) {
+                const stoneWrap = document.createElement("div");
+                stoneWrap.className = "stone-wrapper";
+                const stone = document.createElement("div");
+                stone.className = `stone ${val === BLACK ? "black-stone" : "white-stone"}`;
+                stoneWrap.appendChild(stone);
+                cell.appendChild(stoneWrap);
+            }
+
+            cell.addEventListener("click", () => handleCellClick(r, c));
             DOM.board.appendChild(cell);
         }
     }
 
-    pendingAnimation = null;
-    updateScore();
-    if (DOM.hintButton) {
-        DOM.hintButton.disabled = gameOver || isBusy || isAiThinkingHint || currentPlayer !== humanColor || isReviewMode || isHintOff || isDrillMode || isLectureMode;
+    updateUndoButtonState();
+}
+
+function animateMoveExecution(r, c, color, flips) {
+    const placedCell = getBoardCell(r, c);
+    if (placedCell) {
+        placedCell.innerHTML = "";
+        const stoneWrap = document.createElement("div");
+        stoneWrap.className = "stone-wrapper stone-new";
+        const stone = document.createElement("div");
+        stone.className = `stone ${color === BLACK ? "black-stone" : "white-stone"}`;
+        stoneWrap.appendChild(stone);
+        placedCell.appendChild(stoneWrap);
     }
+
+    const isPlayer = (color === humanColor);
+    const flipClass = isPlayer ? "flip-player" : "flip-cpu";
+    const frontClass = (color === BLACK) ? "white-stone" : "black-stone";
+    const backClass = (color === BLACK) ? "black-stone" : "white-stone";
+
+    flips.forEach(([fr, fc]) => {
+        const cell = getBoardCell(fr, fc);
+        if (!cell) return;
+        cell.innerHTML = `
+            <div class="stone-flip-wrapper">
+                <div class="stone-flip-cylinder ${flipClass}">
+                    <div class="stone-face stone-face-front stone ${frontClass}"></div>
+                    <div class="stone-edge-rim"></div>
+                    <div class="stone-face stone-face-back stone ${backClass}"></div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function showMoveToast(type, text) {
+    if (!DOM.moveToast) return;
+    DOM.moveToast.className = `move-toast toast-${type} show`;
+    DOM.moveToast.textContent = text;
+    setTimeout(() => {
+        if (DOM.moveToast) DOM.moveToast.classList.remove("show");
+    }, 1100);
+}
+
+/* ==========================================================================
+  【UI・ステータス・天秤ゲージ更新】
+========================================================================== */
+function setStatus(type, text) {
+    if (!DOM.status) return;
+    DOM.status.className = `status-${type}`;
+    DOM.status.textContent = text;
 }
 
 function updateScore(targetBoard = board) {
     const stats = getBoardStats(targetBoard);
-    if (DOM.opponentScore) DOM.opponentScore.textContent = (cpuColor === BLACK) ? stats.black : stats.white;
-    if (DOM.playerScore) DOM.playerScore.textContent = (humanColor === BLACK) ? stats.black : stats.white;
+    const pScore = (humanColor === BLACK) ? stats.black : stats.white;
+    const oppScore = (humanColor === BLACK) ? stats.white : stats.black;
+
+    if (DOM.playerScore) DOM.playerScore.textContent = pScore;
+    if (DOM.opponentScore) DOM.opponentScore.textContent = oppScore;
+}
+
+function updateBalanceGauge(targetBoard = board) {
+    if (!DOM.battleGaugeContainer) return;
+
+    const stats = getBoardStats(targetBoard);
+    const totalStones = stats.black + stats.white;
+    const pStones = (humanColor === BLACK) ? stats.black : stats.white;
+    const oppStones = (humanColor === BLACK) ? stats.white : stats.black;
+
+    let pPercent = (totalStones > 0) ? Math.round((pStones / totalStones) * 100) : 50;
+    pPercent = Math.max(10, Math.min(90, pPercent));
+    const oppPercent = 100 - pPercent;
+
+    if (DOM.battlePowerPlayer) DOM.battlePowerPlayer.style.width = `${pPercent}%`;
+    if (DOM.battleClashSpark) DOM.battleClashSpark.style.left = `${pPercent}%`;
+
+    const char = getCurrentCharacter();
+    const charName = char.name ? char.name.split(" ")[0] : "相手";
+
+    if (DOM.battleStatPlayerText) DOM.battleStatPlayerText.textContent = `あなた ${pPercent}%`;
+    if (DOM.battleStatOpponentText) DOM.battleStatOpponentText.textContent = `${oppPercent}% ${charName}`;
+
+    let badgeText = "⚖️ 運命の天秤：互角";
+    if (pPercent >= 68) badgeText = "👑 運命の天秤：圧倒的優勢！";
+    else if (pPercent >= 56) badgeText = "⚜️ 運命の天秤：リード！";
+    else if (pPercent <= 32) badgeText = "🥀 運命の天秤：危機的劣勢…";
+    else if (pPercent <= 44) badgeText = "⚠️ 運命の天秤：追う展開";
+
+    if (DOM.battleSituationBadge) DOM.battleSituationBadge.textContent = badgeText;
+}
+
+function updateOpponentStageUI(showBanner = false) {
+    const char = getCurrentCharacter();
+    const charId = char.id || 1;
+
+    document.body.className = `stage-theme-${charId}`;
+
+    if (DOM.opponentName) DOM.opponentName.textContent = char.name;
+    if (DOM.opponentTitle) DOM.opponentTitle.textContent = char.rankLabel;
+    if (DOM.opponentRankBadge) DOM.opponentRankBadge.textContent = `Lv.${charId}`;
+    if (DOM.badgeSalonName) DOM.badgeSalonName.textContent = char.salonName;
+    if (DOM.badgeMaterial) DOM.badgeMaterial.textContent = char.materialDesc;
+
+    if (DOM.avatarImgBox) {
+        DOM.avatarImgBox.innerHTML = "";
+        const img = new Image();
+        img.src = char.image;
+        img.alt = char.name;
+        img.style.objectPosition = char.imgFocus || "center 20%";
+        img.onload = () => {
+            if (DOM.avatarImgBox) {
+                DOM.avatarImgBox.innerHTML = "";
+                DOM.avatarImgBox.appendChild(img);
+            }
+        };
+        img.onerror = () => {
+            if (DOM.avatarImgBox) DOM.avatarImgBox.innerHTML = `<span class="avatar-fallback-icon">${char.icon}</span>`;
+        };
+    }
+
+    if (DOM.battleGaugeContainer) {
+        DOM.battleGaugeContainer.className = (humanColor === BLACK)
+            ? "battle-gauge-container gauge-player-black"
+            : "battle-gauge-container gauge-player-white";
+    }
+
+    if (DOM.playerPieceIcon) DOM.playerPieceIcon.className = `mini-piece-stone piece-${humanColor === BLACK ? 'black' : 'white'}`;
+    if (DOM.opponentPieceIcon) DOM.opponentPieceIcon.className = `mini-piece-stone piece-${cpuColor === BLACK ? 'black' : 'white'}`;
+    if (DOM.battlePiecePlayer) DOM.battlePiecePlayer.className = `mini-piece-stone piece-${humanColor === BLACK ? 'black' : 'white'}`;
+    if (DOM.battlePieceOpponent) DOM.battlePieceOpponent.className = `mini-piece-stone piece-${cpuColor === BLACK ? 'black' : 'white'}`;
+
+    if (showBanner && DOM.stageCurtainBanner) {
+        if (DOM.curtainStageLabel) DOM.curtainStageLabel.textContent = `STAGE ${charId}`;
+        if (DOM.curtainSalonTitle) DOM.curtainSalonTitle.textContent = `${char.salonName}（${char.name}）`;
+        if (DOM.curtainRelicSub) DOM.curtainRelicSub.textContent = `盤面：${char.boardDesc} / 石：${char.materialDesc}`;
+        DOM.stageCurtainBanner.classList.add("show");
+        setTimeout(() => {
+            if (DOM.stageCurtainBanner) DOM.stageCurtainBanner.classList.remove("show");
+        }, 1800);
+    }
+}
+
+function setOpponentQuote(quoteType) {
+    const char = getCurrentCharacter();
+    if (!char.quotes || !char.quotes[quoteType]) return;
+
+    const list = char.quotes[quoteType];
+    const text = Array.isArray(list) ? list[Math.floor(Math.random() * list.length)] : list;
+
+    if (DOM.speechText) {
+        if (typeWriterInterval) clearInterval(typeWriterInterval);
+        DOM.speechText.textContent = "";
+        let i = 0;
+        typeWriterInterval = setInterval(() => {
+            if (i < text.length) {
+                DOM.speechText.textContent += text.charAt(i);
+                i++;
+            } else {
+                clearInterval(typeWriterInterval);
+            }
+        }, 25);
+    }
+
+    if (DOM.opponentSpeech) {
+        DOM.opponentSpeech.classList.remove("is-speaking");
+        void DOM.opponentSpeech.offsetWidth;
+        DOM.opponentSpeech.classList.add("is-speaking");
+    }
+}
+
+function updateHintModeUI() {
+    if (!DOM.hintMode || !DOM.hintFixedDisplay) return;
+    const mode = DOM.hintMode.value;
+
+    if (mode === "off") {
+        DOM.hintFixedDisplay.classList.add("hint-mode-sealed");
+        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "⚔️【完全自力・真剣勝負】";
+        if (DOM.hintCoordText) DOM.hintCoordText.textContent = "封印中";
+        if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = `<span style="color:#d4a748;">指南は封印されています。己の知謀のみで勝利を掴み取ってください。</span>`;
+        if (DOM.hintButton) DOM.hintButton.disabled = true;
+    } else {
+        DOM.hintFixedDisplay.classList.remove("hint-mode-sealed");
+        if (DOM.hintBadgeTag) DOM.hintBadgeTag.textContent = "💡【宮廷AI指南・最善手】";
+        if (DOM.hintCoordText) DOM.hintCoordText.textContent = "--";
+        if (DOM.hintBodyText) DOM.hintBodyText.innerHTML = `<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>`;
+        if (DOM.hintButton) DOM.hintButton.disabled = false;
+    }
+}
+
+function clearHint() {
+    currentHintCoord = null;
+    currentHintExplanation = "";
+    if (DOM.board) DOM.board.querySelectorAll(".hint-cell").forEach(c => c.classList.remove("hint-cell"));
+    if (DOM.hintCoordText && DOM.hintMode && DOM.hintMode.value !== "off") DOM.hintCoordText.textContent = "--";
+    if (DOM.hintBodyText && DOM.hintMode && DOM.hintMode.value !== "off") {
+        DOM.hintBodyText.innerHTML = `<div class="hint-placeholder-text">「ヒント」ボタンを押すと最善手と思案理由が表示されます</div>`;
+    }
 }
 
 /* ==========================================================================
-  【マスター対局状態バックアップ＆対局復帰専用エンジン】
+  【オセロ思考エンジン ＆ 評価関数】
+========================================================================== */
+const POSITIONAL_WEIGHTS = [
+    [ 120, -25,  20,   5,   5,  20, -25, 120],
+    [ -25, -50,  -5,  -5,  -5,  -5, -50, -25],
+    [  20,  -5,  15,   3,   3,  15,  -5,  20],
+    [   5,  -5,   3,   3,   3,   3,  -5,   5],
+    [   5,  -5,   3,   3,   3,   3,  -5,   5],
+    [  20,  -5,  15,   3,   3,  15,  -5,  20],
+    [ -25, -50,  -5,  -5,  -5,  -5, -50, -25],
+    [ 120, -25,  20,   5,   5,  20, -25, 120]
+];
+
+function evaluateBoard(targetBoard, color) {
+    const opp = opposite(color);
+    let myPos = 0, oppPos = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (targetBoard[r][c] === color) myPos += POSITIONAL_WEIGHTS[r][c];
+            else if (targetBoard[r][c] === opp) oppPos += POSITIONAL_WEIGHTS[r][c];
+        }
+    }
+
+    const myMoves = getValidMoves(color, targetBoard).length;
+    const oppMoves = getValidMoves(opp, targetBoard).length;
+    let mobility = 0;
+    if (myMoves + oppMoves > 0) {
+        mobility = Math.round(100 * (myMoves - oppMoves) / (myMoves + oppMoves));
+    }
+
+    return (myPos - oppPos) + (mobility * 10);
+}
+
+function solveExactEndgame(targetBoard, color, alpha, beta) {
+    const opp = opposite(color);
+    const myMoves = getValidMoves(color, targetBoard);
+
+    if (myMoves.length === 0) {
+        const oppMoves = getValidMoves(opp, targetBoard);
+        if (oppMoves.length === 0) {
+            const stats = getBoardStats(targetBoard);
+            const myStones = (color === BLACK) ? stats.black : stats.white;
+            const oppStones = (color === BLACK) ? stats.white : stats.black;
+            return myStones - oppStones;
+        }
+        return -solveExactEndgame(targetBoard, opp, -beta, -alpha);
+    }
+
+    let maxScore = -999;
+    for (const [r, c] of myMoves) {
+        const nextBoard = cloneBoard(targetBoard);
+        makeMove(nextBoard, r, c, color);
+        const score = -solveExactEndgame(nextBoard, opp, -beta, -alpha);
+        if (score > maxScore) maxScore = score;
+        if (maxScore > alpha) alpha = maxScore;
+        if (alpha >= beta) break;
+    }
+    return maxScore;
+}
+
+function minimaxAlphaBeta(targetBoard, depth, color, alpha, beta) {
+    const opp = opposite(color);
+    const moves = getValidMoves(color, targetBoard);
+
+    if (moves.length === 0) {
+        const oppMoves = getValidMoves(opp, targetBoard);
+        if (oppMoves.length === 0) {
+            const stats = getBoardStats(targetBoard);
+            const myStones = (color === BLACK) ? stats.black : stats.white;
+            const oppStones = (color === BLACK) ? stats.white : stats.black;
+            return (myStones - oppStones) * 1000;
+        }
+        return -minimaxAlphaBeta(targetBoard, depth - 1, opp, -beta, -alpha);
+    }
+
+    if (depth <= 0) return evaluateBoard(targetBoard, color);
+
+    let bestVal = -999999;
+    for (const [r, c] of moves) {
+        const nextBoard = cloneBoard(targetBoard);
+        makeMove(nextBoard, r, c, color);
+        const val = -minimaxAlphaBeta(nextBoard, depth - 1, opp, -beta, -alpha);
+        if (val > bestVal) bestVal = val;
+        if (bestVal > alpha) alpha = bestVal;
+        if (alpha >= beta) break;
+    }
+    return bestVal;
+}
+
+function findBookMove(history, color) {
+    if (typeof OPENING_BOOK === "undefined") return null;
+    const key = history.map(m => toNotation(m.r, m.c)).join("-");
+    const bookEntries = OPENING_BOOK[key];
+    if (bookEntries && bookEntries.length > 0) {
+        const valid = bookEntries.filter(e => canPlace(e.move[0], e.move[1], color, board));
+        if (valid.length > 0) {
+            return valid[Math.floor(Math.random() * valid.length)];
+        }
+    }
+    return null;
+}
+
+/* ==========================================================================
+  【ヒント・思案理由生成エンジン】
+========================================================================== */
+function evaluatePlayerCandidateMoves() {
+    const validMoves = getValidMoves(humanColor, board);
+    if (validMoves.length === 0) return [];
+
+    const stats = getBoardStats(board);
+    const opp = opposite(humanColor);
+    const oppMovesBefore = getValidMoves(opp, board).length;
+    const historyNotation = moveHistory.map(m => toNotation(m.r, m.c)).join("-");
+    const bookOptions = (typeof OPENING_BOOK !== "undefined") ? OPENING_BOOK[historyNotation] : null;
+
+    const evaluated = validMoves.map(([r, c]) => {
+        const simBoard = cloneBoard(board);
+        const flips = makeMove(simBoard, r, c, humanColor);
+        const oppMovesAfter = getValidMoves(opp, simBoard).length;
+        const myNextMoves = getValidMoves(humanColor, simBoard).length;
+        const openness = countFrontierOpenness(flips, board);
+        const isNakawari = isStrictNakawari(flips, board);
+
+        const isCorner = (r === 0 || r === 7) && (c === 0 || c === 7);
+        const isX = (r === 1 || r === 6) && (c === 1 || c === 6) &&
+                    ((r === 1 && c === 1 && board[0][0] === 0) ||
+                     (r === 1 && c === 6 && board[0][7] === 0) ||
+                     (r === 6 && c === 1 && board[7][0] === 0) ||
+                     (r === 6 && c === 6 && board[7][7] === 0));
+
+        let score = minimaxAlphaBeta(simBoard, 3, humanColor, -99999, 99999);
+        if (isCorner) score += 4000;
+        if (isX) score -= 5000;
+        if (isNakawari) score += 1200;
+        score -= (openness * 120);
+
+        let bookMatch = null;
+        if (bookOptions) {
+            bookMatch = bookOptions.find(b => b.move[0] === r && b.move[1] === c);
+        }
+
+        return {
+            r, c,
+            coord: toNotation(r, c),
+            flipsCount: flips.length,
+            score,
+            oppMovesBefore,
+            oppMovesAfter,
+            mobilityDelta: (oppMovesAfter - oppMovesBefore),
+            myNextMoves,
+            openness,
+            isNakawari,
+            isCorner,
+            isX,
+            bookMatch
+        };
+    });
+
+    evaluated.sort((a, b) => b.score - a.score);
+    return evaluated;
+}
+
+function constructExplanation(candidate) {
+    if (candidate.bookMatch) {
+        return `📖 定石【${candidate.bookMatch.name}】：序盤の基本形に沿い、相手に無駄な足場を与えず美しい中割りへ移行する最善手です。`;
+    }
+    if (candidate.isCorner) {
+        return `👑 四隅奪取：絶対に裏返らない【確定石】を確保し、盤面の主導権を完全に手中に収める決定打です。`;
+    }
+    if (candidate.isNakawari) {
+        return `🌱 至高の中割り：内側だけを抜き、相手の打てる場所を増やさずに自分の逃げ道（次手${candidate.myNextMoves}箇所）を広々確保します。`;
+    }
+    if (candidate.mobilityDelta <= 0) {
+        return `📉 手数制限：相手の打てる場所を抑え込み（${candidate.oppMovesAfter}箇所）、相手を窮屈なマスへ自滅誘導します。`;
+    }
+    return `⚜️ 陣形保持：外周への露出を抑えつつ、中央の主導権を安全に維持する落ち着いた一手です。`;
+}
+
+function computeHint() {
+    if (gameOver || isBusy || currentPlayer !== humanColor || isDrillMode || isLectureMode || isReviewMode) return;
+    if (DOM.hintMode && DOM.hintMode.value === "off") return;
+
+    playTone(587.33, "triangle", 0.12, 0.2);
+    usedHintInGame = true;
+
+    const candidates = evaluatePlayerCandidateMoves();
+    if (candidates.length === 0) return;
+
+    const best = candidates[0];
+    currentHintCoord = [best.r, best.c];
+    currentHintExplanation = constructExplanation(best);
+
+    if (DOM.hintCoordText) DOM.hintCoordText.textContent = best.coord;
+    if (DOM.hintBodyText) DOM.hintBodyText.textContent = currentHintExplanation;
+
+    drawBoard();
+}
+
+/* ==========================================================================
+  【対局進行・手番管理エンジン】
+========================================================================== */
+function recordBoardStepLog(r, c, color, contextNote = "") {
+    gameStepLogs.push({
+        stepIndex: gameStepLogs.length,
+        move: (r !== null) ? [r, c] : null,
+        player: color,
+        board: cloneBoard(board),
+        contextNote
+    });
+}
+
+async function handleCellClick(r, c) {
+    if (isDrillMode) {
+        await handleDrillCellClick(r, c);
+        return;
+    }
+    if (isLectureMode || isReviewMode || isBusy || gameOver) return;
+    if (currentPlayer !== humanColor) return;
+    if (!canPlace(r, c, humanColor, board)) return;
+
+    initAudio();
+    isBusy = true;
+
+    const candidates = evaluatePlayerCandidateMoves();
+    const bestMove = (candidates.length > 0) ? candidates[0] : null;
+    const isObjectiveBest = bestMove && (bestMove.r === r && bestMove.c === c);
+    const isCorner = (r === 0 || r === 7) && (c === 0 || c === 7);
+
+    const chosenEval = candidates.find(m => m.r === r && m.c === c);
+    let rating = "GOOD";
+    if (isObjectiveBest) rating = "BEST";
+    else if (chosenEval && chosenEval.mobilityDelta >= 3 && chosenEval.openness >= 3) rating = "BAD";
+
+    const stats = getBoardStats(board);
+    playerMoveLogs.push({
+        stepIndex: gameStepLogs.length,
+        coord: toNotation(r, c),
+        r, c,
+        flips: getFlipsForMove(r, c, humanColor, board).length,
+        rating,
+        isObjectiveBest,
+        isCornerMove: isCorner,
+        objectiveBest: bestMove ? [bestMove.r, bestMove.c] : null,
+        oppMovesBefore: chosenEval ? chosenEval.oppMovesBefore : 0,
+        oppMovesAfter: chosenEval ? chosenEval.oppMovesAfter : 0,
+        mobilityDelta: chosenEval ? chosenEval.mobilityDelta : 0,
+        emptyCount: stats.empty
+    });
+
+    playPlaceSound();
+    const flips = makeMove(board, r, c, humanColor);
+    moveHistory.push({ r, c, color: humanColor });
+    animateMoveExecution(r, c, humanColor, flips);
+    clearHint();
+
+    const note = `あなた【${toNotation(r, c)}】に着手（${flips.length}枚反転）。評価：${rating}`;
+    recordBoardStepLog(r, c, humanColor, note);
+
+    updateScore();
+    updateBalanceGauge();
+    drawBoard();
+
+    if (rating === "BEST") showMoveToast("best", "🌟 最善手（PERFECT）");
+    else if (rating === "BAD") showMoveToast("bad", "⚠️ 悪手・壁形成");
+
+    await sleep(480);
+    isBusy = false;
+
+    proceedNextTurn(opposite(humanColor));
+}
+
+async function proceedNextTurn(nextColor) {
+    if (gameOver) return;
+    const moves = getValidMoves(nextColor, board);
+
+    if (moves.length > 0) {
+        currentPlayer = nextColor;
+        if (currentPlayer === humanColor) {
+            setStatus("human-turn", `👑 あなたの番です（${humanColor === BLACK ? "黒" : "白"}）`);
+            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.remove("thinking-aura");
+            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.remove("show");
+
+            if (DOM.hintMode && DOM.hintMode.value === "always") computeHint();
+            drawBoard();
+        } else {
+            setStatus("cpu-turn", `⏱️ 相手が思案中...`);
+            if (DOM.opponentAvatarFrame) DOM.opponentAvatarFrame.classList.add("thinking-aura");
+            if (DOM.opponentThinkingBadge) DOM.opponentThinkingBadge.classList.add("show");
+            drawBoard();
+            await executeCpuTurn();
+        }
+    } else {
+        const oppMoves = getValidMoves(opposite(nextColor), board);
+        if (oppMoves.length === 0) {
+            endGame();
+            return;
+        }
+
+        const passColorName = (nextColor === humanColor) ? "あなた" : "相手";
+        showMoveToast("pass", `💨 ${passColorName}はパス`);
+        playTone(330, "sine", 0.25, 0.2);
+
+        if (nextColor === humanColor) {
+            setStatus("cpu-turn", "💨 あなたは打てる場所がないためパスです");
+            setOpponentQuote("playerPass");
+            recordBoardStepLog(null, null, humanColor, "あなたは置く場所がなくパスしました。");
+            await sleep(900);
+            proceedNextTurn(cpuColor);
+        } else {
+            setStatus("human-turn", "💨 相手は打てる場所がないためパスしました");
+            setOpponentQuote("cpuPass");
+            recordBoardStepLog(null, null, cpuColor, "相手は置く場所がなくパスしました。");
+            await sleep(900);
+            proceedNextTurn(humanColor);
+        }
+    }
+}
+
+/* ==========================================================================
+  【AI思考着手エンジン】
+========================================================================== */
+async function executeCpuTurn() {
+    isBusy = true;
+    const char = getCurrentCharacter();
+    const stats = getBoardStats(board);
+    const validMoves = getValidMoves(cpuColor, board);
+
+    if (validMoves.length === 0) {
+        isBusy = false;
+        proceedNextTurn(humanColor);
+        return;
+    }
+
+    let chosenMove = null;
+    if (moveHistory.length <= char.bookMaxPly) {
+        const bookEntry = findBookMove(moveHistory, cpuColor);
+        if (bookEntry) chosenMove = bookEntry.move;
+    }
+
+    if (!chosenMove && stats.empty <= char.exact && char.exact > 0) {
+        let bestScore = -9999;
+        for (const [r, c] of validMoves) {
+            const nextB = cloneBoard(board);
+            makeMove(nextB, r, c, cpuColor);
+            const score = -solveExactEndgame(nextB, opposite(cpuColor), -9999, 9999);
+            if (score > bestScore) {
+                bestScore = score;
+                chosenMove = [r, c];
+            }
+        }
+    }
+
+    if (!chosenMove) {
+        let scoredMoves = validMoves.map(([r, c]) => {
+            const nextB = cloneBoard(board);
+            makeMove(nextB, r, c, cpuColor);
+            const val = -minimaxAlphaBeta(nextB, char.depth, opposite(cpuColor), -99999, 99999);
+            return { r, c, val };
+        });
+
+        scoredMoves.sort((a, b) => b.val - a.val);
+
+        if (char.id <= 2 && Math.random() < 0.35) {
+            chosenMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+        } else if (char.id <= 4 && Math.random() < 0.20 && scoredMoves.length > 1) {
+            chosenMove = [scoredMoves[1].r, scoredMoves[1].c];
+        } else {
+            chosenMove = [scoredMoves[0].r, scoredMoves[0].c];
+        }
+    }
+
+    const waitMs = char.thinkingBaseMs + Math.floor(Math.random() * 300);
+    await sleep(waitMs);
+
+    if (gameOver || currentPlayer !== cpuColor) {
+        isBusy = false;
+        return;
+    }
+
+    const [cr, cc] = chosenMove;
+    playPlaceSound();
+    const flips = makeMove(board, cr, cc, cpuColor);
+    moveHistory.push({ r: cr, c: cc, color: cpuColor });
+    animateMoveExecution(cr, cc, cpuColor, flips);
+
+    const charLastName = char.name.split(" ")[0];
+    const isCorner = (cr === 0 || cr === 7) && (cc === 0 || cc === 7);
+    if (isCorner) setOpponentQuote("cpuCorner");
+
+    const note = `相手（${charLastName}）【${toNotation(cr, cc)}】に着手（${flips.length}枚反転）。`;
+    recordBoardStepLog(cr, cc, cpuColor, note);
+
+    updateScore();
+    updateBalanceGauge();
+    drawBoard();
+
+    await sleep(450);
+    isBusy = false;
+
+    proceedNextTurn(humanColor);
+}
+
+/* ==========================================================================
+  【時を戻す「待った」（Undo）機能】
+========================================================================== */
+function updateUndoButtonState() {
+    if (!DOM.undoButton) return;
+    const canUndo = (moveHistory.length > 0 && !gameOver && !isBusy && !isDrillMode && !isLectureMode && !isReviewMode);
+    DOM.undoButton.disabled = !canUndo;
+    DOM.undoButton.style.opacity = canUndo ? "1" : "0.4";
+}
+
+function undoMove() {
+    if (isBusy || gameOver || isDrillMode || isLectureMode || isReviewMode) return;
+    if (moveHistory.length === 0) return;
+
+    playPlaceSound();
+
+    let stepsToRevert = 0;
+    for (let i = moveHistory.length - 1; i >= 0; i--) {
+        stepsToRevert++;
+        if (moveHistory[i].color === humanColor) break;
+    }
+
+    moveHistory.splice(moveHistory.length - stepsToRevert, stepsToRevert);
+    gameStepLogs.splice(gameStepLogs.length - stepsToRevert, stepsToRevert);
+    if (playerMoveLogs.length > 0) playerMoveLogs.pop();
+
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[3][3] = WHITE; board[3][4] = BLACK;
+    board[4][3] = BLACK; board[4][4] = WHITE;
+
+    for (const m of moveHistory) {
+        makeMove(board, m.r, m.c, m.color);
+    }
+
+    currentPlayer = humanColor;
+    clearHint();
+    updateScore();
+    updateBalanceGauge();
+    drawBoard();
+
+    setStatus("human-turn", `⚜️ 待ったを実行しました。あなたの手番です（${humanColor === BLACK ? "黒" : "白"}）`);
+    if (DOM.speechText) DOM.speechText.textContent = "ふむ、一手戻したな！ 別の変化をじっくり試してみるがよい！";
+}
+
+/* ==========================================================================
+  【ゲーム開始・初期化】
+========================================================================== */
+function startGame() {
+    board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[3][3] = WHITE; board[3][4] = BLACK;
+    board[4][3] = BLACK; board[4][4] = WHITE;
+
+    currentPlayer = BLACK;
+    cpuColor = opposite(humanColor);
+    gameOver = false;
+    isBusy = false;
+
+    moveHistory = [];
+    gameStepLogs = [];
+    playerMoveLogs = [];
+    mainGameSnapshot = null;
+
+    playerSeconds = 0;
+    cpuSeconds = 0;
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimers, 1000);
+
+    usedHintInGame = false;
+    minPlayerWinrateInGame = 50;
+    tacticsWorstIndex = -1;
+    tacticsWorstAlternative = null;
+    tacticsTurningPointIndex = -1;
+
+    isReviewMode = false;
+    isDrillMode = false;
+    isLectureMode = false;
+
+    recordBoardStepLog(null, null, BLACK, "【対局開始】盤面中央に初期配置の石が置かれました。");
+
+    updateOpponentStageUI(true);
+    updateHintModeUI();
+    clearHint();
+    clearMobilityMarkers();
+    clearDrillBadges();
+
+    updateScore();
+    updateBalanceGauge();
+    drawBoard();
+
+    setOpponentQuote("start");
+
+    if (currentPlayer === humanColor) {
+        setStatus("human-turn", `👑 対局開始！ あなたの先手番です（黒）`);
+    } else {
+        setStatus("cpu-turn", `👑 対局開始！ 相手の先手番です（黒）`);
+        setTimeout(() => executeCpuTurn(), 600);
+    }
+}
+
+function updateTimers() {
+    if (gameOver || isReviewMode || isDrillMode || isLectureMode) return;
+    if (currentPlayer === humanColor) {
+        playerSeconds++;
+        if (DOM.playerTime) DOM.playerTime.textContent = `⏱️ ${formatMinSec(playerSeconds)}`;
+    } else {
+        cpuSeconds++;
+        if (DOM.opponentTime) DOM.opponentTime.textContent = `⏱️ ${formatMinSec(cpuSeconds)}`;
+    }
+}
+
+/* ==========================================================================
+  【スナップショット＆メインゲーム対局復帰エンジン】
 ========================================================================== */
 function saveMainGameSnapshotIfNotSaved() {
-    if (mainGameSnapshot !== null || isDrillMode || isLectureMode || isReviewMode) return;
-
+    if (mainGameSnapshot) return;
     mainGameSnapshot = {
         board: cloneBoard(board),
         currentPlayer,
-        lastMove: lastMove ? [...lastMove] : null,
         gameOver,
-        statusType: DOM.status ? DOM.status.className.replace("status-", "") : "human-turn",
+        isBusy: false,
+        playerSeconds,
+        cpuSeconds,
+        statusType: (currentPlayer === humanColor) ? "human-turn" : "cpu-turn",
         statusText: DOM.status ? DOM.status.textContent : "",
-        opponentQuoteText: DOM.speechText ? DOM.speechText.textContent : ""
+        speechText: DOM.speechText ? DOM.speechText.textContent : ""
     };
 }
 
 function restoreMainGameState() {
+    isReviewMode = false;
     isDrillMode = false;
     isLectureMode = false;
-    isReviewMode = false;
     isSimulatingDrillMistake = false;
+
     clearDrillBadges();
     clearMobilityMarkers();
 
+    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.drillControlCard) DOM.drillControlCard.classList.remove("show");
     if (DOM.lectureControlCard) DOM.lectureControlCard.classList.remove("show");
-    if (DOM.reviewModePanel) DOM.reviewModePanel.classList.remove("show");
     if (DOM.normalControlCard) DOM.normalControlCard.style.display = "flex";
 
     if (mainGameSnapshot) {
         board = cloneBoard(mainGameSnapshot.board);
         currentPlayer = mainGameSnapshot.currentPlayer;
-        lastMove = mainGameSnapshot.lastMove ? [...mainGameSnapshot.lastMove] : null;
         gameOver = mainGameSnapshot.gameOver;
+        isBusy = mainGameSnapshot.isBusy;
+        playerSeconds = mainGameSnapshot.playerSeconds;
+        cpuSeconds = mainGameSnapshot.cpuSeconds;
+
+        setStatus(mainGameSnapshot.statusType, mainGameSnapshot.statusText);
+        if (DOM.speechText) DOM.speechText.textContent = mainGameSnapshot.speechText;
+        mainGameSnapshot = null;
     }
 
-    if (gameOver) {
-        if (mainGameSnapshot && mainGameSnapshot.statusText) {
-            setStatus(mainGameSnapshot.statusType, mainGameSnapshot.statusText);
-        } else {
-            setStatus("human-turn", "👑 対局終了");
-        }
-        if (mainGameSnapshot && mainGameSnapshot.opponentQuoteText) {
-            if (DOM.speechText) DOM.speechText.textContent = mainGameSnapshot.opponentQuoteText;
-        }
-    } else {
-        const pColorName = (humanColor === BLACK) ? "黒" : "白";
-        if (currentPlayer === humanColor) {
-            if (getHintMode() === "always") setStatus("hint-thinking", "💡 宮廷AIが最善手を思案中…");
-            else setStatus("human-turn", `👑 あなたの番です（${pColorName}）…`);
-
-            setOpponentQuote("thinking");
-            triggerTurnPulse();
-            prefetchPlayerEvaluationsAsync();
-        } else {
-            setStatus("cpu-turn", "相手が思考を巡らせています…");
-            setOpponentQuote("thinking");
-            setTimeout(computerMove, 500);
-        }
-    }
-
-    mainGameSnapshot = null;
-
+    updateScore();
+    updateBalanceGauge();
     drawBoard();
-    updateScore(board);
-    updateBalanceGauge(board);
     updateUndoButtonState();
-    updateHintModeUI();
 }
 
 /* ==========================================================================
-  【豪傑人物伝・攻略指南モーダル制御】
+  【豪傑人物伝モーダル】
 ========================================================================== */
-function openCharProfileModal(charId = null) {
-    playPlaceSound();
-    const id = charId ? Number(charId) : Number(DOM.characterSelect.value || 1);
-    const char = CHARACTERS[id] || CHARACTERS[1];
-
-    if (DOM.profileCharNameHeader) DOM.profileCharNameHeader.textContent = `📜 ${char.name} 人物伝`;
+function openCharProfileModal() {
+    const char = getCurrentCharacter();
+    if (DOM.profileCharNameHeader) DOM.profileCharNameHeader.textContent = `${char.name} 人物伝`;
     if (DOM.profileTitleBadge) DOM.profileTitleBadge.textContent = `${char.rankLabel} ${char.title}`;
     if (DOM.profileSalonBadge) DOM.profileSalonBadge.textContent = `🏛️ ${char.salonName}`;
-    if (DOM.profileMaterialBadge) DOM.profileMaterialBadge.textContent = `石：${char.materialDesc}（${char.boardDesc}）`;
-    if (DOM.profileBioText) DOM.profileBioText.textContent = char.profile || "宮廷に仕える歴戦のオセロの使い手。";
-    if (DOM.profileTacticsText) DOM.profileTacticsText.textContent = char.tacticsInfo || "基本に忠実に攻めましょう。";
+    if (DOM.profileMaterialBadge) DOM.profileMaterialBadge.textContent = `石：${char.materialDesc}`;
+    if (DOM.profileBioText) DOM.profileBioText.textContent = char.profile;
+    if (DOM.profileTacticsText) DOM.profileTacticsText.textContent = char.tacticsInfo;
 
     if (DOM.profileAvatarBox) {
         DOM.profileAvatarBox.innerHTML = "";
         const img = new Image();
         img.src = char.image;
         img.alt = char.name;
-        img.style.objectPosition = char.imgFocus || "center 20%";
         img.onload = () => { DOM.profileAvatarBox.innerHTML = ""; DOM.profileAvatarBox.appendChild(img); };
-        img.onerror = () => { DOM.profileAvatarBox.innerHTML = `<span style="font-size:42px;">${char.icon}</span>`; };
+        img.onerror = () => { DOM.profileAvatarBox.innerHTML = `<span style="font-size:36px;color:#ffd700;">${char.icon}</span>`; };
     }
 
     if (DOM.charProfileModal) {
@@ -1762,41 +1302,68 @@ function openCharProfileModal(charId = null) {
 window.openCharProfileModal = openCharProfileModal;
 
 function closeCharProfileModal() {
-    if (DOM.charProfileModal) DOM.charProfileModal.classList.remove("show");
-    document.body.classList.remove("modal-open-lock");
+    if (DOM.charProfileModal) {
+        DOM.charProfileModal.classList.remove("show");
+        document.body.classList.remove("modal-open-lock");
+    }
 }
 window.closeCharProfileModal = closeCharProfileModal;
 
 /* ==========================================================================
-  【🌟 数字マーカー（①〜⑨）動的描画エンジン】
+  【🌟 マーカー中央配置エンジン（単独ならド真ん中、重複時は中央横並び）】
 ========================================================================== */
 function clearMobilityMarkers() {
     if (!DOM.board) return;
-    DOM.board.querySelectorAll(".mobility-marker").forEach(el => el.remove());
+    DOM.board.querySelectorAll(".mobility-marker-wrap").forEach(el => el.remove());
 }
 
-function showMobilityMarkers(targetPlayer, markerType = "before") {
+function showDoubleMobilityMarkers(oppMarkerType = "before") {
     clearMobilityMarkers();
-    const validMoves = getValidMoves(targetPlayer, board);
 
-    validMoves.forEach(([r, c], idx) => {
+    const getOrCreateWrap = (r, c) => {
         const cell = getBoardCell(r, c);
-        if (!cell) return;
+        if (!cell) return null;
+        let wrap = cell.querySelector(".mobility-marker-wrap");
+        if (!wrap) {
+            wrap = document.createElement("div");
+            wrap.className = "mobility-marker-wrap";
+            cell.appendChild(wrap);
+        }
+        return wrap;
+    };
+
+    // ① あなた（黒）の選択肢：黒金丸数字 ❶❷❸
+    const playerMoves = getValidMoves(BLACK, board);
+    playerMoves.forEach(([r, c], idx) => {
+        const wrap = getOrCreateWrap(r, c);
+        if (!wrap) return;
         const marker = document.createElement("div");
-        marker.className = `mobility-marker marker-${markerType}`;
-        const numberSymbol = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'][idx] || `${idx+1}`;
-        marker.textContent = numberSymbol;
-        cell.appendChild(marker);
+        marker.className = "mobility-marker marker-player";
+        const symbol = ['❶','❷','❸','❹','❺','❻','❼','❽','❾','❿'][idx] || `${idx+1}`;
+        marker.textContent = symbol;
+        wrap.appendChild(marker);
     });
 
-    return validMoves.length;
+    // ② 相手（白）の選択肢：丸数字 ①②③（青/赤/緑）
+    const oppMoves = getValidMoves(WHITE, board);
+    oppMoves.forEach(([r, c], idx) => {
+        const wrap = getOrCreateWrap(r, c);
+        if (!wrap) return;
+        const marker = document.createElement("div");
+        marker.className = `mobility-marker marker-opponent marker-${oppMarkerType}`;
+        const symbol = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'][idx] || `${idx+1}`;
+        marker.textContent = symbol;
+        wrap.appendChild(marker);
+    });
+
+    return { playerCount: playerMoves.length, oppCount: oppMoves.length };
 }
 
 /* ==========================================================================
-  【📖 盤面動的ビジュアル講義エンジン（完全コマ送り対応）】
+  【📖 盤面動的ビジュアル講義エンジン（完全コマ送り＆動的数値連動）】
 ========================================================================== */
 function startLectureMode(lectureId) {
-    if (!LESSON_LECTURES[lectureId]) return;
+    if (typeof LESSON_LECTURES === "undefined" || !LESSON_LECTURES[lectureId]) return;
 
     saveMainGameSnapshotIfNotSaved();
 
@@ -1804,7 +1371,7 @@ function startLectureMode(lectureId) {
     isDrillMode = false;
     isLectureMode = true;
     currentLectureId = lectureId;
-    currentLectureStepIndex = 0;
+    currentLectureStepIndex = 1;
 
     closeDrillCourseModal();
     closeTermPopup();
@@ -1829,63 +1396,55 @@ function loadLectureState() {
     if (DOM.lectureTitleText) DOM.lectureTitleText.textContent = lecture.title;
     if (DOM.lectureDescText) DOM.lectureDescText.textContent = lecture.introText;
 
-    applyLectureStep(0);
+    applyLectureStep(1);
 }
 
-// 🌟 コマ送り専用：指定ステップへの盤面・マーカー・解説の完全同期描画
 function applyLectureStep(targetStepIdx) {
     const lecture = LESSON_LECTURES[currentLectureId];
     if (!lecture) return;
 
-    currentLectureStepIndex = Math.max(0, Math.min(lecture.steps.length, targetStepIdx));
+    currentLectureStepIndex = Math.max(1, Math.min(lecture.steps.length, targetStepIdx));
     if (DOM.lectureStepIndicator) {
         DOM.lectureStepIndicator.textContent = `ステップ ${currentLectureStepIndex} / ${lecture.steps.length}`;
     }
 
-    // 初期盤面の復元
+    // 1. 初期盤面の復元
     board = Array.from({ length: 8 }, () => Array(8).fill(0));
     lecture.setup(board);
-    clearDrillBadges();
-    clearMobilityMarkers();
 
     let explainHtml = "";
+    let lastStepApplied = null;
 
-    // 0からcurrentLectureStepIndexまでを順次盤面に反映
+    // 2. 指定ステップまでの着手を順次盤面に反映し、各ステップの合法手数を動的に取得・置換
     for (let i = 0; i < currentLectureStepIndex; i++) {
         const step = lecture.steps[i];
+        lastStepApplied = step;
+
         if (step.resetAndPlayNakawari) {
             board = Array.from({ length: 8 }, () => Array(8).fill(0));
             lecture.setup(board);
-            clearDrillBadges();
-            clearMobilityMarkers();
         }
         if (step.move) {
             const [r, c] = step.move;
             makeMove(board, r, c, step.player);
-            const badgeType = (step.player === BLACK) ? "player" : "cpu";
-            const badgeText = (step.resetAndPlayNakawari) ? "🌱 中割り" : ((step.player === BLACK) ? "⚫ 着手" : "💀 猛反撃！");
-            addDrillBadge(r, c, badgeType, badgeText);
         }
 
-        // 数字マーカー（①〜⑨）の連動表示
-        if (step.showBeforeMobility) {
-            showMobilityMarkers(WHITE, "before");
-        } else if (step.showAfterMobility) {
-            const markerType = (step.resetAndPlayNakawari) ? "good" : "bad";
-            showMobilityMarkers(WHITE, markerType);
-        } else {
-            clearMobilityMarkers();
-        }
+        // 🌟 その時点での盤面における合法手数を計算し、テキスト内のプレースホルダーを置換
+        const currentPCount = getValidMoves(BLACK, board).length;
+        const currentOCount = getValidMoves(WHITE, board).length;
+        let formattedExplain = step.explain
+            .replace(/\{playerCount\}/g, currentPCount)
+            .replace(/\{oppCount\}/g, currentOCount);
 
         explainHtml += `
             <div class="lecture-step-log">
                 <b>${step.desc}</b><br>
-                <span>${step.explain}</span>
+                <span>${formattedExplain}</span>
             </div>
         `;
     }
 
-    // 最終ステップに達したときのまとめ解説
+    // 3. 最終ステップ到達時のまとめ解説
     if (currentLectureStepIndex === lecture.steps.length && lecture.solutionNote) {
         explainHtml += `
             <div class="lecture-solution-card">
@@ -1897,13 +1456,38 @@ function applyLectureStep(targetStepIdx) {
     if (DOM.lectureExplainBox) {
         DOM.lectureExplainBox.style.display = (explainHtml.trim() !== "") ? "block" : "none";
         DOM.lectureExplainBox.innerHTML = explainHtml;
-        DOM.lectureExplainBox.scrollTop = DOM.lectureExplainBox.scrollHeight;
+        // 🌟 最新ステップの解説文へスムーズスクロール追従
+        setTimeout(() => {
+            if (DOM.lectureExplainBox) {
+                DOM.lectureExplainBox.scrollTo({ top: DOM.lectureExplainBox.scrollHeight, behavior: 'smooth' });
+            }
+        }, 50);
     }
 
+    // 盤面描画
     drawBoard();
+    clearDrillBadges();
+    clearMobilityMarkers();
 
-    // コマ送りボタンの活性・非活性制御
-    if (DOM.btnLecturePrev) DOM.btnLecturePrev.disabled = (currentLectureStepIndex === 0);
+    // マーカーとバッジの付与
+    if (lastStepApplied) {
+        if (lastStepApplied.move) {
+            const [r, c] = lastStepApplied.move;
+            const badgeType = (lastStepApplied.player === BLACK) ? "player" : "cpu";
+            const badgeText = (lastStepApplied.resetAndPlayNakawari) ? "🌱 中割り" : ((lastStepApplied.player === BLACK) ? "⚫ 着手" : "💀 猛反撃！");
+            addDrillBadge(r, c, badgeType, badgeText);
+        }
+
+        if (lastStepApplied.showBeforeMobility) {
+            showDoubleMobilityMarkers("before");
+        } else if (lastStepApplied.showAfterMobility) {
+            const markerType = (lastStepApplied.resetAndPlayNakawari) ? "good" : "bad";
+            showDoubleMobilityMarkers(markerType);
+        }
+    }
+
+    // ボタンの制御
+    if (DOM.btnLecturePrev) DOM.btnLecturePrev.disabled = (currentLectureStepIndex === 1);
     if (DOM.btnLectureNext) DOM.btnLectureNext.disabled = (currentLectureStepIndex === lecture.steps.length);
     if (DOM.btnLectureToDrill) {
         DOM.btnLectureToDrill.style.display = (currentLectureStepIndex === lecture.steps.length) ? "inline-block" : "none";
@@ -1919,7 +1503,7 @@ function nextLectureStep() {
 window.nextLectureStep = nextLectureStep;
 
 function prevLectureStep() {
-    if (currentLectureStepIndex <= 0) return;
+    if (currentLectureStepIndex <= 1) return;
     playPlaceSound();
     applyLectureStep(currentLectureStepIndex - 1);
 }
@@ -1927,7 +1511,7 @@ window.prevLectureStep = prevLectureStep;
 
 function resetCurrentLecture() {
     playPlaceSound();
-    applyLectureStep(0);
+    applyLectureStep(1);
 }
 window.resetCurrentLecture = resetCurrentLecture;
 
@@ -1940,6 +1524,7 @@ function proceedToDrillFromLecture() {
 window.proceedToDrillFromLecture = proceedToDrillFromLecture;
 
 function returnToLectureFromDrill() {
+    if (typeof DRILL_QUESTIONS === "undefined") return;
     const qData = DRILL_QUESTIONS[currentDrillQuestionIndex - 1];
     const lecId = `lec-${qData.themeId}`;
     isDrillMode = false;
@@ -1992,18 +1577,18 @@ function generateTacticsStory(isWin, isDraw, hStones, cStones) {
         turningMove = playerMoveLogs.find(l => l.isObjectiveBest) || playerMoveLogs[Math.floor(playerMoveLogs.length / 2)];
     }
 
-    tacticsTurningPointIndex = turningMove.stepIndex;
+    tacticsTurningPointIndex = turningMove ? turningMove.stepIndex : -1;
     let turningHtml = "";
 
     if (isWin) {
-        if (turningMove.isCornerMove) {
+        if (turningMove && turningMove.isCornerMove) {
             turningHtml = `
                 <div>第${turningMove.stepIndex}手、相手が空けた隙を見逃さず要衝【${turningMove.coord}（角）】を奪取！ これにより絶対に裏返らない<span class="term-link" data-term="確定石">確定石</span>の拠点を築き、本局の主導権を完全に掌握しました。</div>
                 <div class="story-deep-link-wrap">
                     <span class="story-deep-btn" onclick="jumpToReviewStep(${turningMove.stepIndex})">🎯 勝負を決めた分岐点の盤面を見る ▶</span>
                 </div>
             `;
-        } else {
+        } else if (turningMove) {
             turningHtml = `
                 <div>第${turningMove.stepIndex}手【${turningMove.coord}】の鋭い中割りで相手の打てる場所を削り取り、一気に優勢の天秤を引き寄せました。</div>
                 <div class="story-deep-link-wrap">
@@ -2062,7 +1647,7 @@ function jumpToReviewStep(stepIndex) {
 window.jumpToReviewStep = jumpToReviewStep;
 
 /* ==========================================================================
-  【宮廷次の一手検定】
+  【🎯 宮廷次の一手検定（ダブル選択肢結果マーカー連動）】
 ========================================================================== */
 function addDrillBadge(r, c, type, text) {
     const cell = getBoardCell(r, c);
@@ -2098,7 +1683,7 @@ function closeDrillCourseModal() {
 window.closeDrillCourseModal = closeDrillCourseModal;
 
 function renderDrillCourseList() {
-    if (!DOM.drillCourseList) return;
+    if (!DOM.drillCourseList || typeof DRILL_THEMES === "undefined" || typeof DRILL_QUESTIONS === "undefined") return;
     DOM.drillCourseList.innerHTML = DRILL_THEMES.map(theme => {
         const questionsInTheme = DRILL_QUESTIONS.filter(q => q.themeId === theme.id);
         const clearedCount = questionsInTheme.filter(q => !!drillPassedMap[q.id]).length;
@@ -2143,6 +1728,7 @@ function renderDrillCourseList() {
 }
 
 function startDrillQuestion(qIndex) {
+    if (typeof DRILL_QUESTIONS === "undefined") return;
     saveMainGameSnapshotIfNotSaved();
 
     isReviewMode = false;
@@ -2176,7 +1762,10 @@ function loadDrillQuestion() {
     const turnColorName = (qData.turn === BLACK) ? "黒番（⚫）" : "白番（⚪）";
     if (DOM.drillQuestionSub) DOM.drillQuestionSub.textContent = `手番：あなたの${turnColorName} ［狙い：${qData.desc}］`;
 
-    if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "none";
+    if (DOM.btnDrillRetry) {
+        DOM.btnDrillRetry.style.display = "none";
+        DOM.btnDrillRetry.classList.remove("btn-retry-pulse");
+    }
     if (DOM.btnDrillNextQuestion) DOM.btnDrillNextQuestion.style.display = "none";
     if (DOM.drillFeedbackBox) {
         DOM.drillFeedbackBox.className = "drill-feedback-box";
@@ -2214,6 +1803,7 @@ async function handleDrillCellClick(r, c) {
     const [cr, cc] = qData.correctMove;
     const isCorrect = (r === cr && c === cc);
     const key = `${r},${c}`;
+    const isMobilityFocusedQuestion = (qData.id >= 4 && qData.id <= 9);
 
     if (isCorrect) {
         playFanfareSound();
@@ -2228,13 +1818,31 @@ async function handleDrillCellClick(r, c) {
             addDrillBadge(r, c, "correct", "⭕ 正解！");
         }
 
+        if (isMobilityFocusedQuestion) {
+            showDoubleMobilityMarkers("good");
+        }
+
+        const pCount = getValidMoves(qData.turn, board).length;
+        const oCount = getValidMoves(opposite(qData.turn), board).length;
+        let formattedReason = qData.correctReason
+            .replace(/\{playerCount\}/g, pCount)
+            .replace(/\{oppCount\}/g, oCount);
+
         if (DOM.drillFeedbackBox) {
             DOM.drillFeedbackBox.className = "drill-feedback-box correct";
             DOM.drillFeedbackTitle.textContent = "正解！🎉 完璧な着手理由です！";
-            DOM.drillFeedbackReason.innerHTML = qData.correctReason;
+            DOM.drillFeedbackReason.innerHTML = formattedReason;
+            setTimeout(() => {
+                if (DOM.drillFeedbackBox) {
+                    DOM.drillFeedbackBox.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }, 50);
         }
 
-        if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "none";
+        if (DOM.btnDrillRetry) {
+            DOM.btnDrillRetry.style.display = "none";
+            DOM.btnDrillRetry.classList.remove("btn-retry-pulse");
+        }
         if (DOM.btnDrillNextQuestion) {
             DOM.btnDrillNextQuestion.style.display = "inline-block";
             if (currentDrillQuestionIndex >= 15) {
@@ -2261,16 +1869,34 @@ async function handleDrillCellClick(r, c) {
             addDrillBadge(r, c, "player", "❌ あなたの手");
         }
 
+        if (isMobilityFocusedQuestion) {
+            showDoubleMobilityMarkers("bad");
+        }
+
         const mistakeInfo = (qData.mistakes && qData.mistakes[key]) || null;
-        const reasonText = mistakeInfo ? mistakeInfo.reason : qData.defaultMistakeReason;
+        let reasonText = mistakeInfo ? mistakeInfo.reason : qData.defaultMistakeReason;
+
+        const pCount = getValidMoves(qData.turn, board).length;
+        const oCount = getValidMoves(opposite(qData.turn), board).length;
+        let formattedReason = reasonText
+            .replace(/\{playerCount\}/g, pCount)
+            .replace(/\{oppCount\}/g, oCount);
 
         if (DOM.drillFeedbackBox) {
             DOM.drillFeedbackBox.className = "drill-feedback-box wrong";
             DOM.drillFeedbackTitle.textContent = "惜しい！❌ なぜ悪手なのか確認しましょう";
-            DOM.drillFeedbackReason.innerHTML = reasonText;
+            DOM.drillFeedbackReason.innerHTML = formattedReason;
+            setTimeout(() => {
+                if (DOM.drillFeedbackBox) {
+                    DOM.drillFeedbackBox.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }, 50);
         }
 
-        if (DOM.btnDrillRetry) DOM.btnDrillRetry.style.display = "inline-block";
+        if (DOM.btnDrillRetry) {
+            DOM.btnDrillRetry.style.display = "inline-block";
+            DOM.btnDrillRetry.classList.add("btn-retry-pulse");
+        }
         if (DOM.btnDrillNextQuestion) DOM.btnDrillNextQuestion.style.display = "none";
 
         if (mistakeInfo && mistakeInfo.cpuResponse) {
@@ -2329,6 +1955,7 @@ window.closeCertificateAndChallengeKing = closeCertificateAndChallengeKing;
 
 function exitDrillMode() {
     if (!isDrillMode) return;
+    clearMobilityMarkers();
     playPlaceSound();
     restoreMainGameState();
 }
@@ -2482,8 +2109,8 @@ if (DOM.termPopupMore) {
             document.body.classList.add("modal-open-lock");
         }
 
-        manualTabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === "tab-terms"));
-        manualTabContents.forEach(c => c.classList.toggle("active", c.id === "tab-terms"));
+        manualTabBtns.forEach(b => b.classList.remove("active"));
+        manualTabContents.forEach(c => c.classList.remove("active"));
 
         const secEl = document.getElementById(targetSecId);
         if (secEl) setTimeout(() => secEl.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
@@ -3001,9 +2628,7 @@ function applyReviewStep(index) {
 /* ==========================================================================
   【イベントリスナー登録】
 ========================================================================== */
-const restartBtn = document.getElementById("restartButton");
-if (restartBtn) restartBtn.addEventListener("click", startGame);
-
+if (DOM.restartButton) DOM.restartButton.addEventListener("click", startGame);
 if (DOM.undoButton) DOM.undoButton.addEventListener("click", undoMove);
 if (DOM.hintButton) DOM.hintButton.addEventListener("click", computeHint);
 if (DOM.btnStartReview) DOM.btnStartReview.addEventListener("click", enterReviewMode);
@@ -3186,7 +2811,9 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-/* 初期化実行 */
+/* ==========================================================================
+  【初期化実行】
+========================================================================== */
 renderSystemVersionInfo();
 initCoordLabels();
 if (DOM.characterSelect) {

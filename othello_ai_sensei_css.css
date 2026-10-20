@@ -2,12 +2,13 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.7.0 (2025/05/20)
+  バージョン: Ver 8.7.1 (2025/05/20)
   
-  [Ver 8.7.0] 2025/05/20 更新内容:
-  - 【教育体系完全統合＆講義コマ送り操作エディション】
-  - 講義カード下部のコマ送りボタン群（◀ 前のステップ / 次のステップ ▶）の黄金比レイアウトを最適化。
-  - 講義用「相手の打てるマス（①〜⑨）」丸数字マーカー（.mobility-marker）の王朝スタイルを完全統合。
+  [Ver 8.7.1] 2025/05/20 更新内容:
+  - 【自分vs相手ダブル選択肢可視化＆教育体系極限エディション】
+  - ダブルマーカー（自分黒金 ❶ vs 相手白 ①）の表示位置を「マスの真ん中（中心配置）」へ改善。
+  - 中央配置コンテナを導入し、重複時でもマスの中心で美しく横並び表示して文字被りゼロを実現。
+  - 不正解時の「もう一度やり直す ↺」再挑戦ボタン点滅誘導パルス（.btn-retry-pulse）を実装。
 ========================================================================== */
 
 * {
@@ -670,46 +671,82 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
-/* 🌟 講義用：数字マーカー（①〜⑨）スタイル */
+/* ==========================================================================
+  【🌟 マーカー中央配置エンジン（単独ならド真ん中、重複時は中央横並び）】
+========================================================================== */
+.mobility-marker-wrap {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; z-index: 25; pointer-events: none;
+}
+
 .mobility-marker {
-    position: absolute; width: clamp(16px, 3.8vw, 22px); height: clamp(16px, 3.8vw, 22px);
+    position: relative;
+    width: clamp(16px, 3.6vw, 21px);
+    height: clamp(16px, 3.6vw, 21px);
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-family: 'Cinzel', serif; font-size: clamp(10px, 2.4vw, 13px); font-weight: 900;
-    z-index: 25; pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
-    animation: marker-pop-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
+    font-family: 'Cinzel', serif;
+    font-size: clamp(9.5px, 2.2vw, 12px);
+    font-weight: 900; pointer-events: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+    animation: marker-pop-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
 }
 @keyframes marker-pop-in {
     0% { transform: scale(0.2) translateY(-4px); opacity: 0; }
     100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-.marker-before {
-    background: linear-gradient(135deg, #3a86ff 0%, #004e92 100%);
-    border: 1.5px solid #ffffff; color: #ffffff;
-    box-shadow: 0 0 10px rgba(58, 134, 255, 0.8);
+/* 👑 あなた（黒）の手：黒地に金枠・純金文字 ❶❷❸ */
+.mobility-marker.marker-player {
+    background: linear-gradient(135deg, #1c1912 0%, #0a0a0c 100%);
+    border: 1.6px solid #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 2px 5px rgba(0,0,0,0.9);
 }
 
-.marker-bad {
+/* 💀 相手（白）の手：青／赤／緑の美しい光彩 */
+.mobility-marker.marker-opponent {
+    border: 1.6px solid #ffffff;
+}
+
+/* 青：Before現状の相手の打てる場所 */
+.marker-opponent.marker-before {
+    background: linear-gradient(135deg, #3a86ff 0%, #004e92 100%);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(58, 134, 255, 0.85);
+}
+
+/* 赤：大激増（外側を取って相手が大喜びの大失敗） */
+.marker-opponent.marker-bad {
     background: linear-gradient(135deg, #ff4d4d 0%, #b30000 100%);
-    border: 1.5px solid #ffffff; color: #ffffff;
-    box-shadow: 0 0 12px rgba(255, 77, 77, 0.9);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 77, 77, 0.95);
     animation: marker-bad-pulse 1.2s infinite alternate ease-in-out;
 }
 @keyframes marker-bad-pulse {
     from { transform: scale(0.92); box-shadow: 0 0 6px #ff4d4d; }
-    to { transform: scale(1.08); box-shadow: 0 0 16px #ff0000; }
+    to { transform: scale(1.08); box-shadow: 0 0 14px #ff0000; }
 }
 
-.marker-good {
+/* 緑：激減（中割りを決めて相手を封殺した大成功） */
+.marker-opponent.marker-good {
     background: linear-gradient(135deg, #2ecc71 0%, #157347 100%);
-    border: 1.5px solid #ffffff; color: #ffffff;
+    color: #ffffff;
     box-shadow: 0 0 14px rgba(46, 204, 113, 0.95);
     animation: marker-good-glow 1.2s infinite alternate ease-in-out;
 }
 @keyframes marker-good-glow {
     from { transform: scale(0.95); box-shadow: 0 0 8px #2ecc71; }
-    to { transform: scale(1.1); box-shadow: 0 0 18px #5ef7a2; }
+    to { transform: scale(1.1); box-shadow: 0 0 16px #5ef7a2; }
+}
+
+/* 🌟 不正解時の「もう一度やり直す ↺」ボタン点滅パルス誘導 */
+.btn-retry-pulse {
+    animation: retry-btn-glow-pulse 1.3s infinite alternate ease-in-out !important;
+}
+@keyframes retry-btn-glow-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 6px rgba(255, 215, 0, 0.4); border-color: #ffd700; }
+    100% { transform: scale(1.06); box-shadow: 0 0 16px rgba(255, 215, 0, 0.95); border-color: #ffffff; color: #ffffff; }
 }
 
 /* ==========================================================================
@@ -932,7 +969,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .lecture-explain-box {
     background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(212, 167, 72, 0.3);
     border-radius: 6px; padding: 4px 8px; font-size: 10.5px; line-height: 1.4; color: #fff4bd;
-    overflow-y: auto; margin-top: 2px; flex: 1; min-height: 0;
+    overflow-y: auto; margin-top: 2px; flex: 1; min-height: 0; scroll-behavior: smooth;
 }
 .lecture-step-log { margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
 .lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
@@ -1002,7 +1039,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .drill-feedback-box {
     display: none; border-radius: 6px; padding: 5px 8px; font-size: 10.5px; line-height: 1.45;
     margin-top: 3px; animation: popup-fade-in 0.25s ease forwards;
-    flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box;
+    flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; scroll-behavior: smooth;
 }
 .drill-feedback-box.correct {
     display: block; background: rgba(14, 46, 26, 0.92); border: 1.5px solid #2ecc71; color: #d4f8e2;
@@ -1652,5 +1689,4 @@ footer.app-footer { width: 100%; max-width: 1200px; display: flex; justify-conte
     .opponent-zone { order: 3; width: clamp(280px, 24vw, 360px); height: auto; max-height: none; }
     .opponent-avatar-frame { width: clamp(84px, 8.5vw, 98px); height: clamp(110px, 11vw, 128px); }
 }
-
 
