@@ -2,11 +2,13 @@
 <!-- ==========================================================================
   【オセロプログラム メインHTML構造】
   ファイル名: othello_ai_sensei.html
-  バージョン: Ver 8.7.0 (2025/05/20)
+  バージョン: Ver 8.7.4 (2025/05/20)
   
-  [Ver 8.7.0] 2025/05/20 更新内容:
-  - 【教育体系完全統合＆講義コマ送り操作エディション】
-  - 講義コントロールカードを自動再生から「◀ 前のステップ」「次のステップ ▶」のコマ送り方式へ刷新。
+  [Ver 8.7.4] 2025/05/20 更新内容:
+  - 【教育体系・盤面数理完全適合エディション】
+  - 思案所内の定石表記を「兎定石・牛定石・虎定石」に完全統一。
+  - 虎定石の手順（平行取り）を是正し、出典のない記述を全廃。
+  - 第4奥義の説明文を正当な「クサビ打ちによる辺の分断」に修正。
 ========================================================================== -->
 
 <!DOCTYPE html>
@@ -641,14 +643,14 @@
                         <span>🌱 第3奥義：至高の手筋「中割り」</span>
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">盤面講義を見る 📖</button>
                     </div>
-                    <div>相手の打てる場所（①〜⑨）を削り取り、安全な逃げ場をなくして危険マスへ自滅させるオセロ最強手筋を学びます。</div>
+                    <div>相手の打てる場所を削り取り、安全な逃げ場をなくして危険マスへ自滅させるオセロ最強手筋を学びます。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
-                        <span>💎 第4奥義：Cマスの罠とウイング破り</span>
+                        <span>💎 第4奥義：辺の攻防とクサビ打ち</span>
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-4')">盤面講義を見る 📖</button>
                     </div>
-                    <div>相手のウイングの隙間にあえてCマスからクサビを打ち込み、角を確定強奪する高度な辺の攻防を実演します。</div>
+                    <div>相手が作った辺の隙間にクサビを打ち込み、角を取られずに相手の陣形を分断する高度な辺の攻防を実演します。</div>
                 </div>
                 <div class="manual-card">
                     <div class="manual-card-title">
@@ -691,7 +693,7 @@
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-3')">講義 📖</button>
                     </div>
                     <div style="margin-bottom:6px;">
-                        <b>🌱 中割り（なかわり）：</b>外側に石を露出させず、内側の石だけを返す着手。相手の打てる場所を増やさず、安全な逃げ場を削り取って自滅へ追い込みます。
+                        <b>🌱 中割り（なかわり）：</b>外側に石を露出させず、内側の石だけを返す着手。相手の打てるマス数を増やさず、安全な逃げ場を削り取って自滅へ追い込みます。
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🧱 壁（かべ）：</b>外側に自分の石がずらりと一直線に並んでしまうこと。相手に無数の足場を与えてしまうため、敗着の典型とされます。
@@ -707,17 +709,17 @@
                 <!-- 📖 三大王道定石セクション -->
                 <div class="manual-card" id="term-sec-openings">
                     <div class="manual-card-title">
-                        <span>📖 三大王道定石の系譜（虎・牛・馬）</span>
+                        <span>📖 三大王道定石の系譜（兎・牛・虎）</span>
                         <button type="button" class="btn-inline-drill" onclick="startLectureMode('lec-openings')">定石実演講義 📖</button>
                     </div>
                     <div style="margin-bottom:6px;">
-                        <b>🐯 虎定石（トラ・平行取り）：</b>初手F5に対し平行取りD6や縦取りから展開する王道定石。中央を制圧し主導権を握りやすい基本形です。
+                        <b>🐰 兎定石（ウサギ・平行取り）：</b>初手F5に対し平行取りD6からC5と打つ王道定石。初心者でも確実にきれいな中割りが決まるオセロの基本形です。
                     </div>
                     <div style="margin-bottom:6px;">
                         <b>🐮 牛定石（ウシ・縦取り）：</b>縦取りF6からC4に打つ重厚な定石。内側をガッチリ固める堅実な棋風に向いています。
                     </div>
                     <div>
-                        <b>🐴 馬定石（ウマ・斜め取り）：</b>斜め取りF4からE3に展開する名定石。後手（白）が高勝率を誇る柔軟な陣形です。
+                        <b>🐯 虎定石（トラ・平行取り）：</b>初手F5に対し平行取りD6からC3に展開する王道定石。中央を制圧し手数を重視する基本形です。
                     </div>
                 </div>
             </div>
@@ -738,7 +740,7 @@
     <!-- フッター -->
     <footer class="app-footer">
         <div class="footer-brand"><span>👑 OTHELLO 2026 AI SENSEI</span></div>
-        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.7.0</div>
+        <div class="footer-version" id="versionBadge" title="歴代バージョン年代記を開く">Ver 8.7.4</div>
     </footer>
 
     <div class="bottom-safe-space"></div>
@@ -748,4 +750,5 @@
     <script src="othello_ai_sensei_js.js"></script>
 </body>
 </html>
+
 

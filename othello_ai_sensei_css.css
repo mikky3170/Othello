@@ -2,13 +2,13 @@
 /* ==========================================================================
   【オセロプログラム スタイルシート（バロック王朝美術デザイン）】
   ファイル名: othello_ai_sensei_css.css
-  バージョン: Ver 8.7.1 (2025/05/20)
+  バージョン: Ver 8.7.6 (2025/05/20)
   
-  [Ver 8.7.1] 2025/05/20 更新内容:
-  - 【自分vs相手ダブル選択肢可視化＆教育体系極限エディション】
-  - ダブルマーカー（自分黒金 ❶ vs 相手白 ①）の表示位置を「マスの真ん中（中心配置）」へ改善。
-  - 中央配置コンテナを導入し、重複時でもマスの中心で美しく横並び表示して文字被りゼロを実現。
-  - 不正解時の「もう一度やり直す ↺」再挑戦ボタン点滅誘導パルス（.btn-retry-pulse）を実装。
+  [Ver 8.7.6] 2025/05/20 更新内容:
+  - 【教育体系・実在棋譜盤面完全適合エディション】
+  - 天秤ゲージのトラック枠（overflow: visible）と白熱スパーク針の視認性を完全保証。
+  - 正解時に展開される「過去の間違い試行履歴と正解手の順次対比カード」スタイルを追加。
+  - 全10ステージのバロック美術テーマ、3ゾーン構成、固定スロット高を100%完全保護。
 ========================================================================== */
 
 * {
@@ -438,14 +438,17 @@ header {
     border: 1px solid var(--gold-border); padding: 1px 6px; border-radius: 5px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); letter-spacing: 0.04em;
 }
-.battle-track {
-    position: relative; height: 9px; background: #111318; border: 1.5px solid var(--gold-border);
-    border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
-}
-.battle-center-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: rgba(255, 255, 255, 0.35); z-index: 10; transform: translateX(-50%); }
 
-.battle-power-player { height: 100%; transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; }
-.battle-power-opponent { height: 100%; flex: 1; transition: all 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; }
+/* 天秤トラック枠：針（スパーク）を切り取らないよう overflow: visible に改善 */
+.battle-track {
+    position: relative; height: 10px; background: #111318; border: 1.5px solid var(--gold-border);
+    border-radius: 6px; display: flex; box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
+    overflow: visible !important;
+}
+.battle-center-mark { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1.5px; background: rgba(255, 255, 255, 0.5); z-index: 10; transform: translateX(-50%); }
+
+.battle-power-player { height: 100%; transition: width 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; border-radius: 4px 0 0 4px; }
+.battle-power-opponent { height: 100%; flex: 1; transition: all 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); position: relative; border-radius: 0 4px 4px 0; }
 
 .gauge-player-black .battle-power-player {
     background: linear-gradient(90deg, #0d0f14 0%, #20242e 70%, #414a5d 100%);
@@ -465,10 +468,12 @@ header {
     box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.15);
 }
 
+/* 白熱スパーク針：中央と移動位置でクッキリ視認できるよう強化 */
 .battle-clash-spark {
-    position: absolute; top: -2px; width: 5px; height: 13px; background: #ffffff; border-radius: 2px;
-    box-shadow: 0 0 8px #ffd700, 0 0 14px #ffffff; transform: translateX(-50%); z-index: 15;
+    position: absolute; top: -3.5px; width: 6px; height: 17px; background: #ffffff; border-radius: 3px;
+    box-shadow: 0 0 10px #ffd700, 0 0 20px #ffffff, 0 0 2px #000; transform: translateX(-50%); z-index: 20;
     transition: left 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+    pointer-events: none;
 }
 
 .dynasty-board-chassis {
@@ -547,6 +552,7 @@ header {
     padding: 0 4px; border-radius: 3px; z-index: 12; box-shadow: 0 1px 4px rgba(0,0,0,0.8);
 }
 
+/* ガイドリング（打てるマス） */
 .can-place { background-color: rgba(212, 167, 72, 0.08); }
 .can-place::after {
     content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
@@ -586,6 +592,7 @@ header {
 .toast-best { background: linear-gradient(135deg, rgba(38, 32, 15, 0.96) 0%, rgba(20, 16, 6, 0.98) 100%); border: 1.5px solid #ffd700; color: #fff6c9; box-shadow: 0 0 24px rgba(255, 215, 0, 0.75); }
 .toast-good { background: linear-gradient(135deg, rgba(22, 35, 28, 0.96) 0%, rgba(10, 20, 14, 0.98) 100%); border: 1.5px solid #2ecc71; color: #d4f8e2; box-shadow: 0 0 20px rgba(46, 204, 113, 0.6); }
 .toast-bad { background: linear-gradient(135deg, rgba(45, 15, 15, 0.96) 0%, rgba(22, 8, 8, 0.98) 100%); border: 1.5px solid #ff4d4d; color: #ffd8d8; box-shadow: 0 0 24px rgba(255, 77, 77, 0.75); }
+.toast-invalid { background: linear-gradient(135deg, rgba(38, 30, 16, 0.96) 0%, rgba(20, 16, 8, 0.98) 100%); border: 1.5px solid #e5b842; color: #fff4bd; box-shadow: 0 0 20px rgba(229, 184, 66, 0.7); font-size: 11px; padding: 6px 14px; }
 .toast-pass { background: linear-gradient(135deg, rgba(36, 28, 14, 0.96) 0%, rgba(18, 14, 6, 0.98) 100%); border: 2px solid #ffd700; color: #fff5cc; box-shadow: 0 0 28px rgba(255, 215, 0, 0.85); font-size: 14px; padding: 10px 20px; }
 .toast-finish { background: linear-gradient(135deg, rgba(40, 32, 10, 0.98) 0%, rgba(15, 12, 3, 0.98) 100%); border: 2.5px solid #ffd700; color: #ffffff; box-shadow: 0 0 35px rgba(255, 215, 0, 0.95); font-size: 16px; padding: 12px 24px; }
 
@@ -625,6 +632,16 @@ header {
 .stone-face-front { transform: rotateX(0deg) translateZ(1.5px); }
 .stone-face-back { transform: rotateX(180deg) translateZ(1.5px); }
 .stone-edge-rim { position: absolute; inset: 0; border-radius: 50%; transform: translateZ(0px); border: 1px solid rgba(45, 42, 38, 0.85); transition: background 0.6s ease; }
+
+/* 🌟 講義・反転石の金枠パルスハイライト演出 */
+.lecture-flipped-highlight {
+    box-shadow: inset 0 0 0 2.5px #ffd700, inset 0 0 16px rgba(255, 215, 0, 0.9) !important;
+    animation: flipped-pulse 1.2s infinite alternate ease-in-out !important;
+}
+@keyframes flipped-pulse {
+    0% { transform: scale(1); box-shadow: inset 0 0 0 2px #d4a748, inset 0 0 8px rgba(212, 167, 72, 0.5); }
+    100% { transform: scale(1.05); box-shadow: inset 0 0 0 3px #ffffff, inset 0 0 20px rgba(255, 215, 0, 1); }
+}
 
 /* 🎯 ドリル・検定専用マス演出 */
 .drill-correct-pulse {
@@ -671,9 +688,7 @@ header {
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 2px 6px rgba(0,0,0,0.8);
 }
 
-/* ==========================================================================
-  【🌟 マーカー中央配置エンジン（単独ならド真ん中、重複時は中央横並び）】
-========================================================================== */
+/* マーカー中央配置エンジン */
 .mobility-marker-wrap {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -696,7 +711,6 @@ header {
     100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-/* 👑 あなた（黒）の手：黒地に金枠・純金文字 ❶❷❸ */
 .mobility-marker.marker-player {
     background: linear-gradient(135deg, #1c1912 0%, #0a0a0c 100%);
     border: 1.6px solid #ffd700;
@@ -704,19 +718,14 @@ header {
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 2px 5px rgba(0,0,0,0.9);
 }
 
-/* 💀 相手（白）の手：青／赤／緑の美しい光彩 */
-.mobility-marker.marker-opponent {
-    border: 1.6px solid #ffffff;
-}
+.mobility-marker.marker-opponent { border: 1.6px solid #ffffff; }
 
-/* 青：Before現状の相手の打てる場所 */
 .marker-opponent.marker-before {
     background: linear-gradient(135deg, #3a86ff 0%, #004e92 100%);
     color: #ffffff;
     box-shadow: 0 0 10px rgba(58, 134, 255, 0.85);
 }
 
-/* 赤：大激増（外側を取って相手が大喜びの大失敗） */
 .marker-opponent.marker-bad {
     background: linear-gradient(135deg, #ff4d4d 0%, #b30000 100%);
     color: #ffffff;
@@ -728,7 +737,6 @@ header {
     to { transform: scale(1.08); box-shadow: 0 0 14px #ff0000; }
 }
 
-/* 緑：激減（中割りを決めて相手を封殺した大成功） */
 .marker-opponent.marker-good {
     background: linear-gradient(135deg, #2ecc71 0%, #157347 100%);
     color: #ffffff;
@@ -740,7 +748,6 @@ header {
     to { transform: scale(1.1); box-shadow: 0 0 16px #5ef7a2; }
 }
 
-/* 🌟 不正解時の「もう一度やり直す ↺」ボタン点滅パルス誘導 */
 .btn-retry-pulse {
     animation: retry-btn-glow-pulse 1.3s infinite alternate ease-in-out !important;
 }
@@ -749,9 +756,7 @@ header {
     100% { transform: scale(1.06); box-shadow: 0 0 16px rgba(255, 215, 0, 0.95); border-color: #ffffff; color: #ffffff; }
 }
 
-/* ==========================================================================
-  【ゾーン③：操作・説明共通固定ゾーン】
-========================================================================== */
+/* ゾーン③：操作・説明共通固定ゾーン */
 .player-control-zone {
     width: min(98vw, 440px);
     height: var(--slot-fixed-height);
@@ -971,15 +976,39 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     border-radius: 6px; padding: 4px 8px; font-size: 10.5px; line-height: 1.4; color: #fff4bd;
     overflow-y: auto; margin-top: 2px; flex: 1; min-height: 0; scroll-behavior: smooth;
 }
-.lecture-step-log { margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
+.lecture-step-log { margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15); }
 .lecture-step-log:last-child { margin-bottom: 0; border-bottom: none; }
 .lecture-step-log b { color: #5ef7a2; font-size: 11px; }
+
+/* 講義用：Before ➔ After 数値対比並列HUDボックス */
+.lecture-mobility-compare-box {
+    display: flex; flex-direction: column; gap: 3px; margin: 4px 0 2px 0;
+    padding: 4px 6px; border-radius: 6px;
+    background: linear-gradient(135deg, rgba(16, 20, 30, 0.95) 0%, rgba(8, 10, 16, 0.98) 100%);
+    border: 1px solid rgba(212, 167, 72, 0.35); box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+}
+.compare-header-title { font-size: 9.5px; font-weight: 800; color: #ffd700; display: flex; align-items: center; gap: 4px; }
+.compare-grid-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; padding: 1.5px 2px; border-radius: 4px; }
+.compare-grid-row.player-row { background: rgba(0, 0, 0, 0.3); }
+.compare-grid-row.opponent-row { background: rgba(255, 255, 255, 0.05); }
+
+.compare-badge-val {
+    font-family: 'Cinzel', serif; font-size: 10.5px; font-weight: 900;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.diff-tag {
+    font-size: 9px; font-weight: 900; padding: 0 4px; border-radius: 3px; line-height: 1.3;
+}
+.diff-tag.diff-good { background: #2ecc71; color: #042415; }
+.diff-tag.diff-bad { background: #ff4d4d; color: #ffffff; }
+.diff-tag.diff-same { background: rgba(255, 255, 255, 0.15); color: #e0d0b0; }
+
 .lecture-solution-card {
     background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; border-radius: 6px;
     padding: 3px 6px; color: #d4f8e2; font-size: 10px; font-weight: 800; margin-top: 2px;
 }
 
-/* 🌟 コマ送りボタングリッド */
+/* 講義ボタングリッド */
 .lecture-actions-bar {
     display: flex; justify-content: space-between; align-items: center; margin-top: 2px;
     padding-top: 3px; border-top: 1px solid rgba(212, 167, 72, 0.25); gap: 3.5px; flex-wrap: nowrap; flex-shrink: 0;
@@ -1022,7 +1051,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 /* ④ 🎯 検定解答カード */
 .drill-control-card {
     display: none; background: linear-gradient(145deg, rgba(20, 24, 34, 0.98) 0%, rgba(10, 12, 18, 0.99) 100%);
-    border: 2px solid #ffd700; border-radius: 12px; padding: 8px 11px;
+    border: 2px solid #ffd700; border-radius: 12px; padding: 7px 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 215, 0, 0.45);
     flex-direction: column; justify-content: space-between; text-align: left;
     animation: popup-fade-in 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.25) forwards;
@@ -1033,28 +1062,85 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 .drill-topic-badge { font-size: 11px; font-weight: 900; color: #ffd700; display: inline-flex; align-items: center; gap: 4px; }
 .drill-diff-badge { font-family: 'Cinzel', serif; font-size: 9.5px; font-weight: 900; padding: 1.5px 6px; border-radius: 4px; background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; color: #fff4bd; }
 
-.drill-question-box { font-size: 12px; font-weight: 800; color: #ffffff; line-height: 1.38; margin-top: 2px; flex-shrink: 0; }
-.drill-question-sub { font-size: 10px; color: #ecd08c; margin-top: 1px; }
+.drill-question-box { font-size: 11.5px; font-weight: 800; color: #ffffff; line-height: 1.35; margin-top: 2px; flex-shrink: 0; }
+.drill-question-sub { font-size: 9.5px; color: #ecd08c; margin-top: 1px; }
 
+/* 検定解説ボックス：着手後に100%確実に展開表示 */
 .drill-feedback-box {
-    display: none; border-radius: 6px; padding: 5px 8px; font-size: 10.5px; line-height: 1.45;
-    margin-top: 3px; animation: popup-fade-in 0.25s ease forwards;
+    display: none; border-radius: 6px; padding: 4px 7px; font-size: 10px; line-height: 1.4;
+    margin-top: 2px; animation: popup-fade-in 0.25s ease forwards;
     flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; scroll-behavior: smooth;
 }
 .drill-feedback-box.correct {
-    display: block; background: rgba(14, 46, 26, 0.92); border: 1.5px solid #2ecc71; color: #d4f8e2;
+    display: block !important; background: rgba(14, 46, 26, 0.92); border: 1.5px solid #2ecc71; color: #d4f8e2;
     box-shadow: 0 0 14px rgba(46, 204, 113, 0.45);
 }
 .drill-feedback-box.wrong {
-    display: block; background: rgba(48, 14, 14, 0.92); border: 1.5px solid #ff4d4d; color: #ffd8d8;
+    display: block !important; background: rgba(48, 14, 14, 0.92); border: 1.5px solid #ff4d4d; color: #ffd8d8;
     box-shadow: 0 0 14px rgba(255, 77, 77, 0.45);
 }
 
 .drill-reason-act {
-    margin-bottom: 3px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+    margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
 }
 .drill-reason-act:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-.drill-reason-act b { color: #ffd700; font-size: 11px; }
+.drill-reason-act b { color: #ffd700; font-size: 10.5px; }
+
+/* 🌟 検定用：石数＆手数のダブル完全対比HUDボックス */
+.drill-mobility-compare-box {
+    display: flex; flex-direction: column; gap: 2.5px; margin: 2px 0 4px 0;
+    padding: 4px 6px; border-radius: 6px;
+    background: linear-gradient(135deg, rgba(14, 18, 26, 0.98) 0%, rgba(6, 8, 12, 0.99) 100%);
+    border: 1.5px solid rgba(212, 167, 72, 0.45); box-shadow: inset 0 1px 4px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.6);
+}
+
+.drill-compare-section {
+    display: flex; flex-direction: column; gap: 1.5px;
+    padding: 2.5px 5px; border-radius: 5px;
+}
+.drill-compare-section.section-your-move {
+    background: rgba(230, 57, 70, 0.15); border: 1px solid rgba(230, 57, 70, 0.4);
+}
+.drill-compare-section.section-correct-move {
+    background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.4);
+}
+.drill-compare-section.section-single-correct {
+    background: rgba(46, 204, 113, 0.13); border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.drill-compare-header {
+    font-size: 9px; font-weight: 900; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1px;
+}
+.section-your-move .drill-compare-header { color: #ff9e9e; }
+.section-correct-move .drill-compare-header,
+.section-single-correct .drill-compare-header { color: #5ef7a2; }
+
+.drill-compare-row {
+    display: flex; justify-content: space-between; align-items: center; font-size: 9px; padding: 1px 2px;
+}
+.drill-compare-row span:first-child { color: #ecd08c; font-weight: 800; white-space: nowrap; }
+
+.drill-compare-summary {
+    font-size: 9px; line-height: 1.35; color: #fff4bd; padding: 2px 5px;
+    background: rgba(0, 0, 0, 0.5); border-radius: 4px; border-left: 2.5px solid #ffd700; margin-top: 1px;
+}
+
+/* 🌟 正解時：過去の間違い試行履歴と正解手の順次対比カードスタイル */
+.drill-attempt-history-box {
+    display: flex; flex-direction: column; gap: 3px; margin: 3px 0 2px 0;
+    padding: 4px 6px; border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(212, 167, 72, 0.3);
+}
+.drill-attempt-title {
+    font-size: 9.5px; font-weight: 900; color: #ffd700; margin-bottom: 1px;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.drill-attempt-item {
+    font-size: 9px; line-height: 1.35; color: #ffd8d8;
+    background: rgba(230, 57, 70, 0.12); border: 1px dashed rgba(230, 57, 70, 0.35);
+    padding: 2.5px 5px; border-radius: 4px;
+}
+.drill-attempt-item b { color: #ffffff; }
 
 .drill-actions-bar {
     display: flex; justify-content: space-between; align-items: center; margin-top: 3px;
@@ -1066,7 +1152,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 }
 .drill-btn-retry {
     background: linear-gradient(180deg, #442a1a 0%, #201209 100%); color: #ecd08c;
-    border: 1.5px solid rgba(212, 167, 72, 0.6); display: none;
+    border: 1.5px solid rgba(212, 167, 72, 0.6); display: inline-block;
 }
 .drill-btn-retry:hover { border-color: #ffd700; color: #fff; transform: translateY(-1px); }
 .drill-btn-lecture {
@@ -1206,7 +1292,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
 }
 .stats-col { display: flex; flex-direction: column; gap: 1px; align-items: center; }
 .stats-col-title { font-size: 9px; color: #bfa882; font-weight: 700; }
-.stats-col-val { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 900; color: #fff4bd; display: inline-flex; align-items: gap: 4px; }
+.stats-col-val { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 900; color: #fff4bd; display: inline-flex; align-items: center; gap: 4px; }
 
 .ai-tactics-carte {
     background: linear-gradient(135deg, rgba(28, 24, 18, 0.94) 0%, rgba(14, 12, 10, 0.97) 100%);
@@ -1531,7 +1617,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     flex-shrink: 0; margin-left: auto;
 }
 
-/* 👑 3段階ピラミッド教育体系 専用スタイル定義 */
+/* 3段階ピラミッド教育体系スタイル定義 */
 .pyramid-step-card {
     border: 1.8px solid rgba(212, 167, 72, 0.55);
     background: linear-gradient(145deg, rgba(32, 36, 48, 0.92) 0%, rgba(14, 16, 24, 0.98) 100%);
@@ -1563,7 +1649,7 @@ button { font-family: inherit; cursor: pointer; border-radius: 6px; transition: 
     font-size: 9.5px; font-weight: 800; color: #ffadad; background: rgba(230, 57, 70, 0.15);
     border: 1px solid rgba(230, 57, 70, 0.5); padding: 2px 7px; border-radius: 5px; white-space: nowrap;
 }
-.pyramid-summary-text {
+.summary-text {
     font-size: 10.5px; color: #f2e9d2; line-height: 1.45; font-style: italic;
     background: rgba(0, 0, 0, 0.35); padding: 5px 8px; border-radius: 6px;
     border-left: 3px solid #ffd700;
